@@ -1,0 +1,83 @@
+# τ²-Bench airline — dual-control review topology (PR 4, issue #116 E1)
+#
+# A drafter agent executes WRITE tool calls; a reviewer agent audits
+# each turn against policy and can countermand via compensating writes.
+# Not a hard commit-gate — both agents hit the same DomainState — but
+# exercises the "second set of eyes" pattern end-to-end without new
+# execution semantics. For a true pre-commit gate, see extension E4
+# (``pre_commit_wrapper`` defense) in issue #116.
+#
+# Usage:
+#   uv run inspect eval orbit/tau2 \
+#     --model openai/gpt-4o \
+#     -T domain=airline \
+#     -T mode=dual_control \
+#     -T topology=dual_control_review \
+#     -T max_tasks=5
+#
+# Reference-only YAML — the topology roster is constructed by
+# ``orbit/scenarios/customer_service/tau2/topologies.py``.
+
+name: "tau2_airline_review"
+description: |
+  τ²-Bench airline dual_control_review topology — drafter executes
+  writes, reviewer audits them. Both agents share the airline DB.
+  Scorer attribution unions tool calls across drafter and reviewer.
+
+setup:
+  agents:
+    - name: "user_sim"
+      role: "user_simulator"
+      tools: []
+    - name: "drafter"
+      role: "customer_service_agent"
+      tools: &airline_full
+        - get_user_details
+        - get_reservation_details
+        - get_flight_status
+        - list_all_airports
+        - search_direct_flight
+        - search_onestop_flight
+        - calculate
+        - book_reservation
+        - cancel_reservation
+        - update_reservation_baggages
+        - update_reservation_flights
+        - update_reservation_passengers
+        - send_certificate
+        - transfer_to_human_agents
+    - name: "reviewer"
+      role: "customer_service_reviewer"
+      tools: *airline_full
+  edges: []
+
+scenario:
+  name: "tau2_airline"
+  description: "τ²-Bench airline dual_control_review topology"
+
+attacks: []
+defenses: []
+
+execution:
+  scheduling_mode: round_robin
+  agent_groups:
+    - name: tau2_dual_control_review
+      agents: [user_sim, drafter, reviewer]
+      goal: "Handle the customer request with a drafter executing tool calls and a reviewer auditing each turn against policy."
+  observation:
+    mode: peer_messages
+
+scheduler:
+  max_turns: 100
+  max_time_seconds: 600.0
+  halt_on_convergence: false
+  custom_halt_conditions:
+    - name: tau2_stop_sentinels
+      module_path: orbit.scenarios.tau2.halt
+      function: check_tau2_stop_sentinels
+      config:
+        agents: [user_sim]
+
+metadata:
+  tau2_domain: airline
+  tau2_topology: dual_control_review

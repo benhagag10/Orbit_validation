@@ -1,0 +1,89 @@
+# τ²-Bench telecom — dual-control mode (PR 3, tasks_small)
+#
+# Telecom exercises the fullest slice of the tau2 infrastructure:
+#   - Two-side env (agent DB + user-side mock-phone DB)
+#   - initial_state.initialization_actions replayed pre-loop
+#   - user-side tool calls from the user simulator (30 device tools)
+#   - ENV_ASSERTION scoring (the dominant reward_basis on telecom)
+#
+# Upstream ships both `tasks.json` (2285 tasks, ~14 MB — not vendored
+# in Orbit) and `tasks_small.json` (20 tasks, the regression subset
+# upstream uses for most paper numbers). Orbit defaults to the small
+# set via `use_telecom_small=True`.
+#
+# Usage:
+#   uv run inspect eval orbit/tau2 \
+#     --model openai/gpt-4o \
+#     -T domain=telecom \
+#     -T mode=dual_control \
+#     -T max_tasks=5
+#
+#   # Full tasks_small.json sweep with pass^k:
+#   uv run inspect eval orbit/tau2 \
+#     -T domain=telecom \
+#     --epochs 4 \
+#     --model openai/gpt-4o
+
+name: "tau2_telecom_small"
+description: |
+  τ²-Bench telecom dual-control — 20 tasks_small.json regression
+  subset. Agent assistant + user_sim with device-diagnostic tools;
+  reward_basis includes ENV_ASSERTION (evaluated by the scorer
+  against the agent's final shadow env).
+
+setup:
+  agents:
+    - name: "user_sim"
+      role: "user_simulator"
+      # Telecom user_sim gets the full device-diagnostics tool set by
+      # default. A task can override this via its optional `user_tools`
+      # field; Orbit's config_builder respects that override.
+      tools: []
+    - name: "assistant"
+      role: "customer_service_agent"
+      tools:
+        - get_customer_by_phone
+        - get_customer_by_id
+        - get_customer_by_name
+        - get_details_by_id
+        - suspend_line
+        - resume_line
+        - get_bills_for_customer
+        - send_payment_request
+        - get_data_usage
+        - enable_roaming
+        - disable_roaming
+        - refuel_data
+        - transfer_to_human_agents
+  edges: []
+
+scenario:
+  name: "tau2_telecom"
+  description: "τ²-Bench telecom customer-service scenario (small set)"
+
+attacks: []
+defenses: []
+
+execution:
+  scheduling_mode: round_robin
+  agent_groups:
+    - name: tau2_dual_control
+      agents: [user_sim, assistant]
+      goal: "Complete the customer request through a dual-control conversation while following domain policy."
+  observation:
+    mode: peer_messages
+
+scheduler:
+  max_turns: 100
+  max_time_seconds: 600.0
+  halt_on_convergence: false
+  custom_halt_conditions:
+    - name: tau2_stop_sentinels
+      module_path: orbit.scenarios.tau2.halt
+      function: check_tau2_stop_sentinels
+
+metadata:
+  tau2_domain: telecom
+  tau2_mode: dual_control
+  tau2_upstream_commit: "a11d95e19a049638dd3fd7c5b941a509422452dc"
+  tau2_dataset: tasks_small.json

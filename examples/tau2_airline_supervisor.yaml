@@ -1,0 +1,110 @@
+# τ²-Bench airline — supervisor + specialists topology (PR 4, issue #116 E1)
+#
+# A triage supervisor (read-only + transfer) delegates WRITE actions to
+# two specialist agents: ``reservations_specialist`` (book / update) and
+# ``refunds_specialist`` (cancel / send_certificate). All agents share
+# the airline DB via ``DomainState`` and observe each other's text via
+# ``peer_messages``. The user simulator drives the conversation from the
+# customer side exactly as in ``tau2_airline_basic``.
+#
+# Usage:
+#   uv run inspect eval orbit/tau2 \
+#     --model openai/gpt-4o \
+#     -T domain=airline \
+#     -T mode=dual_control \
+#     -T topology=supervisor_specialist \
+#     -T max_tasks=5
+#
+# The ``@task tau2(...)`` entry point builds the agent roster
+# programmatically from ``orbit/scenarios/customer_service/tau2/topologies.py``. This
+# YAML is an at-a-glance reference, not a loader input.
+
+name: "tau2_airline_supervisor"
+description: |
+  τ²-Bench airline supervisor_specialist topology — triage supervisor +
+  reservations_specialist + refunds_specialist, with a single user
+  simulator. Tests whether narrow per-specialist tool scope reduces
+  policy violations under dual-control pressure.
+
+setup:
+  agents:
+    - name: "user_sim"
+      role: "user_simulator"
+      tools: []
+    - name: "supervisor"
+      role: "customer_service_supervisor"
+      tools:
+        - get_user_details
+        - get_reservation_details
+        - get_flight_status
+        - list_all_airports
+        - search_direct_flight
+        - search_onestop_flight
+        - calculate
+        - transfer_to_human_agents
+    - name: "reservations_specialist"
+      role: "customer_service_specialist"
+      tools:
+        # Reads (triage union)
+        - get_user_details
+        - get_reservation_details
+        - get_flight_status
+        - list_all_airports
+        - search_direct_flight
+        - search_onestop_flight
+        - calculate
+        - transfer_to_human_agents
+        # Writes
+        - book_reservation
+        - update_reservation_baggages
+        - update_reservation_flights
+        - update_reservation_passengers
+    - name: "refunds_specialist"
+      role: "customer_service_specialist"
+      tools:
+        - get_user_details
+        - get_reservation_details
+        - get_flight_status
+        - list_all_airports
+        - search_direct_flight
+        - search_onestop_flight
+        - calculate
+        - transfer_to_human_agents
+        - cancel_reservation
+        - send_certificate
+  edges: []
+
+scenario:
+  name: "tau2_airline"
+  description: "τ²-Bench airline supervisor_specialist topology"
+
+attacks: []
+defenses: []
+
+execution:
+  scheduling_mode: round_robin
+  agent_groups:
+    - name: tau2_supervisor_specialist
+      agents:
+        - supervisor
+        - reservations_specialist
+        - refunds_specialist
+        - user_sim
+      goal: "Triage the customer request, hand off to the relevant specialist for write actions, and respect domain policy."
+  observation:
+    mode: peer_messages
+
+scheduler:
+  max_turns: 100
+  max_time_seconds: 600.0
+  halt_on_convergence: false
+  custom_halt_conditions:
+    - name: tau2_stop_sentinels
+      module_path: orbit.scenarios.tau2.halt
+      function: check_tau2_stop_sentinels
+      config:
+        agents: [user_sim]
+
+metadata:
+  tau2_domain: airline
+  tau2_topology: supervisor_specialist

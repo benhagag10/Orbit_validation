@@ -1,0 +1,75 @@
+[project]
+name = "orbit"
+version = "0.1.0"
+description = "Orbit: Multi-AI Agent Security Benchmark Toolkit built on Inspect AI"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+authors = [{name = "The Orbit Authors"}]
+dependencies = [
+    "inspect-ai>=0.3.74",
+    "openai>=1.0",
+    "pyyaml>=6.0",
+    "click>=8.0",
+    "pydantic>=2.0",
+    "httpx>=0.27",
+    "matplotlib>=3.10.9",
+    "pymupdf>=1.27.2.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+]
+langgraph = [
+    "langgraph",
+    "langchain-openai",
+    "langsmith",
+]
+browserart = [
+    "browsergym>=0.10.0",
+    "starlette>=0.46",
+    "anthropic>=0.30",
+]
+swebench = [
+    "swebench>=3.0",
+    "docker>=7.0",
+]
+dcop = [
+    "scipy>=1.11",
+]
+osworld = [
+    "inspect-evals[osworld]",
+    "python-docx>=1.0",
+]
+
+[project.entry-points.inspect_ai]
+orbit = "orbit._registry"
+
+[project.scripts]
+orbit = "orbit.wrapper.cli:cli"
+
+[tool.setuptools.packages.find]
+include = ["orbit*"]
+
+[tool.setuptools.package-data]
+# BrowserART: only the Orbit-original hbb_extension.json is redistributed.
+# Upstream-derived hbb.json, hbb_benign.json, and hbb/behaviors.json are
+# fetched via scripts/fetch_browserart_data.py — see
+# orbit/scenarios/browserart/data/README.md.
+"orbit.scenarios.browser.browserart.data" = ["hbb_extension.json", "README.md"]
+"orbit.scenarios.coding.swe_bench._vendor" = ["LICENSE.inspect_evals"]
+"orbit.scenarios.customer_service.tau2" = ["LICENSE.tau2"]
+"orbit.scenarios.customer_service.tau2.data" = ["**/*.json", "**/*.md", "**/*.toml", "README.md"]
+"orbit.scenarios.agentharm" = ["LICENSE.AgentHarm"]
+
+[tool.pytest.ini_options]
+markers = [
+    "live: tests that require OPENAI_API_KEY and hit real APIs (deselect with: -m 'not live')",
+]
+addopts = "-m 'not live'"
+asyncio_mode = "strict"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"

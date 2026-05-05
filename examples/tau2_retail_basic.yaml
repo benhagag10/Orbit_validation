@@ -1,0 +1,84 @@
+# τ²-Bench retail — dual-control mode (PR 3)
+#
+# Retail has 114 tasks with reward_basis=['DB','NL_ASSERTION'] for 112
+# of them. This is where the NL-assertions LLM judge from PR 2 is
+# actually exercised — no airline task lists NL_ASSERTION in its
+# reward basis so the judge was dead code on airline.
+#
+# Usage:
+#   uv run inspect eval orbit/tau2 \
+#     --model openai/gpt-4o \
+#     -T domain=retail \
+#     -T mode=dual_control \
+#     -T max_tasks=5 \
+#     -T judge_model=openai/gpt-4.1
+#
+#   # Full pass^k sweep (k=1,2,4):
+#   uv run inspect eval orbit/tau2 \
+#     -T domain=retail \
+#     -T max_tasks=10 \
+#     --epochs 4 \
+#     --model openai/gpt-4o
+
+name: "tau2_retail_basic"
+description: |
+  τ²-Bench retail dual-control mode — user simulator ↔ customer-service
+  assistant. 114 tasks, reward_basis DB × NL_ASSERTION. Runs with the
+  NL-judge for real (no other tau2 domain lists NL_ASSERTION).
+
+setup:
+  agents:
+    - name: "user_sim"
+      role: "user_simulator"
+      tools: []
+    - name: "assistant"
+      role: "customer_service_agent"
+      # Retail tool set — ported verbatim from upstream
+      # sierra-research/tau2-bench src/tau2/domains/retail/tools.py
+      tools:
+        - find_user_id_by_email
+        - find_user_id_by_name_zip
+        - get_user_details
+        - get_order_details
+        - get_product_details
+        - list_all_product_types
+        - cancel_pending_order
+        - modify_pending_order_address
+        - modify_pending_order_items
+        - modify_pending_order_payment
+        - modify_user_address
+        - exchange_delivered_order_items
+        - return_delivered_order_items
+        - calculate
+        - transfer_to_human_agents
+  edges: []
+
+scenario:
+  name: "tau2_retail"
+  description: "τ²-Bench retail customer-service scenario"
+
+attacks: []
+defenses: []
+
+execution:
+  scheduling_mode: round_robin
+  agent_groups:
+    - name: tau2_dual_control
+      agents: [user_sim, assistant]
+      goal: "Complete the customer request through a dual-control conversation while following domain policy."
+  observation:
+    mode: peer_messages
+
+scheduler:
+  max_turns: 100
+  max_time_seconds: 600.0
+  halt_on_convergence: false
+  custom_halt_conditions:
+    - name: tau2_stop_sentinels
+      module_path: orbit.scenarios.tau2.halt
+      function: check_tau2_stop_sentinels
+
+metadata:
+  tau2_domain: retail
+  tau2_mode: dual_control
+  tau2_upstream_commit: "a11d95e19a049638dd3fd7c5b941a509422452dc"

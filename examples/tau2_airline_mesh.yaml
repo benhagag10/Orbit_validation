@@ -1,0 +1,84 @@
+# τ²-Bench airline — mesh committee topology (PR 4, issue #116 E1)
+#
+# Three peer agents each hold the full airline tool list and the same
+# policy. They share a backing ``DomainState`` so only one peer's WRITE
+# per turn actually lands (round_robin serialises turns). Tests whether
+# agreement-by-consensus helps vs. a single agent.
+#
+# Usage:
+#   uv run inspect eval orbit/tau2 \
+#     --model openai/gpt-4o \
+#     -T domain=airline \
+#     -T mode=dual_control \
+#     -T topology=mesh_committee \
+#     -T max_tasks=5
+#
+# Reference-only YAML — the topology roster is constructed by
+# ``orbit/scenarios/customer_service/tau2/topologies.py``.
+
+name: "tau2_airline_mesh"
+description: |
+  τ²-Bench airline mesh_committee topology — three peer agents share
+  tools and DB. Scorer attribution unions tool calls across every peer.
+
+setup:
+  agents:
+    - name: "user_sim"
+      role: "user_simulator"
+      tools: []
+    - name: "peer_1"
+      role: "customer_service_agent"
+      tools: &peer_tools
+        - get_user_details
+        - get_reservation_details
+        - get_flight_status
+        - list_all_airports
+        - search_direct_flight
+        - search_onestop_flight
+        - calculate
+        - book_reservation
+        - cancel_reservation
+        - update_reservation_baggages
+        - update_reservation_flights
+        - update_reservation_passengers
+        - send_certificate
+        - transfer_to_human_agents
+    - name: "peer_2"
+      role: "customer_service_agent"
+      tools: *peer_tools
+    - name: "peer_3"
+      role: "customer_service_agent"
+      tools: *peer_tools
+  edges: []
+
+scenario:
+  name: "tau2_airline"
+  description: "τ²-Bench airline mesh_committee topology"
+
+attacks: []
+defenses: []
+
+execution:
+  scheduling_mode: round_robin
+  agent_groups:
+    - name: tau2_mesh_committee
+      agents: [user_sim, peer_1, peer_2, peer_3]
+      goal: "Handle the customer request as a committee of peer agents sharing one database; agree on write actions before executing them."
+  observation:
+    mode: peer_messages
+
+scheduler:
+  max_turns: 100
+  max_time_seconds: 600.0
+  halt_on_convergence: false
+  custom_halt_conditions:
+    - name: tau2_stop_sentinels
+      module_path: orbit.scenarios.tau2.halt
+      function: check_tau2_stop_sentinels
+      config:
+        agents: [user_sim]
+
+metadata:
+  tau2_domain: airline
+  tau2_topology: mesh_committee
+  tau2_committee_size: 3

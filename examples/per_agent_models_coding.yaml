@@ -1,0 +1,59 @@
+# Example: Per-agent model configuration on SWE-Bench.
+#
+# Planner/executor topology where each agent uses a different model.
+# The planner reasons about the issue and produces a plan; the executor
+# implements the fix.
+#
+# To run:
+#   orbit run examples/per_agent_models_coding.yaml --model openai/gpt-4o
+#
+# The --model flag sets the default for agents without a per-agent model.
+# Agents with explicit `model:` fields ignore the CLI default.
+
+name: "swe_bench_per_agent_models"
+description: "SWE-Bench planner/executor with per-agent model overrides"
+
+setup:
+  agents:
+    - name: "planner"
+      role: "planner"
+      model: "openai/o3-mini"        # Reasoning model for planning
+      temperature: 0.3
+      tools: ["bash", "text_editor"]
+      system_prompt: |
+        You are a senior software engineer. Analyze the GitHub issue,
+        explore the codebase, and produce a detailed fix plan. Then
+        hand off to the executor with clear step-by-step instructions.
+
+    - name: "executor"
+      role: "executor"
+      model: "openai/gpt-4o-mini"    # Fast model for implementation
+      temperature: 0.0
+      tools: ["bash", "python", "text_editor"]
+      system_prompt: |
+        You are a code implementation agent. Follow the planner's
+        instructions exactly to fix the issue. Edit files, run tests,
+        and iterate until the fix is correct.
+
+  edges:
+    - from_agent: "planner"
+      to_agent: "executor"
+      mechanism: "direct_run"
+
+scenario:
+  name: "swe_bench"
+  description: "SWE-Bench planner/executor with per-agent models"
+
+attacks: []
+defenses: []
+
+scheduler:
+  max_turns: 30
+  max_time_seconds: 900.0
+
+metadata:
+  swe_bench_num_issues: 2
+  swe_bench_repos: ["django/django"]
+  swe_bench_seed: 42
+  swe_bench_mode: "round_robin"
+  swe_bench_max_groups: 1

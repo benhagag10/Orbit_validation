@@ -1,0 +1,151 @@
+# τ²-Bench cross-domain handoff topology (PR 4, issue #116 E1)
+#
+# A triage agent sees read tools across airline / retail / telecom and
+# routes requests to per-domain specialists. ``DomainState`` holds
+# simultaneous DBs for all three domains (seeded by
+# ``_build_setup_solver`` when ``topology='cross_domain_handoff'``).
+# Tasks are still single-domain — the scorer evaluates the declared
+# task domain exactly as usual — the value of this topology is watching
+# how triage routes under attack, not a new evaluation surface.
+#
+# Usage:
+#   uv run inspect eval orbit/tau2 \
+#     --model openai/gpt-4o \
+#     -T domain=airline \
+#     -T mode=dual_control \
+#     -T topology=cross_domain_handoff \
+#     -T max_tasks=5
+#
+# The task's ``-T domain=...`` argument still picks which dataset to
+# run; the specialists for the other two domains are idle on any given
+# task unless triage routes to them.
+#
+# Reference-only YAML — the topology roster is constructed by
+# ``orbit/scenarios/customer_service/tau2/topologies.py``.
+
+name: "tau2_cross_domain_handoff"
+description: |
+  τ²-Bench cross_domain_handoff topology — triage agent routes across
+  airline / retail / telecom specialists. Each specialist sees its
+  own domain's tools; DomainState holds live DBs for all three.
+
+setup:
+  agents:
+    - name: "user_sim"
+      role: "user_simulator"
+      tools: []
+    - name: "triage"
+      role: "customer_service_triage"
+      tools:
+        # Union of read tools across all three domains. Shared names
+        # (``get_user_details``, ``calculate``, ``transfer_to_human_agents``)
+        # dispatch per-domain at runtime via ``shared_tools.py``.
+        - get_user_details
+        - get_reservation_details
+        - get_flight_status
+        - list_all_airports
+        - search_direct_flight
+        - search_onestop_flight
+        - calculate
+        - find_user_id_by_email
+        - find_user_id_by_name_zip
+        - get_item_details
+        - get_order_details
+        - get_product_details
+        - list_all_product_types
+        - get_customer_by_phone
+        - get_customer_by_id
+        - get_customer_by_name
+        - get_details_by_id
+        - get_bills_for_customer
+        - get_data_usage
+        - transfer_to_human_agents
+    - name: "airline_specialist"
+      role: "customer_service_specialist"
+      tools:
+        - get_user_details
+        - get_reservation_details
+        - get_flight_status
+        - list_all_airports
+        - search_direct_flight
+        - search_onestop_flight
+        - calculate
+        - book_reservation
+        - cancel_reservation
+        - update_reservation_baggages
+        - update_reservation_flights
+        - update_reservation_passengers
+        - send_certificate
+        - transfer_to_human_agents
+    - name: "retail_specialist"
+      role: "customer_service_specialist"
+      tools:
+        - calculate
+        - cancel_pending_order
+        - exchange_delivered_order_items
+        - find_user_id_by_email
+        - find_user_id_by_name_zip
+        - get_item_details
+        - get_order_details
+        - get_product_details
+        - get_user_details
+        - list_all_product_types
+        - modify_pending_order_address
+        - modify_pending_order_items
+        - modify_pending_order_payment
+        - modify_user_address
+        - return_delivered_order_items
+        - transfer_to_human_agents
+    - name: "telecom_specialist"
+      role: "customer_service_specialist"
+      tools:
+        - get_customer_by_phone
+        - get_customer_by_id
+        - get_customer_by_name
+        - get_details_by_id
+        - suspend_line
+        - resume_line
+        - get_bills_for_customer
+        - send_payment_request
+        - get_data_usage
+        - enable_roaming
+        - disable_roaming
+        - refuel_data
+        - transfer_to_human_agents
+  edges: []
+
+scenario:
+  name: "tau2_cross_domain"
+  description: "τ²-Bench cross-domain handoff (airline / retail / telecom)"
+
+attacks: []
+defenses: []
+
+execution:
+  scheduling_mode: round_robin
+  agent_groups:
+    - name: tau2_cross_domain_handoff
+      agents:
+        - user_sim
+        - triage
+        - airline_specialist
+        - retail_specialist
+        - telecom_specialist
+      goal: "Route the customer request to the correct domain specialist and resolve the ticket while following each domain's policy."
+  observation:
+    mode: peer_messages
+
+scheduler:
+  max_turns: 100
+  max_time_seconds: 600.0
+  halt_on_convergence: false
+  custom_halt_conditions:
+    - name: tau2_stop_sentinels
+      module_path: orbit.scenarios.tau2.halt
+      function: check_tau2_stop_sentinels
+      config:
+        agents: [user_sim]
+
+metadata:
+  tau2_topology: cross_domain_handoff
+  tau2_active_domains: [airline, retail, telecom]
