@@ -117,7 +117,7 @@
       "source": {"fileObject": {"@id": "swebench-multi-issue-groupings"}}
     }
   ],
-  "rai:dataCollection": "Orbit introduces four new artifacts beyond its source benchmarks: (i) 59 benign BrowserART tasks authored by the Orbit team, (ii) validated multi-issue groupings over SWE-Bench Verified produced by automated merge-conflict testing, (iii) procedurally generated DCOP meeting-scheduling instances, and (iv) attack-payload specifications authored for compromised-agent and collusion experiments. No new data was collected from human subjects.",
+  "rai:dataCollection": "Orbit introduces four new artifacts beyond its source benchmarks: (i) 59 benign BrowserART tasks, (ii) validated multi-issue groupings over SWE-Bench Verified produced by automated merge-conflict testing, (iii) procedurally generated DCOP meeting-scheduling instances, and (iv) attack-payload specifications for compromised-agent and collusion experiments. No new data was collected from human subjects.",
   "rai:dataCollectionType": "Expert-authored + procedurally generated",
   "rai:dataSocialImpact": "Orbit is designed to improve the security of multi-agent AI systems by systematically evaluating attack and defense mechanisms. The attack-payload specifications contain adversarial prompts and vulnerability descriptions by design, as these are necessary to evaluate agent safety. These should be used exclusively for security research and evaluation.",
   "rai:dataUseCases": "Security evaluation of multi-agent LLM systems. Measuring attack success rates, defense effectiveness, and security-utility tradeoffs across diverse task domains and agent architectures.",
