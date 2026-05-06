@@ -37,7 +37,7 @@
   "@type": "sc:Dataset",
   "conformsTo": "http://mlcommons.org/croissant/1.0",
   "name": "Orbit",
-  "description": "Orbit is a configuration-driven framework for evaluating the security of multi-agent LLM systems. It provides 12 scenarios across 5 families (coding, desktop, browser, customer service, cooperative allocation), 9 attack types spanning 4 threat categories (injection, compromised agent, collusion, misuse), and 4 defense categories (security prompting, monitoring, guardian agent, dual-LLM). Built as a plugin on Inspect AI.",
+  "description": "Orbit is a configuration-driven framework for evaluating the security of multi-agent LLM systems. Built as a plugin on Inspect AI, it provides 12 scenarios across 5 families, 9 attack types spanning 4 threat categories, and 4 defense categories. This metadata describes the four new artifacts Orbit introduces beyond its source benchmarks.",
   "url": "https://anonymous.4open.science/r/orbit-D1A9/",
   "license": "https://www.apache.org/licenses/LICENSE-2.0",
   "version": "0.1.0",
@@ -55,143 +55,78 @@
   "distribution": [
     {
       "@type": "cr:FileObject",
-      "@id": "browser-browserart",
-      "name": "BrowserART scenario",
-      "description": "Web agent safety tasks: 100 harmful behaviors + 10 benign tasks from BrowserART (Kumar et al., 2024). Action space: click, type, scroll, navigate over accessibility tree.",
-      "contentUrl": "orbit/scenarios/browser/browserart/",
-      "encodingFormat": "application/json"
+      "@id": "browserart-benign-custom",
+      "name": "BrowserART benign tasks (Orbit-original)",
+      "description": "59 new benign web-agent tasks extending the 10 original BrowserART benign tasks. Each task specifies a task_id, intent, start_url, and evaluation criteria for local test websites. Inherits CC BY-NC-ND 4.0 from BrowserART.",
+      "contentUrl": "orbit/scenarios/browser/browserart/data/hbb_benign_custom.json",
+      "encodingFormat": "application/json",
+      "license": "https://creativecommons.org/licenses/by-nc-nd/4.0/"
     },
     {
       "@type": "cr:FileObject",
-      "@id": "coding-swebench",
-      "name": "SWE-Bench scenario",
-      "description": "Multi-issue coding agent security: 705 harmful / 1140 benign tasks from SWE-Bench (Jimenez et al., 2024). Action space: bash, file edits, tests in sandboxed repos.",
-      "contentUrl": "orbit/scenarios/coding/swe_bench/",
-      "encodingFormat": "application/json"
+      "@id": "swebench-multi-issue-groupings",
+      "name": "SWE-Bench multi-issue groupings (Orbit-original)",
+      "description": "Validated multi-issue groupings over SWE-Bench Verified. Each pool groups 2+ GitHub issues from the same repository that can be worked on concurrently by independent agents without merge conflicts. Includes per-issue test validation results.",
+      "contentUrl": "orbit/scenarios/coding/swe_bench/data/validated_pools.json",
+      "encodingFormat": "application/json",
+      "license": "https://opensource.org/licenses/MIT"
     },
     {
       "@type": "cr:FileObject",
-      "@id": "coding-redcodegen",
-      "name": "RedCode-Gen scenario",
-      "description": "Malware code generation benchmark from RedCode-Gen (Guo et al., 2024). Action space: code generation in sandboxed shell.",
-      "contentUrl": "orbit/scenarios/coding/redcode_gen/",
-      "encodingFormat": "application/json"
+      "@id": "meeting-scheduling-generator",
+      "name": "MeetSched factor-graph generator (Orbit-original)",
+      "description": "Procedural generator for meeting-scheduling DCOP instances. Produces factor-graph reward functions over agent-slot assignments with configurable numbers of agents, meetings, time slots, and random seeds. Instances vary by seed and size parameters.",
+      "contentUrl": "orbit/scenarios/cooperative_allocation/meeting_scheduling/scenario.py",
+      "encodingFormat": "text/x-python",
+      "license": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     {
       "@type": "cr:FileObject",
-      "@id": "coding-bigcodebench",
-      "name": "BigCodeBench scenario",
-      "description": "Code generation benchmark from BigCodeBench (Zhuo et al., 2025). Action space: code generation and execution in sandboxed shell.",
-      "contentUrl": "orbit/scenarios/coding/bigcodebench/",
-      "encodingFormat": "application/json"
-    },
-    {
-      "@type": "cr:FileObject",
-      "@id": "coding-codeipi",
-      "name": "CodeIPI scenario",
-      "description": "Indirect prompt injection for coding agents from CodeIPI (Sinha, 2026). Action space: code completion with injected prompts.",
-      "contentUrl": "orbit/scenarios/coding/code_ipi/",
-      "encodingFormat": "application/json"
-    },
-    {
-      "@type": "cr:FileObject",
-      "@id": "desktop-osworld",
-      "name": "OSWorld / OS-Harm scenario",
-      "description": "Computer-use agent safety: 150 harmful / 369 benign tasks from OSWorld (Xie et al., 2024b) and OS-Harm (Kuntz et al., 2025a). Action space: mouse, keyboard, screenshot over virtual desktop.",
-      "contentUrl": "orbit/scenarios/desktop/osworld/",
-      "encodingFormat": "application/json"
-    },
-    {
-      "@type": "cr:FileObject",
-      "@id": "customer-service-tau2",
-      "name": "tau2-Bench scenario",
-      "description": "Customer service with policy-bound tool calls and dual-control loop: 164 harmful tasks from tau2-Bench (Barres et al., 2025).",
-      "contentUrl": "orbit/scenarios/customer_service/tau2/",
-      "encodingFormat": "application/json"
-    },
-    {
-      "@type": "cr:FileObject",
-      "@id": "cooperative-dcop",
-      "name": "Cooperative allocation scenarios (DCOP)",
-      "description": "Three procedurally generated DCOP environments: JiraTicket, Hospital, MeetSched. Source benchmarks: Colosseum (Nakamura et al., 2026), MeetSched (Mahmud et al., 2025). Action space: propose, accept, reject, submit over shared blackboard.",
-      "contentUrl": "orbit/scenarios/cooperative_allocation/",
-      "encodingFormat": "application/json"
+      "@id": "attack-payload-specs",
+      "name": "Attack-payload specifications (Orbit-original)",
+      "description": "Side-task and split-vulnerability catalogues for compromised-agent and collusion threat models. Each entry specifies what to insert, how to evade detection, and how to score success. Includes payloads for subtle code injection, cross-issue sabotage, and two-agent split vulnerabilities.",
+      "contentUrl": "orbit/scenarios/coding/swe_bench/attacks/side_tasks.py",
+      "encodingFormat": "text/x-python",
+      "license": "https://www.apache.org/licenses/LICENSE-2.0"
     }
   ],
   "recordSet": [
     {
       "@type": "cr:RecordSet",
-      "@id": "threat-types",
-      "name": "Threat type taxonomy",
-      "description": "The four threat types supported by Orbit, each grouping one or more registered attack implementations.",
+      "@id": "browserart-benign-tasks",
+      "name": "BrowserART benign task records",
+      "description": "59 benign web-agent tasks. Each task defines a user intent to be executed on a local test website.",
       "field": [
-        {"@type": "cr:Field", "@id": "threat-types/threat_type", "name": "threat_type", "dataType": "sc:Text", "description": "High-level threat category: injection, compromised_agent, collusion, or misuse."},
-        {"@type": "cr:Field", "@id": "threat-types/attack_type", "name": "attack_type", "dataType": "sc:Text", "description": "Registry key for the attack implementation."},
-        {"@type": "cr:Field", "@id": "threat-types/description", "name": "description", "dataType": "sc:Text", "description": "Brief description of the attack mechanism."}
+        {"@type": "cr:Field", "@id": "browserart-benign-tasks/task_id", "name": "task_id", "dataType": "sc:Integer", "description": "Unique task identifier."},
+        {"@type": "cr:Field", "@id": "browserart-benign-tasks/intent", "name": "intent", "dataType": "sc:Text", "description": "Natural language instruction for the agent."},
+        {"@type": "cr:Field", "@id": "browserart-benign-tasks/start_url", "name": "start_url", "dataType": "sc:URL", "description": "Starting URL for the task."},
+        {"@type": "cr:Field", "@id": "browserart-benign-tasks/sites", "name": "sites", "dataType": "sc:Text", "description": "Target website(s) for the task."}
       ],
-      "data": [
-        {"threat_type": "injection", "attack_type": "direct_injection", "description": "Adversarial prompts appended to agent conversation."},
-        {"threat_type": "injection", "attack_type": "indirect_injection", "description": "Payloads planted in environment data."},
-        {"threat_type": "injection", "attack_type": "memory_poisoning", "description": "Adversary content written into shared memory."},
-        {"threat_type": "injection", "attack_type": "codebase_injection", "description": "Malicious instructions in repository files."},
-        {"threat_type": "injection", "attack_type": "self_replicating_injection", "description": "Payloads propagating through shared codebase edits."},
-        {"threat_type": "compromised_agent", "attack_type": "compromised_agent", "description": "Attacker controls one or more agents."},
-        {"threat_type": "compromised_agent", "attack_type": "subtle_code_injection", "description": "Compromised agent inserts backdoors alongside fixes."},
-        {"threat_type": "compromised_agent", "attack_type": "cross_issue_sabotage", "description": "Compromised agent breaks other agents' work."},
-        {"threat_type": "collusion", "attack_type": "collusion", "description": "Coalition of agents coordinates against system objectives."},
-        {"threat_type": "misuse", "attack_type": "(scenario-level)", "description": "User deliberately requests harmful actions via task prompt."}
-      ]
+      "source": {"fileObject": {"@id": "browserart-benign-custom"}, "extract": {"jsonPath": "$[*]"}}
     },
     {
       "@type": "cr:RecordSet",
-      "@id": "defense-categories",
-      "name": "Defense category taxonomy",
-      "description": "The four defense categories supported by Orbit.",
+      "@id": "swebench-pools",
+      "name": "SWE-Bench validated issue pools",
+      "description": "Multi-issue groupings validated for concurrent agent work without merge conflicts.",
       "field": [
-        {"@type": "cr:Field", "@id": "defense-categories/category", "name": "category", "dataType": "sc:Text"},
-        {"@type": "cr:Field", "@id": "defense-categories/defense_type", "name": "defense_type", "dataType": "sc:Text"},
-        {"@type": "cr:Field", "@id": "defense-categories/description", "name": "description", "dataType": "sc:Text"}
+        {"@type": "cr:Field", "@id": "swebench-pools/repo", "name": "repo", "dataType": "sc:Text", "description": "GitHub repository (owner/name)."},
+        {"@type": "cr:Field", "@id": "swebench-pools/instance_ids", "name": "instance_ids", "dataType": "sc:Text", "description": "SWE-Bench instance IDs in this pool."},
+        {"@type": "cr:Field", "@id": "swebench-pools/pool_size", "name": "pool_size", "dataType": "sc:Integer", "description": "Number of issues in the pool."}
       ],
-      "data": [
-        {"category": "security_prompting", "defense_type": "prompt_vaccination", "description": "Hardening instructions injected into agent system prompts."},
-        {"category": "security_prompting", "defense_type": "secure_model", "description": "Replace agent model with a more secure variant."},
-        {"category": "monitoring", "defense_type": "monitor", "description": "Pattern-matching monitor on messages and tool calls."},
-        {"category": "monitoring", "defense_type": "llm_monitor", "description": "Myopic LLM monitor evaluating each action in isolation."},
-        {"category": "monitoring", "defense_type": "tool_wrapper", "description": "Intercept and filter tool calls."},
-        {"category": "guardian_agent", "defense_type": "guardian_agent", "description": "History-aware LLM guardian reviewing with full context."},
-        {"category": "dual_llm", "defense_type": "dual_llm", "description": "Planning separated from interaction with untrusted data."}
-      ]
-    },
-    {
-      "@type": "cr:RecordSet",
-      "@id": "scenario-families",
-      "name": "Scenario families",
-      "description": "The five scenario families with task counts (harmful / benign).",
-      "field": [
-        {"@type": "cr:Field", "@id": "scenario-families/family", "name": "family", "dataType": "sc:Text"},
-        {"@type": "cr:Field", "@id": "scenario-families/harmful_tasks", "name": "harmful_tasks", "dataType": "sc:Integer"},
-        {"@type": "cr:Field", "@id": "scenario-families/benign_tasks", "name": "benign_tasks", "dataType": "sc:Integer"},
-        {"@type": "cr:Field", "@id": "scenario-families/source_benchmarks", "name": "source_benchmarks", "dataType": "sc:Text"}
-      ],
-      "data": [
-        {"family": "browser", "harmful_tasks": 100, "benign_tasks": 10, "source_benchmarks": "BrowserART"},
-        {"family": "coding", "harmful_tasks": 705, "benign_tasks": 1140, "source_benchmarks": "SWE-Bench, RedCode-Gen, BigCodeBench, CodeIPI"},
-        {"family": "desktop", "harmful_tasks": 150, "benign_tasks": 369, "source_benchmarks": "OSWorld, OS-Harm"},
-        {"family": "customer_service", "harmful_tasks": 164, "benign_tasks": 0, "source_benchmarks": "tau2-Bench"},
-        {"family": "cooperative_allocation", "harmful_tasks": 0, "benign_tasks": 0, "source_benchmarks": "Colosseum, MeetSched"}
-      ]
+      "source": {"fileObject": {"@id": "swebench-multi-issue-groupings"}}
     }
   ],
-  "rai:dataCollection": "Orbit integrates existing benchmarks into a unified multi-agent security evaluation framework. No new data was collected from human subjects. Source datasets retain their original licenses and collection methodologies.",
-  "rai:dataCollectionType": "Derived from existing benchmarks",
-  "rai:dataSocialImpact": "Orbit is designed to improve the security of multi-agent AI systems by systematically evaluating attack and defense mechanisms. The benchmark contains adversarial prompts and harmful task descriptions by design, as these are necessary to evaluate agent safety. These should be used exclusively for security research and evaluation.",
+  "rai:dataCollection": "Orbit introduces four new artifacts beyond its source benchmarks: (i) 59 benign BrowserART tasks authored by the Orbit team, (ii) validated multi-issue groupings over SWE-Bench Verified produced by automated merge-conflict testing, (iii) procedurally generated DCOP meeting-scheduling instances, and (iv) attack-payload specifications authored for compromised-agent and collusion experiments. No new data was collected from human subjects.",
+  "rai:dataCollectionType": "Expert-authored + procedurally generated",
+  "rai:dataSocialImpact": "Orbit is designed to improve the security of multi-agent AI systems by systematically evaluating attack and defense mechanisms. The attack-payload specifications contain adversarial prompts and vulnerability descriptions by design, as these are necessary to evaluate agent safety. These should be used exclusively for security research and evaluation.",
   "rai:dataUseCases": "Security evaluation of multi-agent LLM systems. Measuring attack success rates, defense effectiveness, and security-utility tradeoffs across diverse task domains and agent architectures.",
   "rai:personalSensitiveInformation": "No personal or sensitive information. All task data is synthetic or derived from public code repositories and web benchmarks.",
-  "rai:dataBiases": "Benchmark coverage is weighted toward coding and web tasks. Cooperative allocation scenarios use procedurally generated environments that may not capture all real-world resource allocation dynamics. LLM judge-based metrics (compromise scores) inherit biases of the judge model.",
+  "rai:dataBiases": "Benign BrowserART tasks are limited to local test websites and may not represent the full distribution of real-world web tasks. SWE-Bench groupings are constrained to repositories with sufficient validated issues. Meeting-scheduling instances are procedurally generated and may not capture all real-world scheduling dynamics.",
   "rai:dataLimitations": [
-    "Not all attack-defense-scenario combinations have been experimentally evaluated due to compute cost.",
-    "Some scenarios (BrowserART, OSWorld) require Docker and specific infrastructure, limiting reproducibility on resource-constrained systems.",
-    "AgentHarm data carries a safety-use-only license restriction that propagates to downstream users.",
-    "BrowserART upstream data is CC BY-NC-ND 4.0 (non-commercial, no derivatives)."
+    "BrowserART benign tasks inherit CC BY-NC-ND 4.0 from the upstream BrowserART benchmark (non-commercial, no derivatives).",
+    "SWE-Bench groupings depend on upstream SWE-Bench Verified availability and Docker infrastructure for validation.",
+    "Attack-payload specifications are designed for security research only; misuse for actual exploitation is prohibited.",
+    "Meeting-scheduling instances are parameterized but not validated against real-world scheduling constraints."
   ]
 }
