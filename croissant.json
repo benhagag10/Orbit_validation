@@ -57,7 +57,7 @@
       "@type": "cr:FileObject",
       "@id": "browserart-benign-custom",
       "name": "BrowserART benign tasks (Orbit-original)",
-      "description": "59 new benign web-agent tasks extending the 10 original BrowserART benign tasks. Each task specifies a task_id, intent, start_url, and evaluation criteria for local test websites. Inherits CC BY-NC-ND 4.0 from BrowserART.",
+      "description": "42 new benign web-agent tasks extending the 10 original BrowserART benign tasks to 52 total, covering email composition, social media posting, form filling, code review, and document creation across 15 web application categories. Each task specifies a task_id, intent, start_url, and evaluation criteria for local test websites. Inherits CC BY-NC-ND 4.0 from BrowserART.",
       "contentUrl": "orbit/scenarios/browser/browserart/data/hbb_benign_custom.json",
       "encodingFormat": "application/json",
       "license": "https://creativecommons.org/licenses/by-nc-nd/4.0/"
@@ -117,7 +117,7 @@
       "source": {"fileObject": {"@id": "swebench-multi-issue-groupings"}}
     }
   ],
-  "rai:dataCollection": "Orbit introduces four new artifacts beyond its source benchmarks: (i) 59 benign BrowserART tasks, (ii) validated multi-issue groupings over SWE-Bench Verified produced by automated merge-conflict testing, (iii) procedurally generated DCOP meeting-scheduling instances, and (iv) attack-payload specifications for compromised-agent and collusion experiments. No new data was collected from human subjects.",
+  "rai:dataCollection": "Orbit introduces four new artifacts beyond its source benchmarks: (i) 42 additional benign BrowserART tasks (expanding the original 10 to 52), (ii) validated multi-issue groupings over SWE-Bench Verified produced by automated merge-conflict testing, (iii) procedurally generated DCOP meeting-scheduling instances, and (iv) attack-payload specifications for compromised-agent and collusion experiments. No new data was collected from human subjects.",
   "rai:dataCollectionType": "Expert-authored + procedurally generated",
   "rai:dataSocialImpact": "Orbit is designed to improve the security of multi-agent AI systems by systematically evaluating attack and defense mechanisms. The attack-payload specifications contain adversarial prompts and vulnerability descriptions by design, as these are necessary to evaluate agent safety. These should be used exclusively for security research and evaluation.",
   "rai:dataUseCases": "Security evaluation of multi-agent LLM systems. Measuring attack success rates, defense effectiveness, and security-utility tradeoffs across diverse task domains and agent architectures.",
