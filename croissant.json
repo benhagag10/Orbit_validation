@@ -57,10 +57,10 @@
       "@type": "cr:FileObject",
       "@id": "browserart-benign-custom",
       "name": "BrowserART benign tasks (Orbit-original)",
-      "description": "42 new benign web-agent tasks extending the 10 original BrowserART benign tasks to 52 total, covering email composition, social media posting, form filling, code review, and document creation across 15 web application categories. Each task specifies a task_id, intent, start_url, and evaluation criteria for local test websites. Inherits CC BY-NC-ND 4.0 from BrowserART.",
+      "description": "42 new benign web-agent tasks extending the 10 original BrowserART benign tasks to 52 total, covering email composition, social media posting, form filling, code review, and document creation across 15 web application categories. Each task specifies a task_id, intent, start_url, and evaluation criteria for local test websites. Orbit-original content.",
       "contentUrl": "orbit/scenarios/browser/browserart/data/hbb_benign_custom.json",
       "encodingFormat": "application/json",
-      "license": "https://creativecommons.org/licenses/by-nc-nd/4.0/"
+      "license": "https://www.apache.org/licenses/LICENSE-2.0"
     },
     {
       "@type": "cr:FileObject",
@@ -95,7 +95,7 @@
       "@type": "cr:RecordSet",
       "@id": "browserart-benign-tasks",
       "name": "BrowserART benign task records",
-      "description": "59 benign web-agent tasks. Each task defines a user intent to be executed on a local test website.",
+      "description": "42 Orbit-original benign web-agent tasks. Each task defines a user intent to be executed on a local test website.",
       "field": [
         {"@type": "cr:Field", "@id": "browserart-benign-tasks/task_id", "name": "task_id", "dataType": "sc:Integer", "description": "Unique task identifier."},
         {"@type": "cr:Field", "@id": "browserart-benign-tasks/intent", "name": "intent", "dataType": "sc:Text", "description": "Natural language instruction for the agent."},
@@ -108,13 +108,23 @@
       "@type": "cr:RecordSet",
       "@id": "swebench-pools",
       "name": "SWE-Bench validated issue pools",
-      "description": "Multi-issue groupings validated for concurrent agent work without merge conflicts.",
+      "description": "Multi-issue groupings validated for concurrent agent work without merge conflicts. Top-level keys: schema_version, dataset, results, created_at, last_updated. The results object maps repo-slug to Docker-image-head to per-instance validation records.",
       "field": [
-        {"@type": "cr:Field", "@id": "swebench-pools/repo", "name": "repo", "dataType": "sc:Text", "description": "GitHub repository (owner/name)."},
-        {"@type": "cr:Field", "@id": "swebench-pools/instance_ids", "name": "instance_ids", "dataType": "sc:Text", "description": "SWE-Bench instance IDs in this pool."},
-        {"@type": "cr:Field", "@id": "swebench-pools/pool_size", "name": "pool_size", "dataType": "sc:Integer", "description": "Number of issues in the pool."}
+        {"@type": "cr:Field", "@id": "swebench-pools/schema_version", "name": "schema_version", "dataType": "sc:Text", "description": "Schema version string."},
+        {"@type": "cr:Field", "@id": "swebench-pools/dataset", "name": "dataset", "dataType": "sc:Text", "description": "Source dataset identifier (e.g. princeton-nlp/SWE-bench_Verified)."},
+        {"@type": "cr:Field", "@id": "swebench-pools/created_at", "name": "created_at", "dataType": "sc:Text", "description": "ISO 8601 creation timestamp."},
+        {"@type": "cr:Field", "@id": "swebench-pools/last_updated", "name": "last_updated", "dataType": "sc:Text", "description": "ISO 8601 last-updated timestamp."}
       ],
-      "source": {"fileObject": {"@id": "swebench-multi-issue-groupings"}}
+      "source": {"fileObject": {"@id": "swebench-multi-issue-groupings"}},
+      "subField": [
+        {
+          "@type": "cr:Field",
+          "@id": "swebench-pools/results",
+          "name": "results",
+          "description": "Nested dict: repo-slug -> image-head -> instance-id -> {instance_id, valid, fail_to_pass_results, pass_to_pass_results}. Each leaf records whether the instance passes validation for concurrent multi-issue execution.",
+          "dataType": "sc:Text"
+        }
+      ]
     }
   ],
   "rai:dataCollection": "Orbit introduces four new artifacts beyond its source benchmarks: (i) 42 additional benign BrowserART tasks (expanding the original 10 to 52), (ii) validated multi-issue groupings over SWE-Bench Verified produced by automated merge-conflict testing, (iii) procedurally generated DCOP meeting-scheduling instances, and (iv) attack-payload specifications for compromised-agent and collusion experiments. No new data was collected from human subjects.",
@@ -124,7 +134,7 @@
   "rai:personalSensitiveInformation": "No personal or sensitive information. All task data is synthetic or derived from public code repositories and web benchmarks.",
   "rai:dataBiases": "Benign BrowserART tasks are limited to local test websites and may not represent the full distribution of real-world web tasks. SWE-Bench groupings are constrained to repositories with sufficient validated issues. Meeting-scheduling instances are procedurally generated and may not capture all real-world scheduling dynamics.",
   "rai:dataLimitations": [
-    "BrowserART benign tasks inherit CC BY-NC-ND 4.0 from the upstream BrowserART benchmark (non-commercial, no derivatives).",
+    "BrowserART benign tasks are Orbit-original (Apache-2.0) but evaluate on upstream BrowserART test websites.",
     "SWE-Bench groupings depend on upstream SWE-Bench Verified availability and Docker infrastructure for validation.",
     "Attack-payload specifications are designed for security research only; misuse for actual exploitation is prohibited.",
     "Meeting-scheduling instances are parameterized but not validated against real-world scheduling constraints."
