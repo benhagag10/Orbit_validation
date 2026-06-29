@@ -123,15 +123,16 @@ class ConfigValidator:
         # 10. Agent group validation
         errors.extend(_validate_agent_groups(config, agent_names))
 
-        # 11. DCOP scenarios: setup.agents must match the generated roster.
+        # 11. DCOP scenarios: every generated agent must be staffed in setup.agents.
         #     A DCOP scenario (jira_ticket, hospital, meeting_scheduling) builds
-        #     its whole world -- and the agent roster -- from scenario.properties.
-        #     The hand-written setup.agents list is a separate declaration of that
-        #     same roster, so the two can silently drift (GitHub issue #3: a
-        #     'surgery' department staffed at departments_per_hospital=2, where
-        #     only triage+radiology exist, leaves the agent inert and a needed
-        #     department unstaffed). Reconcile them here so the mismatch fails
-        #     loudly at `orbit validate` and at run start, not silently mid-run.
+        #     its whole world -- and the task-agent roster -- from
+        #     scenario.properties. The hand-written setup.agents list is a separate
+        #     declaration of that roster, so a generated agent can silently go
+        #     unstaffed (GitHub issue #3: staffing a 'surgery' department at
+        #     departments_per_hospital=2, where only triage+radiology exist, leaves
+        #     radiology unstaffed). Catch that here so it fails loudly at
+        #     `orbit validate` and at run start, not silently mid-run. (Extra
+        #     non-task agents -- monitors, guardians -- are allowed.)
         errors.extend(_validate_dcop_roster(config, agent_names))
 
         return errors
@@ -140,7 +141,13 @@ class ConfigValidator:
 def _validate_dcop_roster(
     config: ExperimentConfig, agent_names: set[str]
 ) -> list[str]:
-    """For DCOP scenarios, check setup.agents matches the generated roster.
+    """For DCOP scenarios, check every generated agent is staffed in setup.agents.
+
+    A DCOP scenario generates its task agents from scenario.properties; each of
+    those must appear in setup.agents, else the world has an unstaffed role and
+    the optimal-allocation scoring is invalid (GitHub issue #3). Extra agents
+    beyond the generated roster are allowed -- a config may add non-task agents
+    (monitors, guardians, observers) that take no part in the generated world.
 
     Returns no errors for non-DCOP scenarios (their roster is hand-authored and
     not derivable from scenario.properties).
@@ -154,12 +161,22 @@ def _validate_dcop_roster(
 
     try:
         expected = expected_agent_roster(scenario_name, properties)
-    except ImportError:
-        # The scenario's optional extra (e.g. `dcop`) is not installed, so the
-        # roster cannot be derived here. Don't fail an otherwise-valid config on
-        # a missing optional dependency -- an actual run requires the extra and
-        # will rebuild (and re-check) the problem with it present.
-        return []
+    except ImportError as e:
+        # Deriving the roster builds the scenario's problem, which for
+        # jira_ticket / meeting_scheduling imports the optional `dcop` extra
+        # (scipy). If that extra is simply absent we cannot check here -- a real
+        # run installs it and re-checks -- so skip rather than fail a valid
+        # config. But if scipy IS present, an ImportError is a genuine error
+        # (e.g. in the hospital builder, which needs no optional deps), so we
+        # surface it instead of silently skipping the check.
+        from importlib.util import find_spec
+
+        if find_spec("scipy") is None:
+            return []
+        return [
+            f"Could not derive the agent roster for DCOP scenario "
+            f"'{scenario_name}': {e}"
+        ]
     except Exception as e:  # malformed properties -> surface as a validation error
         return [
             f"Could not derive the agent roster for DCOP scenario "
@@ -169,24 +186,17 @@ def _validate_dcop_roster(
     if expected is None:  # not a DCOP scenario -- nothing to reconcile
         return []
 
-    missing = expected - agent_names  # roles the generated world needs, unstaffed
-    unexpected = agent_names - expected  # agents with no role in the generated world
-    if not missing and not unexpected:
+    missing = expected - agent_names  # generated roles with no agent in setup.agents
+    if not missing:
         return []
 
-    parts: list[str] = []
-    if missing:
-        parts.append(f"missing (generated but not in setup.agents): {sorted(missing)}")
-    if unexpected:
-        parts.append(
-            f"unexpected (in setup.agents but not generated): {sorted(unexpected)}"
-        )
     return [
-        f"setup.agents does not match the roster generated for DCOP scenario "
-        f"'{scenario_name}' from scenario.properties -- {'; '.join(parts)}. "
-        f"Expected exactly {sorted(expected)}. Fix setup.agents to match, or "
-        f"adjust scenario.properties (e.g. departments_per_hospital, "
-        f"num_developers, num_agents)."
+        f"setup.agents is missing agents that DCOP scenario '{scenario_name}' "
+        f"generates from scenario.properties: {sorted(missing)}. Every generated "
+        f"agent must be staffed in setup.agents (extra, non-generated agents are "
+        f"allowed). Add them, or adjust scenario.properties (e.g. "
+        f"departments_per_hospital, num_developers, num_agents). "
+        f"Generated roster: {sorted(expected)}."
     ]
 
 

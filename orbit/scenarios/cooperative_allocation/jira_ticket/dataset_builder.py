@@ -137,6 +137,7 @@ def build_problem(
     return JiraTicketProblem(
         tasks=tasks,
         developers=developers,
+        agent_names=[d.name for d in developers],
         cost_matrix=cost_matrix,
         optimal_allocation=optimal_allocation,
         optimal_total_reward=round(total_reward, 2),

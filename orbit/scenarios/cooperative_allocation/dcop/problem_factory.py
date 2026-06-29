@@ -11,8 +11,8 @@ To make drift impossible, the mapping from ``scenario.properties`` to a concrete
 problem instance lives here, in exactly one place. Both consumers go through it:
 
     - ``orbit.solvers.setup_solver`` -- builds scenario state for a run.
-    - ``orbit.validation.validators.ConfigValidator`` -- checks that
-      ``setup.agents`` matches the generated roster, and fails loudly otherwise.
+    - ``orbit.validation.validators.ConfigValidator`` -- checks that every
+      generated agent is staffed in ``setup.agents``, and fails loudly otherwise.
 
 Because the validator's expected roster is read from the very problem the setup
 solver builds, the roster check and the world can never disagree.

@@ -32,6 +32,15 @@ class JiraTicketProblem(BaseModel, frozen=True):
 
     tasks: list[JiraTask]
     developers: list[DeveloperProfile]
+
+    agent_names: list[str]
+    """Agent roster: one scheduler agent per developer (no provisioner).
+
+    A stored field (rather than a property derived from ``developers``) so the
+    roster is exposed uniformly across DCOP problems -- HospitalProblem and
+    MeetingSchedulingProblem expose ``agent_names`` the same way.
+    """
+
     cost_matrix: list[list[float]]
     """NxM cost matrix: cost_matrix[dev_idx][task_idx]."""
 
@@ -45,13 +54,3 @@ class JiraTicketProblem(BaseModel, frozen=True):
     """Per-developer reward under optimal allocation."""
 
     seed: int = 42
-
-    @property
-    def agent_names(self) -> list[str]:
-        """Agent roster generated for this problem.
-
-        One scheduler agent per developer (this scenario has no provisioner).
-        Mirrors ``agent_names`` on HospitalProblem / MeetingSchedulingProblem so
-        the agent roster can be read uniformly across DCOP scenarios.
-        """
-        return [d.name for d in self.developers]

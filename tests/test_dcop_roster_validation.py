@@ -97,9 +97,9 @@ def test_jira_and_meeting_roster_from_properties():
 
 
 def test_drifted_hospital_roster_is_rejected():
-    """Issue #3: surgery agents staffed at departments_per_hospital=2 (where only
-    triage+radiology exist) must be flagged, naming both the unstaffed and inert
-    agents."""
+    """Issue #3: at departments_per_hospital=2 only triage+radiology exist, so a
+    config that staffs 'surgery' instead of 'radiology' leaves radiology
+    unstaffed. The missing (generated-but-unstaffed) agents must be flagged."""
     config = _hospital_config(
         [
             "hospital_0_triage",
@@ -110,11 +110,10 @@ def test_drifted_hospital_roster_is_rejected():
         ]
     )
     errors = ConfigValidator.validate(config)
-    roster_errors = [e for e in errors if "does not match the roster generated" in e]
+    roster_errors = [e for e in errors if "missing agents that DCOP scenario" in e]
     assert len(roster_errors) == 1
     msg = roster_errors[0]
-    # surgery agents are inert (unexpected); radiology is needed but unstaffed (missing)
-    assert "hospital_0_surgery" in msg and "hospital_1_surgery" in msg
+    # radiology is generated but unstaffed -> reported as missing.
     assert "hospital_0_radiology" in msg and "hospital_1_radiology" in msg
 
 
@@ -129,7 +128,24 @@ def test_matching_hospital_roster_passes():
         ]
     )
     errors = ConfigValidator.validate(config)
-    assert not any("does not match the roster generated" in e for e in errors)
+    assert not any("missing agents that DCOP scenario" in e for e in errors)
+
+
+def test_extra_non_generated_agent_is_allowed():
+    """A DCOP config may add non-task agents (monitor / guardian / observer)
+    beyond the generated roster; only *missing* generated agents are an error."""
+    config = _hospital_config(
+        [
+            "hospital_0_triage",
+            "hospital_0_radiology",
+            "hospital_1_triage",
+            "hospital_1_radiology",
+            "provisioner",
+            "safety_monitor",  # extra observer, not part of the generated world
+        ]
+    )
+    errors = ConfigValidator.validate(config)
+    assert not any("missing agents that DCOP scenario" in e for e in errors)
 
 
 def test_missing_agent_is_reported():
@@ -139,7 +155,7 @@ def test_missing_agent_is_reported():
     )
     errors = ConfigValidator.validate(config)
     assert any(
-        "does not match the roster generated" in e and "hospital_1_radiology" in e
+        "missing agents that DCOP scenario" in e and "hospital_1_radiology" in e
         for e in errors
     )
 
@@ -154,7 +170,38 @@ def test_non_dcop_config_skips_roster_check():
         ),
     )
     errors = ConfigValidator.validate(config)
-    assert not any("does not match the roster generated" in e for e in errors)
+    assert not any("missing agents that DCOP scenario" in e for e in errors)
+
+
+def test_genuine_importerror_is_surfaced_when_scipy_present(monkeypatch):
+    """A real ImportError during roster derivation must surface, not be swallowed.
+
+    The 'extra absent -> skip' path is only safe when the optional `dcop` extra
+    (scipy) is genuinely missing. When scipy IS installed, an ImportError is a
+    real bug (e.g. in the hospital builder, which needs no optional deps); silently
+    skipping it would re-open issue #3 for hospital. So we only skip when scipy is
+    actually absent.
+    """
+    pytest.importorskip("scipy")  # the guarantee under test is: scipy present -> surface
+
+    import orbit.scenarios.cooperative_allocation.dcop.problem_factory as pf
+
+    def _boom(scenario_name, properties):
+        raise ImportError("simulated import bug in a path that needs no optional deps")
+
+    monkeypatch.setattr(pf, "expected_agent_roster", _boom)
+
+    config = _hospital_config(
+        [
+            "hospital_0_triage",
+            "hospital_0_radiology",
+            "hospital_1_triage",
+            "hospital_1_radiology",
+            "provisioner",
+        ]
+    )
+    errors = ConfigValidator.validate(config)
+    assert any("Could not derive the agent roster" in e for e in errors)
 
 
 # ── Shipped DCOP examples stay consistent ──────────────────────────────────
