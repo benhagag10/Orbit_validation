@@ -3,27 +3,82 @@
 Registered with Inspect via ``_registry.py``. Builds a Task from the
 BigCodeBench dataset using the InspectMAS orchestrator, with the same
 topology and preset surface as the ``redcode_gen`` scenario.
+
+Construction is unified through the scenario-agnostic builder
+(``orbit.tasks.builder.build_scenario_task``).
 """
 
 from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from inspect_ai import Task, task
-from inspect_ai.dataset import MemoryDataset
 
-from orbit.dataset.sample_factory import build_sample
 from orbit.scenarios.coding.bigcodebench.config_builder import (
     build_experiment_configs_from_scenario,
-    default_topology_template,
 )
-from orbit.scenarios.coding.bigcodebench.configs import (
-    BigCodeBenchScenarioConfig,
-)
-from orbit.scenarios.coding.bigcodebench.scorer import bigcodebench_scorer
+from orbit.scenarios.coding.bigcodebench.configs import BigCodeBenchScenarioConfig
+from orbit.scenarios.registry import ScenarioPlugin, register_scenario
+from orbit.tasks.builder import build_scenario_task
+
+if TYPE_CHECKING:
+    from inspect_ai.scorer import Scorer
+
+    from orbit.configs.experiment import ExperimentConfig
 
 logger = logging.getLogger(__name__)
+
+_SANDBOX_COMPOSE = str(Path(__file__).parent / "sandbox" / "compose.yaml")
+
+
+def _scenario_config(config: ExperimentConfig) -> BigCodeBenchScenarioConfig:
+    meta = config.metadata or {}
+    if "bigcodebench_scenario_config" in meta:
+        return BigCodeBenchScenarioConfig(**meta["bigcodebench_scenario_config"])
+    subset = meta.get("bigcodebench_subset")
+    if isinstance(subset, str):
+        subset = [int(s.strip()) for s in subset.split(",") if s.strip()]
+    return BigCodeBenchScenarioConfig(
+        version=meta.get("bigcodebench_version", "v0.1.2"),
+        subset=subset,
+        max_tasks=meta.get("bigcodebench_max_tasks"),
+        seed=meta.get("bigcodebench_seed"),
+        max_turns=config.scheduler.max_turns,
+        max_time_seconds=config.scheduler.max_time_seconds,
+    )
+
+
+def _bigcodebench_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
+    configs = build_experiment_configs_from_scenario(
+        scenario_config=_scenario_config(config),
+        topology_template=config.setup if config.setup.agents else None,
+        attacks=list(config.attacks) or None,
+        defenses=list(config.defenses) or None,
+    )
+    if not configs:
+        logger.warning("No samples built — check scenario config and filters")
+    return configs
+
+
+def _bigcodebench_scorers(config: ExperimentConfig) -> list[Scorer]:
+    from orbit.scenarios.coding.bigcodebench.scorer import bigcodebench_scorer
+    from orbit.scorers.security_scorer import security_scorer
+
+    return [bigcodebench_scorer(), security_scorer()]
+
+
+BIGCODEBENCH_PLUGIN = register_scenario(
+    ScenarioPlugin(
+        name="bigcodebench",
+        expand=_bigcodebench_expand,
+        build_setup=lambda config: None,
+        build_solver=None,
+        build_scorers=_bigcodebench_scorers,
+        build_sandbox=lambda config: ("docker", _SANDBOX_COMPOSE),
+    )
+)
 
 
 @task
@@ -62,6 +117,12 @@ def bigcodebench(
         defense_preset: Defense preset name (e.g. ``"prompt_vaccination"``).
         version: HuggingFace dataset version (e.g. ``"v0.1.2"``).
     """
+    from orbit.configs.experiment import ExperimentConfig
+    from orbit.configs.metrics import MetricsConfig
+    from orbit.configs.scenario import ScenarioConfig
+    from orbit.configs.scheduler import SchedulerConfig
+    from orbit.scenarios.coding.bigcodebench.config_builder import default_topology_template
+
     subset_ids: list[int] | None = None
     if subset:
         subset_ids = [int(s.strip()) for s in subset.split(",") if s.strip()]
@@ -75,7 +136,6 @@ def bigcodebench(
         max_time_seconds=max_time_seconds,
     )
 
-    # Resolve topology: condition > topology_file > default
     if condition:
         from orbit.scenarios.coding.bigcodebench.condition_presets import (
             get_condition_setup,
@@ -94,36 +154,25 @@ def bigcodebench(
     attacks = None
     defenses = None
     if attack_preset:
-        from orbit.scenarios.coding.bigcodebench.presets import (
-            get_attack_preset,
-        )
+        from orbit.scenarios.coding.bigcodebench.presets import get_attack_preset
         attacks = get_attack_preset(attack_preset)
     if defense_preset:
-        from orbit.scenarios.coding.bigcodebench.presets import (
-            get_defense_preset,
-        )
+        from orbit.scenarios.coding.bigcodebench.presets import get_defense_preset
         defenses = get_defense_preset(defense_preset)
 
-    configs = build_experiment_configs_from_scenario(
-        scenario_config=scenario_config,
-        topology_template=topology_template,
-        attacks=attacks,
-        defenses=defenses,
+    config = ExperimentConfig(
+        name="bigcodebench",
+        description="BigCodeBench benign code generation baseline",
+        setup=topology_template,
+        scenario=ScenarioConfig(name="bigcodebench", description="BigCodeBench coding baseline"),
+        attacks=attacks or [],
+        defenses=defenses or [],
+        scheduler=SchedulerConfig(
+            max_turns=max_turns,
+            max_time_seconds=max_time_seconds,
+            halt_on_convergence=False,
+        ),
+        metrics=MetricsConfig(),
+        metadata={"bigcodebench_scenario_config": scenario_config.model_dump()},
     )
-
-    samples = [build_sample(c, sample_id=c.name) for c in configs]
-
-    if not samples:
-        logger.warning("No samples built — check scenario config and filters")
-
-    from orbit.scorers.security_scorer import security_scorer
-    from orbit.solvers.orchestrator import mas_orchestrator
-
-    sandbox_compose = str(Path(__file__).parent / "sandbox" / "compose.yaml")
-
-    return Task(
-        dataset=MemoryDataset(samples) if samples else MemoryDataset([]),
-        solver=mas_orchestrator(),
-        scorer=[bigcodebench_scorer(), security_scorer()],
-        sandbox=("docker", sandbox_compose),
-    )
+    return build_scenario_task(config, BIGCODEBENCH_PLUGIN)

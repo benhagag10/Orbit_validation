@@ -245,40 +245,51 @@ class TestConfigOverrideParity:
 
 
 class TestTaskDispatch:
-    """_build_task routes to the right task factory based on scenario.name."""
+    """Every scenario routes through the single config-complete builder.
+
+    There is no longer a per-scenario dispatch in the runner: every config
+    flows through ``security_benchmark(config)`` -> ``build_scenario_task``,
+    which consults the scenario's registered plugin. These tests assert that
+    the *whole* config (scenario name, topology, attacks, defenses, metadata)
+    reaches the builder rather than being flattened to a lossy kwarg subset.
+    """
 
     @patch("orbit.wrapper.runner.eval")
-    @patch("orbit.scenarios.coding.swe_bench.task.swe_bench_multi_issue")
-    def test_coding_dispatches_to_swe_bench(
-        self, mock_swe, mock_eval, coding_yaml_file
+    @patch("orbit.tasks.security_benchmark.build_scenario_task")
+    def test_coding_routes_through_builder(
+        self, mock_build, mock_eval, coding_yaml_file
     ):
-        mock_swe.return_value = MagicMock()
+        mock_build.return_value = MagicMock()
         mock_eval.return_value = [MagicMock()]
 
         from orbit.wrapper.runner import run_experiment
         run_experiment(str(coding_yaml_file), model="openai/gpt-4o")
 
-        mock_swe.assert_called_once()
-        call_kwargs = mock_swe.call_args[1]
-        assert call_kwargs["num_issues"] == 2
-        assert call_kwargs["seed"] == 42
-        assert call_kwargs["mode"] == "round_robin"
+        mock_build.assert_called_once()
+        cfg = mock_build.call_args[0][0]
+        assert cfg.scenario.name == "swe_bench"
+        # Topology and dataset-selection metadata are preserved end-to-end.
+        assert [a.name for a in cfg.setup.agents] == ["solver"]
+        assert cfg.metadata["swe_bench_num_issues"] == 2
+        assert cfg.metadata["swe_bench_seed"] == 42
 
     @patch("orbit.wrapper.runner.eval")
-    @patch("orbit.scenarios.browser.browserart.task.browserart_safety")
-    def test_browsing_dispatches_to_browserart(
-        self, mock_ba, mock_eval, browsing_yaml_file
+    @patch("orbit.tasks.security_benchmark.build_scenario_task")
+    def test_browsing_routes_through_builder(
+        self, mock_build, mock_eval, browsing_yaml_file
     ):
-        mock_ba.return_value = MagicMock()
+        mock_build.return_value = MagicMock()
         mock_eval.return_value = [MagicMock()]
 
         from orbit.wrapper.runner import run_experiment
         run_experiment(str(browsing_yaml_file), model="openai/gpt-4o")
 
-        mock_ba.assert_called_once()
-        call_kwargs = mock_ba.call_args[1]
-        assert call_kwargs["max_behaviors"] == 5
-        assert call_kwargs["headless"] is True
+        mock_build.assert_called_once()
+        cfg = mock_build.call_args[0][0]
+        assert cfg.scenario.name == "browserart"
+        assert [a.name for a in cfg.setup.agents] == ["browser_agent"]
+        assert cfg.metadata["browserart_max_behaviors"] == 5
+        assert cfg.metadata["browserart_headless"] is True
 
     @patch("orbit.wrapper.runner.eval")
     @patch("orbit.wrapper.runner.security_benchmark")
@@ -300,12 +311,18 @@ class TestTaskDispatch:
 
 
 class TestMissingMetadataDefaults:
-    """When scenario-specific metadata keys are absent, defaults should apply."""
+    """A config with no scenario-specific metadata still routes cleanly.
+
+    Scenario defaults now live inside each plugin's ``expand`` hook (which
+    reads ``config.metadata`` with ``.get(..., default)``), not in a runner
+    dispatch. The runner's only job is to hand the whole config to the builder
+    without crashing on absent keys.
+    """
 
     @patch("orbit.wrapper.runner.eval")
-    @patch("orbit.scenarios.coding.swe_bench.task.swe_bench_multi_issue")
-    def test_swe_bench_defaults_when_metadata_empty(self, mock_swe, mock_eval, tmp_path):
-        """swe_bench with no metadata should use defaults, not crash."""
+    @patch("orbit.tasks.security_benchmark.build_scenario_task")
+    def test_swe_bench_routes_when_metadata_empty(self, mock_build, mock_eval, tmp_path):
+        """swe_bench with no metadata routes to the builder, not crash."""
         content = textwrap.dedent("""\
             name: swe-bench-minimal
             scenario:
@@ -317,23 +334,21 @@ class TestMissingMetadataDefaults:
         p = tmp_path / "minimal_swe.yaml"
         p.write_text(content)
 
-        mock_swe.return_value = MagicMock()
+        mock_build.return_value = MagicMock()
         mock_eval.return_value = [MagicMock()]
 
         from orbit.wrapper.runner import run_experiment
         run_experiment(str(p), model="openai/gpt-4o")
 
-        mock_swe.assert_called_once()
-        kw = mock_swe.call_args[1]
-        assert kw["num_issues"] == 2  # default
-        assert kw["seed"] is None
-        assert kw["repos"] is None
-        assert kw["mode"] == "round_robin"  # default
+        mock_build.assert_called_once()
+        cfg = mock_build.call_args[0][0]
+        assert cfg.scenario.name == "swe_bench"
+        assert cfg.metadata == {}  # no scenario keys; plugin supplies defaults
 
     @patch("orbit.wrapper.runner.eval")
-    @patch("orbit.scenarios.browser.browserart.task.browserart_safety")
-    def test_browserart_defaults_when_metadata_empty(self, mock_ba, mock_eval, tmp_path):
-        """browserart with no metadata should use defaults, not crash."""
+    @patch("orbit.tasks.security_benchmark.build_scenario_task")
+    def test_browserart_routes_when_metadata_empty(self, mock_build, mock_eval, tmp_path):
+        """browserart with no metadata routes to the builder, not crash."""
         content = textwrap.dedent("""\
             name: browserart-minimal
             scenario:
@@ -345,18 +360,16 @@ class TestMissingMetadataDefaults:
         p = tmp_path / "minimal_ba.yaml"
         p.write_text(content)
 
-        mock_ba.return_value = MagicMock()
+        mock_build.return_value = MagicMock()
         mock_eval.return_value = [MagicMock()]
 
         from orbit.wrapper.runner import run_experiment
         run_experiment(str(p), model="openai/gpt-4o")
 
-        mock_ba.assert_called_once()
-        kw = mock_ba.call_args[1]
-        assert kw["max_behaviors"] is None
-        assert kw["headless"] is True  # default
-        assert kw["dataset"] == "hbb"  # default
-        assert kw["condition"] is None
+        mock_build.assert_called_once()
+        cfg = mock_build.call_args[0][0]
+        assert cfg.scenario.name == "browserart"
+        assert cfg.metadata == {}
 
 
 # ===========================================================================
@@ -595,38 +608,42 @@ class TestScenarioSwap:
         assert swapped.scenario.name == "swe_bench"
         assert swapped.setup.agents[0].tools == ["bash", "python", "text_editor"]
 
-    @patch("orbit.wrapper.runner.eval")
-    @patch("orbit.scenarios.browser.browserart.task.browserart_safety")
+    @patch("orbit.tasks.security_benchmark.build_scenario_task")
     def test_swapped_coding_to_browsing_dispatches_correctly(
-        self, mock_ba, mock_eval, coding_config
+        self, mock_build, coding_config
     ):
-        """After swapping to browserart, _build_task should call browserart_safety."""
+        """After swapping to browserart, the swapped config reaches the builder
+        with its browserart topology/metadata intact."""
         from orbit.wrapper.runner import _build_task
 
-        mock_ba.return_value = MagicMock()
+        mock_build.return_value = MagicMock()
         swapped = self._swap_coding_to_browsing(coding_config)
         _build_task(swapped)
 
-        mock_ba.assert_called_once()
-        kw = mock_ba.call_args[1]
-        assert kw["max_behaviors"] == 3
+        mock_build.assert_called_once()
+        cfg = mock_build.call_args[0][0]
+        assert cfg.scenario.name == "browserart"
+        assert [a.name for a in cfg.setup.agents] == ["browser_agent"]
+        assert cfg.metadata["browserart_max_behaviors"] == 3
 
-    @patch("orbit.wrapper.runner.eval")
-    @patch("orbit.scenarios.coding.swe_bench.task.swe_bench_multi_issue")
+    @patch("orbit.tasks.security_benchmark.build_scenario_task")
     def test_swapped_browsing_to_coding_dispatches_correctly(
-        self, mock_swe, mock_eval, browsing_config
+        self, mock_build, browsing_config
     ):
-        """After swapping to swe_bench, _build_task should call swe_bench_multi_issue."""
+        """After swapping to swe_bench, the swapped config reaches the builder
+        with its coding topology/metadata intact."""
         from orbit.wrapper.runner import _build_task
 
-        mock_swe.return_value = MagicMock()
+        mock_build.return_value = MagicMock()
         swapped = self._swap_browsing_to_coding(browsing_config)
         _build_task(swapped)
 
-        mock_swe.assert_called_once()
-        kw = mock_swe.call_args[1]
-        assert kw["num_issues"] == 2
-        assert kw["seed"] == 42
+        mock_build.assert_called_once()
+        cfg = mock_build.call_args[0][0]
+        assert cfg.scenario.name == "swe_bench"
+        assert [a.name for a in cfg.setup.agents] == ["solver"]
+        assert cfg.metadata["swe_bench_num_issues"] == 2
+        assert cfg.metadata["swe_bench_seed"] == 42
 
     def test_sample_building_after_swap(self, coding_config, browsing_config):
         """build_sample works on swapped configs without error."""
@@ -746,9 +763,13 @@ class TestMetadataIsolation:
     on the wrong scenario type. They should just be ignored."""
 
     @patch("orbit.wrapper.runner.eval")
-    @patch("orbit.scenarios.browser.browserart.task.browserart_safety")
-    def test_swe_metadata_on_browserart_is_ignored(self, mock_ba, mock_eval, tmp_path):
-        """swe_bench metadata keys on a browserart scenario don't cause errors."""
+    @patch("orbit.tasks.security_benchmark.build_scenario_task")
+    def test_swe_metadata_on_browserart_is_ignored(self, mock_build, mock_eval, tmp_path):
+        """swe_bench metadata keys on a browserart scenario don't cause errors.
+
+        Each plugin's expand reads only its own ``<scenario>_*`` keys, so
+        foreign keys are inert — they ride along in metadata but are ignored.
+        """
         content = textwrap.dedent("""\
             name: mixed-metadata
             scenario:
@@ -764,19 +785,20 @@ class TestMetadataIsolation:
         p = tmp_path / "mixed.yaml"
         p.write_text(content)
 
-        mock_ba.return_value = MagicMock()
+        mock_build.return_value = MagicMock()
         mock_eval.return_value = [MagicMock()]
 
         from orbit.wrapper.runner import run_experiment
         run_experiment(str(p), model="openai/gpt-4o")
 
-        mock_ba.assert_called_once()
-        kw = mock_ba.call_args[1]
-        assert kw["max_behaviors"] == 3
+        mock_build.assert_called_once()
+        cfg = mock_build.call_args[0][0]
+        assert cfg.scenario.name == "browserart"
+        assert cfg.metadata["browserart_max_behaviors"] == 3
 
     @patch("orbit.wrapper.runner.eval")
-    @patch("orbit.scenarios.coding.swe_bench.task.swe_bench_multi_issue")
-    def test_browserart_metadata_on_swe_bench_is_ignored(self, mock_swe, mock_eval, tmp_path):
+    @patch("orbit.tasks.security_benchmark.build_scenario_task")
+    def test_browserart_metadata_on_swe_bench_is_ignored(self, mock_build, mock_eval, tmp_path):
         """browserart metadata keys on a swe_bench scenario don't cause errors."""
         content = textwrap.dedent("""\
             name: mixed-metadata-swe
@@ -794,15 +816,16 @@ class TestMetadataIsolation:
         p = tmp_path / "mixed_swe.yaml"
         p.write_text(content)
 
-        mock_swe.return_value = MagicMock()
+        mock_build.return_value = MagicMock()
         mock_eval.return_value = [MagicMock()]
 
         from orbit.wrapper.runner import run_experiment
         run_experiment(str(p), model="openai/gpt-4o")
 
-        mock_swe.assert_called_once()
-        kw = mock_swe.call_args[1]
-        assert kw["num_issues"] == 4
+        mock_build.assert_called_once()
+        cfg = mock_build.call_args[0][0]
+        assert cfg.scenario.name == "swe_bench"
+        assert cfg.metadata["swe_bench_num_issues"] == 4
 
 
 # ===========================================================================
@@ -889,21 +912,30 @@ class TestMultiAgentParity:
         browsing_setup = bs.metadata["experiment"]["setup"]
         assert set(coding_setup.keys()) == set(browsing_setup.keys())
 
-    @patch("orbit.scenarios.coding.swe_bench.task.swe_bench_multi_issue")
-    def test_multi_agent_coding_dispatches(self, mock_swe):
+    @patch("orbit.tasks.security_benchmark.build_scenario_task")
+    def test_multi_agent_coding_dispatches(self, mock_build):
         from orbit.wrapper.runner import _build_task
 
-        mock_swe.return_value = MagicMock()
+        mock_build.return_value = MagicMock()
         _build_task(self._multi_agent_coding())
-        mock_swe.assert_called_once()
+        mock_build.assert_called_once()
+        cfg = mock_build.call_args[0][0]
+        # The full 3-agent topology survives to the builder (not collapsed).
+        assert [a.name for a in cfg.setup.agents] == ["lead", "worker1", "worker2"]
+        assert len(cfg.setup.edges) == 2
 
-    @patch("orbit.scenarios.browser.browserart.task.browserart_safety")
-    def test_multi_agent_browsing_dispatches(self, mock_ba):
+    @patch("orbit.tasks.security_benchmark.build_scenario_task")
+    def test_multi_agent_browsing_dispatches(self, mock_build):
         from orbit.wrapper.runner import _build_task
 
-        mock_ba.return_value = MagicMock()
+        mock_build.return_value = MagicMock()
         _build_task(self._multi_agent_browsing())
-        mock_ba.assert_called_once()
+        mock_build.assert_called_once()
+        cfg = mock_build.call_args[0][0]
+        assert [a.name for a in cfg.setup.agents] == [
+            "orchestrator", "click_specialist", "fill_specialist",
+        ]
+        assert len(cfg.setup.edges) == 2
 
 
 # ===========================================================================

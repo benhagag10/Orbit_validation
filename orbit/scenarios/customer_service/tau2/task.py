@@ -15,13 +15,13 @@ from __future__ import annotations
 import copy
 import logging
 
+from typing import TYPE_CHECKING
+
 from inspect_ai import Epochs, Task, task
-from inspect_ai.dataset import MemoryDataset
 from inspect_ai.solver import Solver, TaskState, solver
 from inspect_ai.util import store_as
 
 from orbit.dataset.metadata import MASMetadata
-from orbit.dataset.sample_factory import build_sample
 from orbit.scenarios.customer_service.tau2.config_builder import build_experiment_config
 from orbit.scenarios.customer_service.tau2.configs import Tau2ScenarioConfig, Tau2Task
 from orbit.scenarios.customer_service.tau2.dataset_builder import (
@@ -40,9 +40,12 @@ from orbit.scenarios.customer_service.tau2.scorer import (
 )
 from orbit.scenarios.customer_service.tau2.scorer import pass_hat_k, tau2_scorer
 from orbit.scenarios.customer_service.tau2.state import DomainState
+from orbit.scenarios.registry import ScenarioPlugin, register_scenario
 from orbit.scorers.security_scorer import security_scorer
-from orbit.solvers.orchestrator import mas_orchestrator
-from orbit.solvers.orchestrator_v2 import mas_orchestrator_v2
+from orbit.tasks.builder import build_scenario_task
+
+if TYPE_CHECKING:
+    from orbit.configs.experiment import ExperimentConfig
 
 logger = logging.getLogger(__name__)
 
@@ -208,6 +211,88 @@ _SUPPORTED_TOPOLOGIES = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Scenario plugin hooks (total over ExperimentConfig)
+# ---------------------------------------------------------------------------
+
+
+def _tau2_scenario_config(config: ExperimentConfig) -> Tau2ScenarioConfig:
+    """Reconstruct the tau2 scenario config from metadata.
+
+    The -T factory serializes the resolved config under
+    ``tau2_scenario_config``; an ``orbit run`` YAML can instead carry the
+    individual ``tau2_*`` keys (domain falls back to ``scenario.name``,
+    e.g. ``tau2_airline`` -> ``airline``).
+    """
+    meta = config.metadata or {}
+    if "tau2_scenario_config" in meta:
+        return Tau2ScenarioConfig(**meta["tau2_scenario_config"])
+    domain = meta.get("tau2_domain") or config.scenario.name.replace("tau2_", "") or "airline"
+    topology = meta.get("tau2_topology", "dual_control")
+    mode = meta.get("tau2_mode") or ("solo" if topology == "solo" else "dual_control")
+    return Tau2ScenarioConfig(
+        domain=domain,  # type: ignore[arg-type]
+        task_ids=_parse_csv(meta.get("tau2_task_ids")),
+        max_tasks=meta.get("tau2_max_tasks"),
+        seed=meta.get("tau2_seed"),
+        mode=mode,  # type: ignore[arg-type]
+        topology=topology,  # type: ignore[arg-type]
+        judge_model=meta.get("tau2_judge_model", "openai/gpt-4.1"),
+        max_turns=config.scheduler.max_turns,
+        max_time_seconds=config.scheduler.max_time_seconds,
+        data_path=meta.get("tau2_data_path"),
+    )
+
+
+def _tau2_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
+    sc = _tau2_scenario_config(config)
+    tasks = filter_tasks(load_tau2_tasks(sc), sc)
+    policy_text = load_policy(sc)
+    configs = [
+        build_experiment_config(task=t, scenario_config=sc, policy_text=policy_text)
+        for t in tasks
+    ]
+    if not configs:
+        logger.warning("No tau2 samples built — check filters and domain")
+    return configs
+
+
+def _tau2_setup(config: ExperimentConfig) -> Solver:
+    sc = _tau2_scenario_config(config)
+    return _build_setup_solver(
+        domain=sc.domain,
+        initial_db=load_initial_db(sc),
+        initial_user_db=load_initial_user_db(sc),
+        scenario_config=sc,
+    )
+
+
+def _tau2_scorers(config: ExperimentConfig) -> list:
+    sc = _tau2_scenario_config(config)
+    return [
+        tau2_scorer(data_path=sc.data_path, judge_model=sc.judge_model),
+        security_scorer(),
+    ]
+
+
+# Default to 1 epoch with pass^1 / pass^2 / pass^4 reducers wired in. Running
+# with ``--epochs N`` overrides the count but preserves the reducer list, so
+# ``--epochs 4`` yields directly paper-comparable pass^4 numbers.
+TAU2_PLUGIN = register_scenario(
+    ScenarioPlugin(
+        name="tau2",
+        expand=_tau2_expand,
+        build_setup=_tau2_setup,
+        build_solver=None,  # default mas_orchestrator (v1/v2)
+        build_scorers=_tau2_scorers,
+        build_sandbox=lambda config: None,
+        build_task_kwargs=lambda config: {
+            "epochs": Epochs(1, [pass_hat_k(1), pass_hat_k(2), pass_hat_k(4)])
+        },
+    )
+)
+
+
 @task
 def tau2(
     domain: str = "airline",
@@ -317,41 +402,27 @@ def tau2(
         data_path=data_path,
     )
 
-    tasks = load_tau2_tasks(scenario_config)
-    tasks = filter_tasks(tasks, scenario_config)
+    # Build the single template config and delegate to the shared builder.
+    # The tau2 plugin's expand hook fans this out into one config per task
+    # (its topology is built per-task by topologies.py, not from config.setup).
+    from orbit.configs.experiment import ExperimentConfig
+    from orbit.configs.metrics import MetricsConfig
+    from orbit.configs.scenario import ScenarioConfig
+    from orbit.configs.scheduler import SchedulerConfig
 
-    policy_text = load_policy(scenario_config)
-    initial_db = load_initial_db(scenario_config)
-    initial_user_db = load_initial_user_db(scenario_config)
-
-    samples = []
-    for t in tasks:
-        config = build_experiment_config(
-            task=t, scenario_config=scenario_config, policy_text=policy_text
-        )
-        samples.append(build_sample(config, sample_id=config.name))
-
-    if not samples:
-        logger.warning("No tau2 samples built — check filters and domain")
-
-    setup_solver = _build_setup_solver(
-        domain=domain,
-        initial_db=initial_db,
-        initial_user_db=initial_user_db,
-        scenario_config=scenario_config,
+    config = ExperimentConfig(
+        name=f"tau2_{domain}",
+        description=f"τ²-Bench {domain} ({mode}/{topology})",
+        scenario=ScenarioConfig(
+            name=f"tau2_{domain}",
+            description=f"τ²-Bench {domain} customer-service scenario",
+        ),
+        scheduler=SchedulerConfig(
+            max_turns=max_turns,
+            max_time_seconds=max_time_seconds,
+            halt_on_convergence=False,
+        ),
+        metrics=MetricsConfig(),
+        metadata={"tau2_scenario_config": scenario_config.model_dump()},
     )
-
-    # Default to 1 epoch with pass^1 / pass^2 / pass^4 reducers wired
-    # in. When the user runs with ``--epochs N`` Inspect overrides the
-    # epoch count but preserves the reducer list, so passing
-    # ``--epochs 4`` yields directly paper-comparable pass^4 numbers.
-    return Task(
-        dataset=MemoryDataset(samples) if samples else MemoryDataset([]),
-        setup=setup_solver,
-        solver=mas_orchestrator_v2() if orchestrator == "v2" else mas_orchestrator(),
-        scorer=[
-            tau2_scorer(data_path=data_path, judge_model=judge_model),
-            security_scorer(),
-        ],
-        epochs=Epochs(1, [pass_hat_k(1), pass_hat_k(2), pass_hat_k(4)]),
-    )
+    return build_scenario_task(config, TAU2_PLUGIN, orchestrator=orchestrator)

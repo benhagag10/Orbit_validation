@@ -3,6 +3,15 @@ SWE-Bench multi-issue task entry point.
 
 Registered with Inspect via _registry.py. Creates a Task from SWE-Bench
 multi-issue groups with configurable topology, attacks, and defenses.
+
+Construction is unified through the scenario-agnostic builder
+(``orbit.tasks.builder.build_scenario_task``): the ``swe_bench`` plugin's
+``expand`` hook reads the issue-selection config from ``config.metadata`` and
+threads ``config.setup`` (the topology template replicated per issue),
+``config.attacks`` and ``config.defenses`` into every per-group config. Both
+``inspect eval orbit/swe_bench_multi_issue -T ...`` and ``orbit run <yaml>``
+reach that same hook, so multi-agent topologies and inline attacks/defenses are
+honoured end-to-end on both paths.
 """
 
 from __future__ import annotations
@@ -11,23 +20,25 @@ import logging
 import platform
 from importlib.util import find_spec
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from inspect_ai import Task, task
-from inspect_ai.dataset import MemoryDataset
+from inspect_ai.solver import chain
 
-from orbit.dataset.sample_factory import build_sample
 from orbit.scenarios.coding.swe_bench.config_builder import (
     build_experiment_configs_from_scenario,
     default_topology_template,
 )
-from inspect_ai.solver import chain
-
 from orbit.scenarios.coding.swe_bench.configs import SWEBenchScenarioConfig
-from orbit.scenarios.coding.swe_bench.network_solver import (
-    swe_bench_disconnect_network,
-    swe_bench_pre_agent_validation,
-)
-from orbit.scenarios.coding.swe_bench.scorer import swe_bench_multi_issue_scorer
+from orbit.scenarios.registry import ScenarioPlugin, register_scenario
+from orbit.tasks.builder import build_scenario_task
+
+if TYPE_CHECKING:
+    from inspect_ai.scorer import Scorer
+    from inspect_ai.solver import Solver
+
+    from orbit.configs.experiment import ExperimentConfig
+    from orbit.configs.setup import SetupConfig
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +87,114 @@ def _check_swe_bench_prerequisites() -> None:
         )
 
 
+# ---------------------------------------------------------------------------
+# Scenario plugin hooks (total over ExperimentConfig)
+# ---------------------------------------------------------------------------
+
+
+def _scenario_config_from(config: ExperimentConfig) -> SWEBenchScenarioConfig:
+    """Reconstruct the issue-selection config from metadata + scheduler.
+
+    The -T factory serializes the resolved ``SWEBenchScenarioConfig`` under
+    ``swe_bench_scenario_config``; YAML/​orbit-run configs use the individual
+    ``swe_bench_*`` keys. Both produce the same object here.
+    """
+    meta = config.metadata or {}
+    if "swe_bench_scenario_config" in meta:
+        return SWEBenchScenarioConfig(**meta["swe_bench_scenario_config"])
+    return SWEBenchScenarioConfig(
+        num_issues=meta.get("swe_bench_num_issues", 2),
+        seed=meta.get("swe_bench_seed"),
+        repos=meta.get("swe_bench_repos"),
+        instance_ids=meta.get("swe_bench_instance_ids"),
+        execution_mode=meta.get("swe_bench_mode", "round_robin"),
+        max_turns_per_agent=config.scheduler.max_turns,
+        max_time_seconds=config.scheduler.max_time_seconds,
+        max_groups=meta.get("swe_bench_max_groups"),
+        force_arch=meta.get("swe_bench_force_arch", ""),
+    )
+
+
+def _swe_bench_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
+    """Fan the config out into one ExperimentConfig per multi-issue group."""
+    _check_swe_bench_prerequisites()
+
+    scenario_config = _scenario_config_from(config)
+
+    # The topology in config.setup is the template replicated per issue.
+    # An empty setup (e.g. an attack-only YAML) falls back to the single-agent
+    # default; the replicator suffixes agents per issue (solver -> solver_0…).
+    topology_template = config.setup if config.setup.agents else default_topology_template()
+
+    configs = build_experiment_configs_from_scenario(
+        scenario_config=scenario_config,
+        topology_template=topology_template,
+        attacks=list(config.attacks) or None,
+        defenses=list(config.defenses) or None,
+    )
+    if not configs:
+        logger.warning("No samples built — check scenario config and available groups")
+    return configs
+
+
+def _swe_bench_setup(config: ExperimentConfig) -> Solver:
+    from orbit.scenarios.coding.swe_bench.network_solver import (
+        swe_bench_disconnect_network,
+        swe_bench_pre_agent_validation,
+    )
+
+    return chain(
+        swe_bench_disconnect_network(),
+        swe_bench_pre_agent_validation(),
+    )
+
+
+def _swe_bench_scorers(config: ExperimentConfig) -> list[Scorer]:
+    from orbit.scenarios.coding.swe_bench.scorer import swe_bench_multi_issue_scorer
+    from orbit.scorers.security_scorer import security_scorer
+
+    attacks = config.attacks
+    scorers: list[Scorer] = [swe_bench_multi_issue_scorer()]
+
+    if any(a.attack_type == "codebase_injection" for a in attacks):
+        from orbit.scenarios.coding.swe_bench.injection_scorer import (
+            codebase_injection_scorer,
+        )
+
+        scorers.append(codebase_injection_scorer())
+
+    if any(
+        a.attack_type in ("compromised_agent", "collusion")
+        and a.properties.get("has_covert_report_tool")
+        for a in attacks
+    ):
+        from orbit.scenarios.coding.swe_bench.attacks.vulnerability_scorer import (
+            vulnerability_scorer,
+        )
+
+        scorers.append(vulnerability_scorer())
+
+    scorers.append(security_scorer())
+    return scorers
+
+
+SWE_BENCH_PLUGIN = register_scenario(
+    ScenarioPlugin(
+        name="swe_bench",
+        expand=_swe_bench_expand,
+        build_setup=_swe_bench_setup,
+        build_solver=None,  # default mas_orchestrator
+        build_scorers=_swe_bench_scorers,
+        build_sandbox=lambda config: None,  # per-sample compose file
+    )
+)
+
+
+# ---------------------------------------------------------------------------
+# @task factory — thin resolver of flat -T params into an ExperimentConfig
+# ---------------------------------------------------------------------------
+
+
 @task
 def swe_bench_multi_issue(
     scenario_config_path: str | None = None,
@@ -114,9 +233,13 @@ def swe_bench_multi_issue(
         instructions: Instruction detail level (detailed, relaxed).
             Only used with ``agents``.
     """
+    from orbit.configs.experiment import ExperimentConfig
+    from orbit.configs.metrics import MetricsConfig
+    from orbit.configs.scenario import ScenarioConfig
+    from orbit.configs.scheduler import SchedulerConfig
     from orbit.configs.setup import SetupConfig
 
-    # ---- Resolve human-readable params to condition name ----
+    # ---- Resolve human-readable params to a condition name ----
     if agents is not None and condition is not None:
         raise ValueError(
             "Cannot specify both --condition and --agents. Use one or the other."
@@ -129,9 +252,7 @@ def swe_bench_multi_issue(
             memory=memory, instructions=instructions,
         )
 
-    _check_swe_bench_prerequisites()
-
-    # Build scenario config
+    # ---- Build the issue-selection config ----
     if scenario_config_path:
         import yaml
 
@@ -141,7 +262,6 @@ def swe_bench_multi_issue(
     else:
         repo_list = [r.strip() for r in repos.split(",")] if repos else None
 
-        # Resolve instance IDs from various sources
         id_list: list[str] | None = None
         if instance_ids:
             id_list = [i.strip() for i in instance_ids.split(",")]
@@ -150,9 +270,7 @@ def swe_bench_multi_issue(
 
             set_path = Path(instance_set)
             if not set_path.is_absolute():
-                set_path = (
-                    Path(__file__).parent / "data" / instance_set
-                )
+                set_path = Path(__file__).parent / "data" / instance_set
             with open(set_path) as f:
                 id_list = json.load(f)["instance_ids"]
             logger.info("Loaded %d instance IDs from %s", len(id_list), set_path)
@@ -169,7 +287,7 @@ def swe_bench_multi_issue(
             force_arch=force_arch,
         )
 
-    # Load topology template
+    # ---- Resolve the topology template ----
     if condition is not None:
         from orbit.scenarios.coding.swe_bench.condition_presets import (
             get_condition_setup,
@@ -181,14 +299,13 @@ def swe_bench_multi_issue(
     elif topology_file == "default":
         topology_template = default_topology_template()
     else:
-        # Load from YAML file
         import yaml
 
         with open(topology_file) as f:
             topo_data = yaml.safe_load(f)
         topology_template = SetupConfig(**topo_data)
 
-    # Build attack/defense configs from presets
+    # ---- Resolve attack/defense presets into inline configs ----
     attacks = None
     defenses = None
     if attack_preset:
@@ -200,59 +317,23 @@ def swe_bench_multi_issue(
 
         defenses = get_defense_preset(defense_preset)
 
-    # Build experiment configs
-    configs = build_experiment_configs_from_scenario(
-        scenario_config=scenario_config,
-        topology_template=topology_template,
-        attacks=attacks,
-        defenses=defenses,
-    )
-
-    # Build samples
-    samples = []
-    for config in configs:
-        sample = build_sample(config, sample_id=config.name)
-        samples.append(sample)
-
-    if not samples:
-        logger.warning("No samples built — check scenario config and available groups")
-
-    # Build scorer pipeline
-    from orbit.scorers.security_scorer import security_scorer
-    from orbit.solvers.orchestrator import mas_orchestrator
-
-    scorers = [swe_bench_multi_issue_scorer()]
-
-    has_codebase_injection = attacks and any(
-        a.attack_type == "codebase_injection" for a in attacks
-    )
-    if has_codebase_injection:
-        from orbit.scenarios.coding.swe_bench.injection_scorer import (
-            codebase_injection_scorer,
-        )
-
-        scorers.append(codebase_injection_scorer())
-
-    has_compromised_or_collusion = attacks and any(
-        a.attack_type in ("compromised_agent", "collusion")
-        and a.properties.get("has_covert_report_tool")
-        for a in attacks
-    )
-    if has_compromised_or_collusion:
-        from orbit.scenarios.coding.swe_bench.attacks.vulnerability_scorer import (
-            vulnerability_scorer,
-        )
-
-        scorers.append(vulnerability_scorer())
-
-    scorers.append(security_scorer())
-
-    return Task(
-        dataset=MemoryDataset(samples) if samples else MemoryDataset([]),
-        setup=chain(
-            swe_bench_disconnect_network(),
-            swe_bench_pre_agent_validation(),
+    config = ExperimentConfig(
+        name="swe_bench",
+        description="SWE-Bench multi-issue security benchmark",
+        setup=topology_template,
+        scenario=ScenarioConfig(
+            name="swe_bench",
+            description="SWE-Bench multi-issue coding benchmark",
         ),
-        solver=mas_orchestrator(),
-        scorer=scorers,
+        attacks=attacks or [],
+        defenses=defenses or [],
+        scheduler=SchedulerConfig(
+            max_turns=scenario_config.max_turns_per_agent,
+            max_time_seconds=scenario_config.max_time_seconds,
+            halt_on_convergence=False,
+        ),
+        metrics=MetricsConfig(),
+        metadata={"swe_bench_scenario_config": scenario_config.model_dump()},
     )
+
+    return build_scenario_task(config, SWE_BENCH_PLUGIN)

@@ -3,23 +3,22 @@
 from __future__ import annotations
 
 from inspect_ai import Task, task
-from inspect_ai.dataset import MemoryDataset
-from inspect_ai.util import store_as
 
-from orbit.attacks.collusion.collusion_state import CollusionLog
 from orbit.configs.attack import AttackConfig
 from orbit.configs.execution import AgentGroup, ExecutionConfig, ObservationConfig
 from orbit.configs.experiment import ExperimentConfig
 from orbit.configs.scenario import ScenarioConfig
 from orbit.configs.scheduler import SchedulerConfig
 from orbit.configs.setup import AgentSpec, SetupConfig, TopologyEdge
-from orbit.dataset.sample_factory import build_sample
+from orbit.scenarios.cooperative_allocation.dcop.plugin import make_dcop_plugin
 from orbit.scenarios.cooperative_allocation.meeting_scheduling.dataset_builder import build_problem
 from orbit.scenarios.cooperative_allocation.meeting_scheduling.scorer import meeting_scheduling_scorer
-from orbit.scorers.collusion_scorer import collusion_scorer
-from orbit.scorers.security_scorer import security_scorer
-from orbit.solvers.orchestrator import mas_orchestrator
-from orbit.solvers.orchestrator_v2 import mas_orchestrator_v2
+from orbit.scenarios.registry import register_scenario
+from orbit.tasks.builder import build_scenario_task
+
+MEETING_SCHEDULING_PLUGIN = register_scenario(
+    make_dcop_plugin("meeting_scheduling", meeting_scheduling_scorer)
+)
 
 
 def _get_defenses(defense_preset: str | None) -> list:
@@ -37,40 +36,6 @@ def _get_defenses(defense_preset: str | None) -> list:
     if defense_preset not in presets:
         raise ValueError(f"Unknown defense preset: {defense_preset}")
     return presets[defense_preset]()
-
-
-def _build_setup_solver(problem, compromised_agent_name=None):
-    """Build a setup solver that initializes MeetingSchedulingState."""
-    from inspect_ai.solver import Solver, TaskState, solver
-    from orbit.scenarios.cooperative_allocation.meeting_scheduling.state import MeetingSchedulingState
-
-    @solver
-    def meeting_setup() -> Solver:
-        async def solve(state: TaskState, generate) -> TaskState:
-            from orbit.scenarios.cooperative_allocation.dcop.state import DCOPState
-
-            ms_state = store_as(MeetingSchedulingState)
-            ms_state.meetings = [m.model_dump() for m in problem.meetings]
-            ms_state.agent_names = list(problem.agent_names)
-            ms_state.num_time_slots = problem.num_time_slots
-
-            dcop_state = store_as(DCOPState)
-            dcop_state.optimal_total_reward = problem.optimal_reward
-            dcop_state.optimal_per_agent_reward = dict(
-                problem.optimal_per_agent_reward
-            )
-            dcop_state.is_optimal_exact = True
-
-            if compromised_agent_name:
-                collusion_log = store_as(CollusionLog)
-                collusion_log.coalition_agents = [compromised_agent_name]
-                collusion_log.collusion_mode = "compromised"
-
-            return state
-
-        return solve
-
-    return meeting_setup()
 
 
 @task
@@ -225,6 +190,12 @@ def meeting_scheduling(
     )
 
     scenario_props = {
+        "num_agents": num_agents,
+        "num_meetings": num_meetings,
+        "num_time_slots": num_time_slots,
+        "strict_meeting_ratio": strict_meeting_ratio,
+        "max_participants_per_meeting": max_participants_per_meeting,
+        "seed": seed,
         "optimal_reward": problem.optimal_reward,
         "optimal_per_agent_reward": problem.optimal_per_agent_reward,
     }
@@ -249,19 +220,4 @@ def meeting_scheduling(
         max_time_seconds=max_time,
     )
 
-    sample = build_sample(config)
-    setup_solver = _build_setup_solver(problem, compromised_agent)
-
-    from orbit.scenarios.cooperative_allocation.dcop.scorer import dcop_scorer
-    from orbit.validation.integrity_scorer import integrity_scorer
-
-    scorers = [security_scorer(), integrity_scorer(), meeting_scheduling_scorer(), dcop_scorer()]
-    if coalition_agents or compromised_agent:
-        scorers.append(collusion_scorer())
-
-    return Task(
-        dataset=MemoryDataset([sample]),
-        setup=setup_solver,
-        solver=mas_orchestrator_v2() if orchestrator == "v2" else mas_orchestrator(),
-        scorer=scorers,
-    )
+    return build_scenario_task(config, MEETING_SCHEDULING_PLUGIN, orchestrator=orchestrator)

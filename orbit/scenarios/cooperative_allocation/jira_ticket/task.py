@@ -3,24 +3,22 @@
 from __future__ import annotations
 
 from inspect_ai import Task, task
-from inspect_ai.dataset import MemoryDataset, Sample
-from inspect_ai.util import store_as
 
-from orbit.attacks.collusion.collusion_state import CollusionLog
 from orbit.configs.attack import AttackConfig
 from orbit.configs.execution import AgentGroup, ExecutionConfig, ObservationConfig
 from orbit.configs.experiment import ExperimentConfig
 from orbit.configs.scenario import ScenarioConfig
 from orbit.configs.scheduler import SchedulerConfig
 from orbit.configs.setup import AgentSpec, SetupConfig, TopologyEdge
-from orbit.dataset.metadata import MASMetadata
-from orbit.dataset.sample_factory import build_sample
+from orbit.scenarios.cooperative_allocation.dcop.plugin import make_dcop_plugin
 from orbit.scenarios.cooperative_allocation.jira_ticket.dataset_builder import build_problem
 from orbit.scenarios.cooperative_allocation.jira_ticket.scorer import jira_ticket_scorer
-from orbit.scorers.collusion_scorer import collusion_scorer
-from orbit.scorers.security_scorer import security_scorer
-from orbit.solvers.orchestrator import mas_orchestrator
-from orbit.solvers.orchestrator_v2 import mas_orchestrator_v2
+from orbit.scenarios.registry import register_scenario
+from orbit.tasks.builder import build_scenario_task
+
+JIRA_TICKET_PLUGIN = register_scenario(
+    make_dcop_plugin("jira_ticket", jira_ticket_scorer)
+)
 
 
 def _get_defenses(defense_preset: str | None) -> list:
@@ -64,47 +62,6 @@ def _get_defenses(defense_preset: str | None) -> list:
         )]
     else:
         raise ValueError(f"Unknown defense preset: {defense_preset}")
-
-
-def _build_setup_solver(problem, config, compromised_agent_name=None):
-    """Build a setup solver that initializes JiraTicketState."""
-    from inspect_ai.solver import Solver, TaskState, solver
-    from orbit.scenarios.cooperative_allocation.jira_ticket.state import JiraTicketState
-
-    @solver
-    def jira_setup() -> Solver:
-        async def solve(state: TaskState, generate) -> TaskState:
-            from orbit.scenarios.cooperative_allocation.dcop.state import DCOPState
-
-            jira_state = store_as(JiraTicketState)
-            jira_state.tasks = [t.model_dump() for t in problem.tasks]
-            jira_state.developer_profiles = {
-                d.name: d.model_dump() for d in problem.developers
-            }
-            jira_state.cost_matrix = problem.cost_matrix
-            jira_state.optimal_total_reward = problem.optimal_total_reward
-            jira_state.optimal_per_agent_reward = dict(
-                problem.optimal_per_agent_reward
-            )
-
-            dcop_state = store_as(DCOPState)
-            dcop_state.optimal_assignment = dict(problem.optimal_allocation)
-            dcop_state.optimal_total_reward = problem.optimal_total_reward
-            dcop_state.optimal_per_agent_reward = dict(
-                problem.optimal_per_agent_reward
-            )
-            dcop_state.is_optimal_exact = True
-
-            if compromised_agent_name:
-                collusion_log = store_as(CollusionLog)
-                collusion_log.coalition_agents = [compromised_agent_name]
-                collusion_log.collusion_mode = "compromised"
-
-            return state
-
-        return solve
-
-    return jira_setup()
 
 
 @task
@@ -270,8 +227,16 @@ def jira_ticket_allocation(
         observation=observation,
     )
 
-    # Build experiment config
+    # Build experiment config. The build parameters live in scenario.properties
+    # so the shared setup solver (mas_environment_setup) can deterministically
+    # rebuild the problem and seed JiraTicketState/DCOPState — identically for
+    # the ``orbit run`` and ``inspect eval -T`` paths.
     scenario_props = {
+        "num_developers": num_developers,
+        "num_tasks": num_tasks,
+        "skill_pool": skills,
+        "scarcity": scarcity,
+        "seed": seed,
         "optimal_total_reward": problem.optimal_total_reward,
         "optimal_per_agent_reward": problem.optimal_per_agent_reward,
         "optimal_allocation": problem.optimal_allocation,
@@ -297,25 +262,4 @@ def jira_ticket_allocation(
         max_time_seconds=max_time,
     )
 
-    # Build sample
-    sample = build_sample(config)
-
-    # Build setup solver
-    setup_solver = _build_setup_solver(problem, config, compromised_agent)
-
-    # Scorer ordering: scenario scorer first (populates CollusionLog/DCOPState),
-    # then dcop_scorer, then collusion_scorer last (reads from populated stores).
-    # Matches the scorer list in security_benchmark.py for consistent output.
-    from orbit.scenarios.cooperative_allocation.dcop.scorer import dcop_scorer
-    from orbit.validation.integrity_scorer import integrity_scorer
-
-    scorers = [security_scorer(), integrity_scorer(), jira_ticket_scorer(), dcop_scorer()]
-    if coalition_agents or compromised_agent:
-        scorers.append(collusion_scorer())
-
-    return Task(
-        dataset=MemoryDataset([sample]),
-        setup=setup_solver,
-        solver=mas_orchestrator_v2() if orchestrator == "v2" else mas_orchestrator(),
-        scorer=scorers,
-    )
+    return build_scenario_task(config, JIRA_TICKET_PLUGIN, orchestrator=orchestrator)

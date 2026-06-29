@@ -12,11 +12,9 @@ import logging
 from typing import TYPE_CHECKING
 
 from inspect_ai import Task, task
-from inspect_ai.dataset import MemoryDataset
 from inspect_ai.solver import Solver, TaskState, solver
 from inspect_ai.util import store_as
 
-from orbit.dataset.sample_factory import build_sample
 from orbit.scenarios.customer_service.converse.condition_presets import (
     apply_memory_preset,
     get_condition_setup,
@@ -28,11 +26,12 @@ from orbit.scenarios.customer_service.converse.configs import (
     ConverseScenarioConfig,
 )
 from orbit.scenarios.customer_service.converse.dataset_builder import build_samples
-from orbit.scenarios.customer_service.converse.scorer import converse_scorer
+from orbit.scenarios.registry import ScenarioPlugin, register_scenario
 from orbit.solvers.runtime_state import MemoryPoisonLog
+from orbit.tasks.builder import build_scenario_task
 
 if TYPE_CHECKING:
-    pass
+    from orbit.configs.experiment import ExperimentConfig
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +123,69 @@ def converse_setup() -> Solver:
         return state
 
     return solve
+
+
+# ---------------------------------------------------------------------------
+# Scenario plugin hooks (total over ExperimentConfig)
+# ---------------------------------------------------------------------------
+
+
+def _scenario_config(config: ExperimentConfig) -> ConverseScenarioConfig:
+    meta = config.metadata or {}
+    if "converse_scenario_config" in meta:
+        return ConverseScenarioConfig(**meta["converse_scenario_config"])
+    return ConverseScenarioConfig(
+        domains=_parse_csv(meta.get("converse_domains")),  # type: ignore[arg-type]
+        persona_ids=_parse_csv(meta.get("converse_persona_ids")),
+        attack_modes=_parse_csv(meta.get("converse_attack_modes")) or ("benign",),  # type: ignore[arg-type]
+        max_samples=meta.get("converse_max_samples"),
+        seed=meta.get("converse_seed"),
+        judge_model=meta.get("converse_judge_model", "openai/gpt-4.1"),
+        max_turns=config.scheduler.max_turns,
+        max_time_seconds=config.scheduler.max_time_seconds,
+    )
+
+
+def _converse_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
+    meta = config.metadata or {}
+    scenario_config = _scenario_config(config)
+    samples_data = build_samples(scenario_config)
+    configs = build_experiment_configs(
+        samples=samples_data,
+        setup=config.setup,  # the resolved ConVerse topology
+        scenario_config=scenario_config,
+        attacks=list(config.attacks) or None,
+        defenses=list(config.defenses) or None,
+        memory_poison_seeds=meta.get("converse_memory_poison_seeds"),
+    )
+    if not configs:
+        logger.warning(
+            "ConVerse: no samples materialized for attack_modes=%s",
+            scenario_config.attack_modes,
+        )
+    return configs
+
+
+def _converse_scorers(config: ExperimentConfig) -> list:
+    from orbit.scenarios.customer_service.converse.scorer import converse_scorer
+    from orbit.scorers.security_scorer import security_scorer
+
+    return [
+        converse_scorer(judge_model=_scenario_config(config).judge_model),
+        security_scorer(),
+    ]
+
+
+CONVERSE_PLUGIN = register_scenario(
+    ScenarioPlugin(
+        name="converse",
+        expand=_converse_expand,
+        build_setup=lambda config: converse_setup(),
+        build_solver=None,  # default mas_orchestrator (v1/v2)
+        build_scorers=_converse_scorers,
+        build_sandbox=lambda config: None,
+    )
+)
 
 
 @task
@@ -286,9 +348,7 @@ def converse_safety(
 
         preset_defenses = get_defense_preset(defense_preset)
 
-    # --- Build samples + experiment configs ------------------------------
-    samples_data = build_samples(scenario_config)
-
+    # --- Optional cross-session memory-poison seed file ------------------
     memory_poison_seeds: dict[str, list[dict]] | None = None
     if memory_poison_seed_file:
         import json
@@ -304,39 +364,29 @@ def converse_safety(
             str(k): list(v or []) for k, v in raw.items()
         }
 
-    configs = build_experiment_configs(
-        samples=samples_data,
+    # --- Build the single template config and delegate to the builder ----
+    from orbit.configs.experiment import ExperimentConfig
+    from orbit.configs.metrics import MetricsConfig
+    from orbit.configs.scenario import ScenarioConfig
+    from orbit.configs.scheduler import SchedulerConfig
+
+    metadata: dict = {"converse_scenario_config": scenario_config.model_dump()}
+    if memory_poison_seeds is not None:
+        metadata["converse_memory_poison_seeds"] = memory_poison_seeds
+
+    config = ExperimentConfig(
+        name="converse",
+        description="ConVerse contextual-safety benchmark",
         setup=setup,
-        scenario_config=scenario_config,
-        attacks=preset_attacks,
-        defenses=preset_defenses,
-        memory_poison_seeds=memory_poison_seeds,
+        scenario=ScenarioConfig(name="converse", description="ConVerse contextual safety"),
+        attacks=preset_attacks or [],
+        defenses=preset_defenses or [],
+        scheduler=SchedulerConfig(
+            max_turns=max_turns,
+            max_time_seconds=max_time_seconds,
+            halt_on_convergence=False,
+        ),
+        metrics=MetricsConfig(),
+        metadata=metadata,
     )
-
-    inspect_samples = []
-    for cfg in configs:
-        inspect_samples.append(build_sample(cfg, sample_id=cfg.name))
-
-    if not inspect_samples:
-        logger.warning(
-            "ConVerse: no samples materialized. attack_modes=%s, filters=%s",
-            modes_tuple,
-            {
-                "domains": domains,
-                "persona_ids": persona_ids,
-                "data_categories": data_categories,
-                "security_categories": security_categories,
-            },
-        )
-
-    # --- Assemble Task ---------------------------------------------------
-    from orbit.scorers.security_scorer import security_scorer
-    from orbit.solvers.orchestrator import mas_orchestrator
-    from orbit.solvers.orchestrator_v2 import mas_orchestrator_v2
-
-    return Task(
-        dataset=MemoryDataset(inspect_samples),
-        setup=converse_setup(),
-        solver=mas_orchestrator_v2() if orchestrator == "v2" else mas_orchestrator(),
-        scorer=[converse_scorer(judge_model=judge_model), security_scorer()],
-    )
+    return build_scenario_task(config, CONVERSE_PLUGIN, orchestrator=orchestrator)
