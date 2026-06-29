@@ -123,7 +123,71 @@ class ConfigValidator:
         # 10. Agent group validation
         errors.extend(_validate_agent_groups(config, agent_names))
 
+        # 11. DCOP scenarios: setup.agents must match the generated roster.
+        #     A DCOP scenario (jira_ticket, hospital, meeting_scheduling) builds
+        #     its whole world -- and the agent roster -- from scenario.properties.
+        #     The hand-written setup.agents list is a separate declaration of that
+        #     same roster, so the two can silently drift (GitHub issue #3: a
+        #     'surgery' department staffed at departments_per_hospital=2, where
+        #     only triage+radiology exist, leaves the agent inert and a needed
+        #     department unstaffed). Reconcile them here so the mismatch fails
+        #     loudly at `orbit validate` and at run start, not silently mid-run.
+        errors.extend(_validate_dcop_roster(config, agent_names))
+
         return errors
+
+
+def _validate_dcop_roster(
+    config: ExperimentConfig, agent_names: set[str]
+) -> list[str]:
+    """For DCOP scenarios, check setup.agents matches the generated roster.
+
+    Returns no errors for non-DCOP scenarios (their roster is hand-authored and
+    not derivable from scenario.properties).
+    """
+    from orbit.scenarios.cooperative_allocation.dcop.problem_factory import (
+        expected_agent_roster,
+    )
+
+    scenario_name = config.scenario.name
+    properties = config.scenario.properties or {}
+
+    try:
+        expected = expected_agent_roster(scenario_name, properties)
+    except ImportError:
+        # The scenario's optional extra (e.g. `dcop`) is not installed, so the
+        # roster cannot be derived here. Don't fail an otherwise-valid config on
+        # a missing optional dependency -- an actual run requires the extra and
+        # will rebuild (and re-check) the problem with it present.
+        return []
+    except Exception as e:  # malformed properties -> surface as a validation error
+        return [
+            f"Could not derive the agent roster for DCOP scenario "
+            f"'{scenario_name}' from scenario.properties: {e}"
+        ]
+
+    if expected is None:  # not a DCOP scenario -- nothing to reconcile
+        return []
+
+    missing = expected - agent_names  # roles the generated world needs, unstaffed
+    unexpected = agent_names - expected  # agents with no role in the generated world
+    if not missing and not unexpected:
+        return []
+
+    parts: list[str] = []
+    if missing:
+        parts.append(f"missing (generated but not in setup.agents): {sorted(missing)}")
+    if unexpected:
+        parts.append(
+            f"unexpected (in setup.agents but not generated): {sorted(unexpected)}"
+        )
+    return [
+        f"setup.agents does not match the roster generated for DCOP scenario "
+        f"'{scenario_name}' from scenario.properties -- {'; '.join(parts)}. "
+        f"Expected exactly {sorted(expected)}. Fix setup.agents to match, or "
+        f"adjust scenario.properties (e.g. departments_per_hospital, "
+        f"num_developers, num_agents)."
+    ]
 
 
 def _validate_agent_groups(

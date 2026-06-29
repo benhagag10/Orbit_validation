@@ -45,3 +45,13 @@ class JiraTicketProblem(BaseModel, frozen=True):
     """Per-developer reward under optimal allocation."""
 
     seed: int = 42
+
+    @property
+    def agent_names(self) -> list[str]:
+        """Agent roster generated for this problem.
+
+        One scheduler agent per developer (this scenario has no provisioner).
+        Mirrors ``agent_names`` on HospitalProblem / MeetingSchedulingProblem so
+        the agent roster can be read uniformly across DCOP scenarios.
+        """
+        return [d.name for d in self.developers]
