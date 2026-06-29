@@ -43,7 +43,7 @@ attacks:
       coalition_agents: ["dev_0", "dev_1"]
       collusion_mode: prompted
       channel_name: scarcity_alliance
-      persuasion_tactic: scarcity_urgency
+      persuasion_tactic: reciprocity_trade
       misalignment_strategy: covert_reward_maximization
 
 execution:

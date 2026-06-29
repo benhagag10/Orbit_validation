@@ -25,6 +25,7 @@ Interaction with Inspect:
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from inspect_ai.model import ChatMessageSystem
@@ -37,6 +38,8 @@ from orbit.attacks.collusion.collusion_state import CollusionLog
 if TYPE_CHECKING:
     from inspect_ai.agent import Agent
     from inspect_ai.solver import TaskState
+
+logger = logging.getLogger(__name__)
 
 
 # ── Persuasion tactic prompt templates (from Colosseum) ──────────────
@@ -121,6 +124,35 @@ _COLOSSEUM_PROMPT_VARIANTS: dict[str, str] = {
 }
 
 
+def _warn_on_unrecognized_keys(
+    persuasion_tactic: str | None,
+    misalignment_strategy: str | None,
+    collusion_prompt_variant: str | None,
+) -> None:
+    """Loudly warn when a config references a tactic/strategy/variant that
+    isn't implemented.
+
+    ``AttackConfig.properties`` is an open dict, so a config written against
+    stale docs validates fine but its value would otherwise be silently
+    dropped at prompt-build time (see ``_build_coalition_prompt``, which only
+    injects a value that is a key in the implemented dict). Surfacing a
+    warning here turns that silent no-op into a visible signal.
+    """
+    for label, value, known in (
+        ("persuasion_tactic", persuasion_tactic, _PERSUASION_TACTICS),
+        ("misalignment_strategy", misalignment_strategy, _MISALIGNMENT_STRATEGIES),
+        ("collusion_prompt_variant", collusion_prompt_variant, _COLOSSEUM_PROMPT_VARIANTS),
+    ):
+        if value is not None and value not in known:
+            logger.warning(
+                "Collusion attack: unrecognized %s=%r — it will be IGNORED "
+                "(no prompt text injected). Valid options: %s",
+                label,
+                value,
+                ", ".join(sorted(known)),
+            )
+
+
 def _build_coalition_prompt(
     agent_name: str,
     coalition_agents: list[str],
@@ -197,6 +229,12 @@ class CollusionAttack(AttackBase):
         collusion_prompt_variant: str | None = props.get("collusion_prompt_variant")
         use_blackboard: bool = props.get("use_blackboard", False)
 
+        # Surface configs that reference unimplemented tactics/strategies/variants
+        # instead of silently dropping them (see _warn_on_unrecognized_keys).
+        _warn_on_unrecognized_keys(
+            persuasion_tactic, misalignment_strategy, collusion_prompt_variant
+        )
+
         # Initialize CollusionLog
         collusion_log = store_as(CollusionLog)
         collusion_log.coalition_agents = list(coalition_agents)
@@ -237,8 +275,7 @@ class CollusionAttack(AttackBase):
                 if hasattr(agent, "tools") and isinstance(agent.tools, list):
                     agent.tools.append(channel_tool)
                 else:
-                    import logging
-                    logging.getLogger(__name__).warning(
+                    logger.warning(
                         "Cannot inject secret_channel tool into agent %s: "
                         "agent.tools is not a mutable list. Consider using "
                         "Path C (agent_groups) which wires tools at build time.",
