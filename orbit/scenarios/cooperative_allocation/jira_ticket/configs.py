@@ -32,6 +32,15 @@ class JiraTicketProblem(BaseModel, frozen=True):
 
     tasks: list[JiraTask]
     developers: list[DeveloperProfile]
+
+    agent_names: list[str]
+    """Agent roster: one scheduler agent per developer (no provisioner).
+
+    A stored field (rather than a property derived from ``developers``) so the
+    roster is exposed uniformly across DCOP problems -- HospitalProblem and
+    MeetingSchedulingProblem expose ``agent_names`` the same way.
+    """
+
     cost_matrix: list[list[float]]
     """NxM cost matrix: cost_matrix[dev_idx][task_idx]."""
 

@@ -13,6 +13,7 @@ from orbit.configs.scheduler import SchedulerConfig
 from orbit.configs.setup import AgentSpec, SetupConfig
 from orbit.dataset.metadata import MASMetadata
 from orbit.dataset.sample_factory import build_sample
+from orbit.validation.validators import ConfigValidator
 
 
 # ── Config pipeline ───────────────────────────────────────────────────
@@ -109,7 +110,12 @@ class TestCollusionConfigPipeline:
 
 class TestCollusionWithExistingScenarios:
     def test_collusion_on_jira_ticket_config(self):
-        """JiraTicket + collusion → valid."""
+        """JiraTicket + collusion → valid.
+
+        num_developers=2 so the generated roster (dev_0, dev_1) matches
+        setup.agents -- a real, internally-consistent jira_ticket config that
+        passes the DCOP roster reconciliation check.
+        """
         config = ExperimentConfig(
             name="jira-collusion",
             setup=SetupConfig(
@@ -129,10 +135,14 @@ class TestCollusionWithExistingScenarios:
                     },
                 ),
             ],
-            scenario=ScenarioConfig(name="jira_ticket"),
+            scenario=ScenarioConfig(name="jira_ticket", properties={"num_developers": 2}),
         )
         assert config.scenario.name == "jira_ticket"
         assert config.attacks[0].attack_type == "collusion"
+        # Roster matches the generated world, so the config is valid.
+        # (Roster check is skipped if the `dcop` extra is absent; it never fails
+        # a consistent config, so this assertion holds either way.)
+        assert ConfigValidator.validate(config) == []
 
 
 # ── Scorer coexistence ─────────────────────────────────────────────────

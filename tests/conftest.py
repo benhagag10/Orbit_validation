@@ -167,10 +167,17 @@ def collusion_experiment(
     four_agent_setup: SetupConfig,
     collusion_attack_config: AttackConfig,
 ) -> ExperimentConfig:
-    """ExperimentConfig with collusion attack."""
+    """ExperimentConfig with collusion attack.
+
+    Uses a generic ("test") scenario because the agents are generic workers
+    (agent_0..3), not a DCOP scenario's generated roster. A DCOP scenario name
+    here would be a mismatch: that scenario generates its own roster from
+    scenario.properties (e.g. jira_ticket -> dev_0..3), which ConfigValidator
+    now reconciles against setup.agents.
+    """
     return ExperimentConfig(
         name="collusion-test",
         setup=four_agent_setup,
         attacks=[collusion_attack_config],
-        scenario=ScenarioConfig(name="jira_ticket"),
+        scenario=ScenarioConfig(name="test"),
     )

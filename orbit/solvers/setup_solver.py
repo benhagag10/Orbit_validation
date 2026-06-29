@@ -25,6 +25,10 @@ from inspect_ai.solver import Generate, Solver, TaskState, solver
 from inspect_ai.util import sandbox
 
 from orbit.dataset.metadata import MASMetadata
+from orbit.scenarios.cooperative_allocation.dcop.problem_factory import (
+    DCOP_SCENARIO_NAMES,
+    build_dcop_problem,
+)
 from orbit.validation.validators import ConfigValidator
 
 logger = logging.getLogger(__name__)
@@ -101,7 +105,7 @@ def mas_environment_setup() -> Solver:
         # Initialize DCOPState for DCOP-compatible scenarios
         # (jira_ticket, hospital, meeting_scheduling).
         # Non-DCOP scenarios (swe_bench, browserart) skip this.
-        if scenario_name in ("jira_ticket", "hospital", "meeting_scheduling"):
+        if scenario_name in DCOP_SCENARIO_NAMES:
             _init_dcop_state(props)
 
         # Return state unchanged -- setup doesn't modify conversation
@@ -134,16 +138,9 @@ def _init_jira_ticket_state(props: dict) -> None:
     """Initialize JiraTicketState and DCOPState from scenario properties."""
     from inspect_ai.util import store_as
     from orbit.scenarios.cooperative_allocation.dcop.state import DCOPState
-    from orbit.scenarios.cooperative_allocation.jira_ticket.dataset_builder import build_problem
     from orbit.scenarios.cooperative_allocation.jira_ticket.state import JiraTicketState
 
-    problem = build_problem(
-        num_developers=props.get("num_developers", 4),
-        num_tasks=props.get("num_tasks", 6),
-        skill_pool=props.get("skill_pool"),
-        scarcity=props.get("scarcity", 0.5),
-        seed=props.get("seed", 42),
-    )
+    problem = build_dcop_problem("jira_ticket", props)
     jira_state = store_as(JiraTicketState)
     jira_state.tasks = [t.model_dump() for t in problem.tasks]
     jira_state.developer_profiles = {
@@ -168,18 +165,9 @@ def _init_hospital_state(props: dict) -> None:
     """Initialize HospitalState and DCOPState from scenario properties."""
     from inspect_ai.util import store_as
     from orbit.scenarios.cooperative_allocation.dcop.state import DCOPState
-    from orbit.scenarios.cooperative_allocation.hospital.dataset_builder import build_problem
     from orbit.scenarios.cooperative_allocation.hospital.state import HospitalState
 
-    problem = build_problem(
-        num_hospitals=props.get("num_hospitals", 2),
-        departments_per_hospital=props.get("departments_per_hospital", 4),
-        include_provisioner=props.get("include_provisioner", True),
-        num_patients=props.get("num_patients", 8),
-        pathway_length=props.get("pathway_length", 4),
-        scarcity=props.get("scarcity", 0.5),
-        seed=props.get("seed", 42),
-    )
+    problem = build_dcop_problem("hospital", props)
     hs = store_as(HospitalState)
     hs.hospitals = [h.model_dump() for h in problem.hospitals]
     hs.patients = [p.model_dump() for p in problem.patients]
@@ -199,17 +187,9 @@ def _init_meeting_scheduling_state(props: dict) -> None:
     """Initialize MeetingSchedulingState and DCOPState from scenario properties."""
     from inspect_ai.util import store_as
     from orbit.scenarios.cooperative_allocation.dcop.state import DCOPState
-    from orbit.scenarios.cooperative_allocation.meeting_scheduling.dataset_builder import build_problem
     from orbit.scenarios.cooperative_allocation.meeting_scheduling.state import MeetingSchedulingState
 
-    problem = build_problem(
-        num_agents=props.get("num_agents", 8),
-        num_meetings=props.get("num_meetings", 5),
-        num_time_slots=props.get("num_time_slots", 8),
-        strict_meeting_ratio=props.get("strict_meeting_ratio", 0.3),
-        max_participants_per_meeting=props.get("max_participants_per_meeting"),
-        seed=props.get("seed", 42),
-    )
+    problem = build_dcop_problem("meeting_scheduling", props)
     ms_state = store_as(MeetingSchedulingState)
     ms_state.meetings = [m.model_dump() for m in problem.meetings]
     ms_state.agent_names = list(problem.agent_names)

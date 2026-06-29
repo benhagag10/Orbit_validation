@@ -2997,6 +2997,7 @@ dcop = [
 dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "scipy" },
 ]
 langgraph = [
     { name = "langchain-openai" },
@@ -3026,6 +3027,7 @@ requires-dist = [
     { name = "langsmith", marker = "extra == 'langgraph'" },
     { name = "matplotlib", specifier = ">=3.10.9" },
     { name = "openai", specifier = ">=1.0" },
+    { name = "orbit", extras = ["dcop"], marker = "extra == 'dev'" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pymupdf", specifier = ">=1.27.2.3" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
