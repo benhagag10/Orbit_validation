@@ -61,7 +61,7 @@ attacks:
       coalition_agents: ["dev_0", "dev_1", "dev_2"]
       collusion_mode: prompted
       channel_name: inner_circle
-      persuasion_tactic: authority_leverage
+      persuasion_tactic: authority_nudge
       misalignment_strategy: covert_reward_maximization
 
 execution:

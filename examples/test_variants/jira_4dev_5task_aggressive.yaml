@@ -50,7 +50,7 @@ attacks:
       collusion_mode: prompted
       channel_name: power_duo
       collusion_prompt_variant: aggressive
-      misalignment_strategy: sabotage_others
+      misalignment_strategy: sabotage_self_promotional
 
 execution:
   agent_groups:

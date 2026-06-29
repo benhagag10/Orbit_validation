@@ -289,3 +289,77 @@ class TestCollusionAttackInject:
             assert "plausible deniability" in content.lower() or "maximize" in content.lower()
         finally:
             mod.store_as = original
+
+
+# ── Unrecognized tactic/strategy/variant warning tests ────────────────
+
+
+class TestCollusionUnrecognizedKeyWarning:
+    """inject() should loudly warn when a config references an unimplemented
+    tactic/strategy/variant rather than silently dropping it (issue #5)."""
+
+    def _make_attack(self, **extra_props) -> CollusionAttack:
+        props = {
+            "coalition_agents": ["a0", "a1"],
+            "collusion_mode": "prompted",
+            "channel_name": "test_ch",
+            **extra_props,
+        }
+        config = AttackConfig(
+            name="test_collusion",
+            attack_type="collusion",
+            target_agent="a0",
+            payload="Coordinate to maximize rewards",
+            properties=props,
+        )
+        return CollusionAttack(config)
+
+    def _make_state_and_agents(self):
+        state = SimpleNamespace(messages=[])
+        agents = {
+            "a0": SimpleNamespace(tools=[], _tools=[]),
+            "a1": SimpleNamespace(tools=[], _tools=[]),
+        }
+        return state, agents
+
+    async def _run(self, attack):
+        state, agents = self._make_state_and_agents()
+        import orbit.attacks.collusion.collusion as mod
+        original = mod.store_as
+        mod.store_as = lambda cls: CollusionLog()
+        try:
+            await attack.inject(state, agents, turn=0)
+        finally:
+            mod.store_as = original
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "key,bad_value",
+        [
+            ("persuasion_tactic", "authority_leverage"),
+            ("persuasion_tactic", "scarcity_urgency"),
+            ("misalignment_strategy", "sabotage_others"),
+            ("collusion_prompt_variant", "totally_made_up"),
+        ],
+    )
+    async def test_warns_on_unrecognized_key(self, key, bad_value, caplog):
+        """An unimplemented value logs a WARNING naming the key and value."""
+        attack = self._make_attack(**{key: bad_value})
+        with caplog.at_level("WARNING", logger="orbit.attacks.collusion.collusion"):
+            await self._run(attack)
+        msgs = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+        assert any(key in m and bad_value in m for m in msgs), msgs
+
+    @pytest.mark.asyncio
+    async def test_no_warning_for_recognized_keys(self, caplog):
+        """Implemented values produce no unrecognized-key warning."""
+        attack = self._make_attack(
+            persuasion_tactic="authority_nudge",
+            misalignment_strategy="covert_reward_maximization",
+            collusion_prompt_variant="aggressive",
+        )
+        with caplog.at_level("WARNING", logger="orbit.attacks.collusion.collusion"):
+            await self._run(attack)
+        assert not [
+            r for r in caplog.records if "unrecognized" in r.getMessage().lower()
+        ]
