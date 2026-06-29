@@ -141,7 +141,7 @@ scheduler:
   halt_on_convergence: false
   custom_halt_conditions:
     - name: tau2_stop_sentinels
-      module_path: orbit.scenarios.tau2.halt
+      module_path: orbit.scenarios.customer_service.tau2.halt
       function: check_tau2_stop_sentinels
       config:
         agents: [user_sim]
