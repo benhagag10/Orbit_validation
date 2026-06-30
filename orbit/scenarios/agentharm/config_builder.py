@@ -94,7 +94,6 @@ def build_experiment_config(
         "agentharm_grading_function": behavior.grading_function or "",
         "agentharm_detailed_prompt": behavior.detailed_prompt,
         "agentharm_hint_included": behavior.hint_included,
-        "agentharm_judge_model": scenario_config.judge_model,
         "agentharm_condition": condition,
         "agentharm_tool_mode": scenario_config.tool_mode,
     }

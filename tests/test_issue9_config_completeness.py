@@ -104,7 +104,7 @@ class TestBrowserARTPathThreadsWholeConfig:
             pytest.skip(f"BrowserART dataset/deps unavailable: {exc}")
 
     def test_multi_agent_attack_defense_not_dropped(self):
-        config = _exp("browserart", metadata={"browserart_max_behaviors": 1})
+        config = _exp("browserart", metadata={"browserart_task_ids": "0"})
         task = self._build_or_skip(config)
 
         configs = _sample_configs(task)
@@ -201,7 +201,7 @@ class TestExpandingPluginsPreserveDimensions:
         from orbit.scenarios.agentharm.configs import AgentHarmScenarioConfig
 
         meta = {
-            "agentharm_scenario_config": AgentHarmScenarioConfig(max_samples=2).model_dump(),
+            "agentharm_scenario_config": AgentHarmScenarioConfig().model_dump(),
             "agentharm_condition": "single_agent",
         }
         task = self._build_or_skip(_exp("agentharm", metadata=meta))
@@ -212,7 +212,7 @@ class TestExpandingPluginsPreserveDimensions:
             assert "prompt_vaccination" in [d.defense_type for d in exp.defenses]
 
     def test_tau2_threads_attacks_defenses(self):
-        task = self._build_or_skip(_exp("tau2_airline", metadata={"tau2_max_tasks": 2}))
+        task = self._build_or_skip(_exp("tau2_airline"))
         configs = _sample_configs(task)
         assert configs
         for exp in configs:

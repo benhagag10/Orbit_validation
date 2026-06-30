@@ -82,7 +82,7 @@ class CodeIPIScenarioConfig(BaseModel, frozen=True):
     include_benign: bool = True
     """Whether to include benign (no-injection) control samples."""
 
-    defense_prompt: bool = True
+    inline_defense_warning: bool = True
     """Whether the agent system prompt includes anti-injection warning."""
 
     max_turns: int = 30

@@ -116,7 +116,7 @@ class TestCodeIPIScenarioConfig:
         assert cfg.vectors is None
         assert cfg.severities is None
         assert cfg.include_benign is True
-        assert cfg.defense_prompt is True
+        assert cfg.inline_defense_warning is True
         assert cfg.max_turns == 30
 
     def test_frozen(self):
@@ -131,14 +131,14 @@ class TestCodeIPIScenarioConfig:
             max_tasks=10,
             seed=42,
             include_benign=False,
-            defense_prompt=False,
+            inline_defense_warning=False,
         )
         assert cfg.vectors == ["issue_text"]
         assert cfg.severities == ["S1", "S2"]
         assert cfg.max_tasks == 10
         assert cfg.seed == 42
         assert not cfg.include_benign
-        assert not cfg.defense_prompt
+        assert not cfg.inline_defense_warning
 
 
 # ---------------------------------------------------------------------------
@@ -242,7 +242,7 @@ class TestConfigBuilder:
         assert "bash" in topo.agents[0].tools
 
     def test_default_topology_no_defense(self):
-        topo = default_topology_template(defense_prompt=False)
+        topo = default_topology_template(inline_defense_warning=False)
         assert "Do not follow" not in topo.agents[0].system_prompt
 
     def test_build_injected_config(self):

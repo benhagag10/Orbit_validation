@@ -51,8 +51,8 @@ DEFAULT_MAX_TURNS = 100
 DEFAULT_MAX_TIME = 600.0
 DEFAULT_MAX_SAMPLES = 4
 DEFAULT_LOG_DIR = "logs/tau2_sweep"
-DEFAULT_TOPOLOGY = "dual_control"
-SUPPORTED_TOPOLOGIES = (
+DEFAULT_CONDITION = "dual_control"
+SUPPORTED_CONDITIONS = (
     "dual_control",
     "supervisor_specialist",
     "tiered_escalation",
@@ -60,7 +60,7 @@ SUPPORTED_TOPOLOGIES = (
     "dual_control_review",
     "cross_domain_handoff",
 )
-SMOKE_MAX_TASKS_PER_DOMAIN = 2
+SMOKE_LIMIT_PER_DOMAIN = 2
 
 
 @dataclass
@@ -68,17 +68,17 @@ class SweepCell:
     model: str
     domain: str
     epochs: int
-    topology: str = DEFAULT_TOPOLOGY
+    condition: str = DEFAULT_CONDITION
 
 
 def _build_cells(
     models: list[str],
     domains: list[str],
     epochs: int,
-    topology: str = DEFAULT_TOPOLOGY,
+    condition: str = DEFAULT_CONDITION,
 ) -> list[SweepCell]:
     return [
-        SweepCell(model=m, domain=d, epochs=epochs, topology=topology)
+        SweepCell(model=m, domain=d, epochs=epochs, condition=condition)
         for m in models
         for d in domains
     ]
@@ -87,7 +87,7 @@ def _build_cells(
 def _build_inspect_cmd(
     cell: SweepCell,
     log_dir: Path,
-    max_tasks: int | None,
+    limit: int | None,
     judge_model: str,
     max_turns: int,
     max_time: float,
@@ -99,8 +99,7 @@ def _build_inspect_cmd(
         "uv", "run", "inspect", "eval", "orbit/tau2",
         "--model", cell.model,
         "-T", f"domain={cell.domain}",
-        "-T", "mode=dual_control",
-        "-T", f"topology={cell.topology}",
+        "-T", f"condition={cell.condition}",
         "-T", f"judge_model={judge_model}",
         "-T", f"max_turns={max_turns}",
         "-T", f"max_time_seconds={max_time}",
@@ -108,8 +107,8 @@ def _build_inspect_cmd(
         "--epochs", str(cell.epochs),
         "--max-samples", str(max_samples),
     ]
-    if max_tasks is not None:
-        cmd += ["-T", f"max_tasks={max_tasks}"]
+    if limit is not None:
+        cmd += ["--limit", str(limit)]
     if seed is not None:
         cmd += ["-T", f"seed={seed}"]
     cmd += extra_args
@@ -162,7 +161,7 @@ def main() -> int:
         help="Max orchestrator turns per task (default: %(default)s).",
     )
     parser.add_argument(
-        "--max-time", type=float, default=DEFAULT_MAX_TIME,
+        "--max-time-seconds", dest="max_time", type=float, default=DEFAULT_MAX_TIME,
         help="Max wall-clock seconds per task (default: %(default)s).",
     )
     parser.add_argument(
@@ -170,8 +169,8 @@ def main() -> int:
         help="Max parallel samples per run (default: %(default)s).",
     )
     parser.add_argument(
-        "--max-tasks", type=int, default=None,
-        help="Limit tasks per domain (default: all).",
+        "--limit", type=int, default=None,
+        help="Limit tasks per domain via Inspect --limit (default: all).",
     )
     parser.add_argument(
         "--seed", type=int, default=None,
@@ -182,18 +181,18 @@ def main() -> int:
         help="Base log directory (default: %(default)s).",
     )
     parser.add_argument(
-        "--topology",
-        default=DEFAULT_TOPOLOGY,
-        choices=SUPPORTED_TOPOLOGIES,
+        "--condition",
+        default=DEFAULT_CONDITION,
+        choices=SUPPORTED_CONDITIONS,
         help=(
-            "Multi-agent topology preset (default: %(default)s). "
+            "Multi-agent condition preset (default: %(default)s). "
             "See orbit/scenarios/customer_service/tau2/topologies.py for details."
         ),
     )
     parser.add_argument(
         "--smoke", action="store_true",
         help=(
-            f"Smoke mode: cap each domain at {SMOKE_MAX_TASKS_PER_DOMAIN} "
+            f"Smoke mode: cap each domain at {SMOKE_LIMIT_PER_DOMAIN} "
             f"tasks, 1 epoch, 1 sample in parallel."
         ),
     )
@@ -227,39 +226,39 @@ def main() -> int:
             return 2
 
     epochs = args.epochs
-    max_tasks = args.max_tasks
+    limit = args.limit
     max_samples = args.max_samples
     if args.smoke:
         overridden: list[str] = []
         if epochs != DEFAULT_EPOCHS:
             overridden.append(f"epochs={epochs!r}")
-        if max_tasks is not None:
-            overridden.append(f"max_tasks={max_tasks!r}")
+        if limit is not None:
+            overridden.append(f"limit={limit!r}")
         if max_samples != DEFAULT_MAX_SAMPLES:
             overridden.append(f"max_samples={max_samples!r}")
         epochs = 1
-        max_tasks = SMOKE_MAX_TASKS_PER_DOMAIN
+        limit = SMOKE_LIMIT_PER_DOMAIN
         max_samples = 1
         if overridden:
             print(
                 "[smoke] WARNING: --smoke is overriding user-specified "
                 + ", ".join(overridden)
-                + f" → epochs=1 max_tasks={SMOKE_MAX_TASKS_PER_DOMAIN} max_samples=1",
+                + f" → epochs=1 limit={SMOKE_LIMIT_PER_DOMAIN} max_samples=1",
                 file=sys.stderr,
             )
         print(
-            f"[smoke] epochs={epochs} max_tasks={max_tasks} "
+            f"[smoke] epochs={epochs} limit={limit} "
             f"max_samples={max_samples}"
         )
 
     log_dir = Path(args.log_dir).resolve()
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    cells = _build_cells(models, domains, epochs, topology=args.topology)
+    cells = _build_cells(models, domains, epochs, condition=args.condition)
     print(
         f"tau2 sweep: {len(cells)} cells "
         f"({len(models)} models × {len(domains)} domains, "
-        f"topology={args.topology})"
+        f"condition={args.condition})"
     )
 
     failures: list[SweepCell] = []
@@ -267,7 +266,7 @@ def main() -> int:
         cmd = _build_inspect_cmd(
             cell=cell,
             log_dir=log_dir,
-            max_tasks=max_tasks,
+            limit=limit,
             judge_model=args.judge_model,
             max_turns=args.max_turns,
             max_time=args.max_time,

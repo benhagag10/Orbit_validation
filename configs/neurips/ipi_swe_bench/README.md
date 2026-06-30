@@ -17,7 +17,7 @@ inspect eval orbit/scenarios/swe_bench/task.py@swe_bench_multi_issue \
   -T instance_set=ipi_50_instances.json \
   -T condition=single_agent \
   -T max_turns=30 \
-  -T max_time=900 \
+  -T max_time_seconds=900 \
   --model openai/gpt-5.4
 ```
 
@@ -30,7 +30,7 @@ inspect eval orbit/scenarios/swe_bench/task.py@swe_bench_multi_issue \
   -T condition=single_agent \
   -T attack_preset=aishellcheck \
   -T max_turns=30 \
-  -T max_time=900 \
+  -T max_time_seconds=900 \
   --model openai/gpt-5.4
 ```
 
@@ -42,7 +42,7 @@ inspect eval orbit/scenarios/swe_bench/task.py@swe_bench_multi_issue \
   -T instance_set=ipi_50_instances.json \
   -T condition=star_specialist \
   -T max_turns=30 \
-  -T max_time=900 \
+  -T max_time_seconds=900 \
   --model openai/gpt-5.4
 ```
 
@@ -55,7 +55,7 @@ inspect eval orbit/scenarios/swe_bench/task.py@swe_bench_multi_issue \
   -T condition=star_specialist \
   -T attack_preset=aishellcheck \
   -T max_turns=30 \
-  -T max_time=900 \
+  -T max_time_seconds=900 \
   --model openai/gpt-5.4
 ```
 
@@ -76,11 +76,11 @@ Add `-T defense_preset=<name>` to any command above:
 ```bash
 inspect eval orbit/scenarios/swe_bench/task.py@swe_bench_multi_issue \
   -T num_issues=1 \
-  -T instance_ids=django__django-11292 \
+  -T task_ids=django__django-11292 \
   -T condition=single_agent \
   -T attack_preset=aishellcheck \
   -T max_turns=5 \
-  -T max_time=300 \
+  -T max_time_seconds=300 \
   --model anthropic/claude-haiku-4-5-20251001 \
   --limit 1
 ```

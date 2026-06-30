@@ -125,7 +125,7 @@ def run_experiment(
         "--condition", condition,
         "--seed", str(seed),
         "--max-turns", str(max_turns),
-        "--classifier-model", classifier,
+        "--judge-model", classifier,
         "--retry-on-error", "1",
         "--log-dir", str(log_dir),
         "-T", f"defense_preset={defense}",
@@ -212,7 +212,7 @@ def main():
                         help="Filter to one defense preset")
     parser.add_argument("--dataset", type=str, default=None,
                         choices=["hbb", "hbb_benign"])
-    parser.add_argument("--classifier-model", type=str, default=DEFAULT_CLASSIFIER)
+    parser.add_argument("--judge-model", type=str, default=DEFAULT_CLASSIFIER)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--max-turns", type=int, default=DEFAULT_MAX_TURNS)
     parser.add_argument("--log-root", type=Path, default=DEFAULT_LOG_ROOT)
@@ -252,7 +252,7 @@ def main():
                         "label": label,
                         "expected_count": count,
                         "log_dir": str(log_dir),
-                        "classifier": args.classifier_model,
+                        "classifier": args.judge_model,
                         "seed": args.seed,
                         "max_turns": SMOKE_MAX_TURNS if args.smoke else args.max_turns,
                         "limit": args.limit if args.limit is not None else (SMOKE_LIMIT if args.smoke else None),

@@ -83,7 +83,7 @@ PAPER_REPRO_CONFIG: dict[str, Any] = {
     "memory": "isolated",
     "attack_modes": "privacy,security",
     "defenses": "none",
-    "max_samples": None,
+    "limit": None,
     "max_turns": 20,
     "max_time": 600.0,
 }
@@ -156,10 +156,10 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
-        "--max-samples",
+        "--limit",
         type=int,
         default=None,
-        help="Cap samples per mode (default: no cap)",
+        help="Cap samples per mode (Inspect --limit, default: no cap)",
     )
     parser.add_argument(
         "--max-turns",
@@ -168,7 +168,8 @@ def _parse_args() -> argparse.Namespace:
         help=f"Turn budget per sample (default: {DEFAULT_MAX_TURNS})",
     )
     parser.add_argument(
-        "--max-time",
+        "--max-time-seconds",
+        dest="max_time",
         type=float,
         default=DEFAULT_MAX_TIME,
         help=f"Wall-clock budget per sample (default: {DEFAULT_MAX_TIME}s)",
@@ -246,8 +247,8 @@ def _build_command(
         "--log-dir",
         str(log_dir),
     ]
-    if args.max_samples is not None:
-        task_args += ["-T", f"max_samples={args.max_samples}"]
+    if args.limit is not None:
+        task_args += ["--limit", str(args.limit)]
     if defense != "none":
         task_args += ["-T", f"defense_preset={defense}"]
     if memory != "none":
@@ -386,7 +387,7 @@ def _write_matrix_summary(
             "memory": args.memory,
             "attack_modes": args.attack_modes,
             "defenses": args.defenses,
-            "max_samples": args.max_samples,
+            "limit": args.limit,
             "max_turns": args.max_turns,
             "max_time": args.max_time,
         },
@@ -408,7 +409,7 @@ def main() -> int:
         args.memory = "none"
         args.attack_modes = "benign"
         args.defenses = "none"
-        args.max_samples = 2
+        args.limit = 2
         args.max_turns = 3
         args.max_time = 60.0
 

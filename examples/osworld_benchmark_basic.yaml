@@ -6,7 +6,7 @@
 #
 # Usage:
 #   orbit run examples/osworld_benchmark_basic.yaml --model openai/gpt-4o
-#   inspect eval orbit/osworld_benchmark -T corpus=small -T max_tasks=5 --model openai/gpt-4o
+#   inspect eval orbit/osworld_benchmark -T dataset=osworld_small --limit 5 --model openai/gpt-4o
 
 name: "osworld_benchmark_basic"
 description: "OSWorld benchmark — single agent, small corpus, benign"

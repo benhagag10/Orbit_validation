@@ -104,7 +104,6 @@ def _browserart_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
         dataset=meta.get("browserart_dataset", "hbb"),
         categories=categories,
         task_ids=task_ids,
-        max_behaviors=meta.get("browserart_max_behaviors"),
         seed=meta.get("browserart_seed"),
         judge_model=meta.get("browserart_judge_model", "openai/gpt-4.1"),
         max_turns=config.scheduler.max_turns,
@@ -177,13 +176,12 @@ BROWSERART_PLUGIN = register_scenario(
 
 @task
 def browserart_safety(
-    category: str | None = None,
-    max_behaviors: int | None = None,
+    categories: str | None = None,
     seed: int | None = None,
     judge_model: str = "openai/gpt-4.1",
     data_path: str | None = None,
     max_turns: int = 15,
-    max_time: float = 300.0,
+    max_time_seconds: float = 300.0,
     topology_file: str = "default",
     defense_preset: str | None = None,
     attack_preset: str | None = None,
@@ -196,6 +194,7 @@ def browserart_safety(
     instructions: str = "detailed",
     dataset: str = "hbb",
     task_ids: str | None = None,
+    orchestrator: str = "v1",
     verbose: bool = False,
 ) -> Task:
     """BrowserART multi-agent safety benchmark task.
@@ -208,20 +207,20 @@ def browserart_safety(
     Examples:
         # Default single-agent:
         inspect eval orbit/browserart_safety \\
-            -T max_behaviors=1 -T max_turns=5 --model openai/gpt-4o
+            --limit 1 -T max_turns=5 --model openai/gpt-4o
 
         # Condition preset:
         inspect eval orbit/browserart_safety \\
-            -T condition=star_specialist -T max_behaviors=1 --model openai/gpt-4o
+            -T condition=star_specialist --limit 1 --model openai/gpt-4o
 
     Args:
-        category: Filter behaviors by semantic_category.
-        max_behaviors: Limit number of behaviors.
+        categories: Filter behaviors by semantic_category (comma-separated,
+            e.g. ``"content/phishing,content/malware"``).
         seed: Random seed for behavior sampling.
         judge_model: Model for the behavior classifier judge.
         data_path: Override path to hbb.json dataset.
         max_turns: Maximum turns per behavior.
-        max_time: Maximum wall-clock seconds per behavior.
+        max_time_seconds: Maximum wall-clock seconds per behavior.
         topology_file: Topology template: 'default' or path to YAML file.
         defense_preset: Defense preset name.
         attack_preset: Attack preset name.
@@ -235,6 +234,7 @@ def browserart_safety(
             ``"hbb_benign"``, or ``"hbb_extension"`` (10 multi-step tasks).
         task_ids: Comma-separated list of task IDs to include (e.g.
             ``"227,228,229"``). ``None`` means all tasks in the dataset.
+        orchestrator: ``"v1"`` or ``"v2"`` — selects the orchestrator solver.
         verbose: Show all warnings (gymnasium registration, browser overlay
             failures, etc.). Default ``False`` suppresses noisy warnings.
     """
@@ -262,8 +262,8 @@ def browserart_safety(
     if dataset == "hbb_extension":
         if max_turns == 15:  # default wasn't overridden
             max_turns = 50
-        if max_time == 300.0:  # default wasn't overridden
-            max_time = 600.0
+        if max_time_seconds == 300.0:  # default wasn't overridden
+            max_time_seconds = 600.0
 
     # ---- Resolve topology template (+ optional Path-C execution) ----
     execution_template: ExecutionConfig | None = None
@@ -295,7 +295,9 @@ def browserart_safety(
         defenses = get_defense_preset(defense_preset)
 
     # ---- Parse the dataset-selection params into metadata ----
-    categories = [c.strip() for c in category.split(",")] if category else None
+    parsed_categories = (
+        [c.strip() for c in categories.split(",")] if categories else None
+    )
     parsed_task_ids = None
     if task_ids is not None:
         if isinstance(task_ids, int):
@@ -305,9 +307,8 @@ def browserart_safety(
 
     metadata = {
         "browserart_dataset": dataset,
-        "browserart_categories": categories,
+        "browserart_categories": parsed_categories,
         "browserart_task_ids": parsed_task_ids,
-        "browserart_max_behaviors": max_behaviors,
         "browserart_seed": seed,
         "browserart_data_path": data_path,
         "browserart_judge_model": judge_model,
@@ -331,7 +332,7 @@ def browserart_safety(
         "defenses": defenses or [],
         "scheduler": SchedulerConfig(
             max_turns=max_turns,
-            max_time_seconds=max_time,
+            max_time_seconds=max_time_seconds,
             halt_on_convergence=False,
         ),
         "metrics": MetricsConfig(),
@@ -342,4 +343,4 @@ def browserart_safety(
 
     config = ExperimentConfig(**config_kwargs)
 
-    return build_scenario_task(config, BROWSERART_PLUGIN)
+    return build_scenario_task(config, BROWSERART_PLUGIN, orchestrator=orchestrator)

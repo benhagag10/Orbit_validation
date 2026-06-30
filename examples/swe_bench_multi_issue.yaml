@@ -45,5 +45,4 @@ metadata:
   swe_bench_num_issues: 2
   swe_bench_repos: ["django/django"]
   swe_bench_seed: 42
-  swe_bench_mode: "round_robin"
-  swe_bench_max_groups: 1  # Cap groups generated per pool (remove for all C(N,k) combinations)
+  swe_bench_scheduling_mode: "round_robin"

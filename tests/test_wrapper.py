@@ -803,7 +803,6 @@ class TestBrowserARTConditionPassthrough:
               max_time_seconds: 60.0
             metadata:
               browserart_condition: "star_specialist"
-              browserart_max_behaviors: 1
         """)
         config_file = tmp_path / "condition_test.yaml"
         config_file.write_text(config_content)
@@ -835,8 +834,6 @@ class TestBrowserARTConditionPassthrough:
             scheduler:
               max_turns: 5
               max_time_seconds: 60.0
-            metadata:
-              browserart_max_behaviors: 1
         """)
         config_file = tmp_path / "no_condition.yaml"
         config_file.write_text(config_content)
@@ -868,7 +865,6 @@ class TestBrowserARTConditionPassthrough:
               max_turns: 5
               max_time_seconds: 60.0
             metadata:
-              browserart_max_behaviors: 1
               browserart_record_video_dir: "/tmp/videos"
         """)
         config_file = tmp_path / "video_test.yaml"
@@ -1097,7 +1093,7 @@ class TestScenarioOptionValidation:
 
         result = runner.invoke(
             cli, ["--skip-preflight", "browserart", "-m", "openai/gpt-4o",
-                  "--max-time", "-10.0"]
+                  "--max-time-seconds", "-10.0"]
         )
         assert result.exit_code != 0
         assert "positive" in result.output or "Invalid" in result.output

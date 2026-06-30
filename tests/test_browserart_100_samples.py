@@ -218,22 +218,6 @@ class TestFiltering:
             filtered = filter_behaviors(all_behaviors, config)
             assert len(filtered) > 0, f"Source '{src}' returned no results"
 
-    def test_max_behaviors_limits(self, all_behaviors):
-        for n in [1, 5, 10, 50, 99]:
-            config = BrowserARTScenarioConfig(max_behaviors=n, seed=42)
-            filtered = filter_behaviors(all_behaviors, config)
-            assert len(filtered) == n
-
-    def test_max_behaviors_100_returns_all(self, all_behaviors):
-        config = BrowserARTScenarioConfig(max_behaviors=100)
-        filtered = filter_behaviors(all_behaviors, config)
-        assert len(filtered) == 100
-
-    def test_max_behaviors_200_returns_all(self, all_behaviors):
-        config = BrowserARTScenarioConfig(max_behaviors=200)
-        filtered = filter_behaviors(all_behaviors, config)
-        assert len(filtered) == 100
-
     def test_task_ids_individual(self, all_behaviors):
         """Each individual task_id should return exactly 1 behavior."""
         for i in range(100):
@@ -241,19 +225,6 @@ class TestFiltering:
             filtered = filter_behaviors(all_behaviors, config)
             assert len(filtered) == 1, f"task_id={i} returned {len(filtered)}"
             assert filtered[0].behavior_id == i
-
-    def test_seed_determinism(self, all_behaviors):
-        config = BrowserARTScenarioConfig(max_behaviors=10, seed=42)
-        a = filter_behaviors(all_behaviors, config)
-        b = filter_behaviors(all_behaviors, config)
-        assert [x.behavior_id for x in a] == [x.behavior_id for x in b]
-
-    def test_different_seeds_differ(self, all_behaviors):
-        config_a = BrowserARTScenarioConfig(max_behaviors=10, seed=42)
-        config_b = BrowserARTScenarioConfig(max_behaviors=10, seed=99)
-        a = filter_behaviors(all_behaviors, config_a)
-        b = filter_behaviors(all_behaviors, config_b)
-        assert [x.behavior_id for x in a] != [x.behavior_id for x in b]
 
 
 # ---------------------------------------------------------------------------
@@ -495,17 +466,10 @@ class TestTaskConstruction:
         samples = list(task.dataset)
         assert len(samples) == 100
 
-    def test_task_with_max_behaviors(self):
-        from orbit.scenarios.browser.browserart.task import browserart_safety
-
-        task = browserart_safety(max_behaviors=5, seed=42)
-        samples = list(task.dataset)
-        assert len(samples) == 5
-
     def test_task_with_category_filter(self):
         from orbit.scenarios.browser.browserart.task import browserart_safety
 
-        task = browserart_safety(category="content/phishing")
+        task = browserart_safety(categories="content/phishing")
         samples = list(task.dataset)
         assert len(samples) > 0
         # Verify all samples are phishing
@@ -528,20 +492,20 @@ class TestTaskConstruction:
     def test_task_has_scorers(self):
         from orbit.scenarios.browser.browserart.task import browserart_safety
 
-        task = browserart_safety(max_behaviors=1)
+        task = browserart_safety(task_ids="0")
         assert task.scorer is not None
         assert len(task.scorer) == 2  # browserart_scorer + security_scorer
 
     def test_task_has_solver(self):
         from orbit.scenarios.browser.browserart.task import browserart_safety
 
-        task = browserart_safety(max_behaviors=1)
+        task = browserart_safety(task_ids="0")
         assert task.solver is not None
 
     def test_task_no_sandbox_in_browsergym_mode(self):
         from orbit.scenarios.browser.browserart.task import browserart_safety
 
-        task = browserart_safety(max_behaviors=1)
+        task = browserart_safety(task_ids="0")
         assert task.sandbox is None
 
     def test_task_each_sample_unique_id(self):
@@ -563,7 +527,7 @@ class TestTaskConstruction:
         """Condition preset single_agent creates task with single agent."""
         from orbit.scenarios.browser.browserart.task import browserart_safety
 
-        task = browserart_safety(max_behaviors=1, condition="single_agent")
+        task = browserart_safety(task_ids="0", condition="single_agent")
         samples = list(task.dataset)
         assert len(samples) == 1
 
@@ -571,11 +535,11 @@ class TestTaskConstruction:
         """Condition preset star_specialist creates task with multi-agent topology."""
         from orbit.scenarios.browser.browserart.task import browserart_safety
 
-        task = browserart_safety(max_behaviors=1, condition="star_specialist")
+        task = browserart_safety(task_ids="0", condition="star_specialist")
         samples = list(task.dataset)
         assert len(samples) == 1
         meta = MASMetadata.model_validate(samples[0].metadata)
-        assert meta.experiment.metadata.get("browserart_condition_type") == "star_specialist"
+        assert meta.experiment.metadata.get("browserart_resolved_condition") == "star_specialist"
 
 
 # ---------------------------------------------------------------------------

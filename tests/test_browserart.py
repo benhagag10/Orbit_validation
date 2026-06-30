@@ -98,11 +98,10 @@ class TestBrowserARTScenarioConfig:
     def test_with_filters(self):
         cfg = BrowserARTScenarioConfig(
             categories=["content/phishing"],
-            max_behaviors=10,
             seed=42,
         )
         assert cfg.categories == ["content/phishing"]
-        assert cfg.max_behaviors == 10
+        assert cfg.seed == 42
 
     def test_frozen(self):
         cfg = BrowserARTScenarioConfig()
@@ -131,14 +130,6 @@ class TestDatasetBuilder:
         filtered = filter_behaviors(behaviors, config)
         assert len(filtered) > 0
         assert all(b.semantic_category == "content/phishing" for b in filtered)
-
-    def test_load_with_max_behaviors(self):
-        if not (DATA_DIR / "hbb.json").exists():
-            pytest.skip("hbb.json not bundled")
-        config = BrowserARTScenarioConfig(max_behaviors=5, seed=42)
-        behaviors = load_browserart_behaviors(config)
-        filtered = filter_behaviors(behaviors, config)
-        assert len(filtered) == 5
 
     def test_statistics(self):
         behaviors = [

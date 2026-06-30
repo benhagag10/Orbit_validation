@@ -69,13 +69,13 @@ def filter_tasks(
     tasks: list[BigCodeBenchTask],
     config: BigCodeBenchScenarioConfig,
 ) -> list[BigCodeBenchTask]:
-    """Apply subset / max_tasks filters from the scenario config."""
+    """Apply task_ids / max_tasks filters from the scenario config."""
     filtered = tasks
 
-    if config.subset is not None:
-        allowed = set(config.subset)
+    if config.task_ids is not None:
+        allowed = set(config.task_ids)
         filtered = [t for t in filtered if t.task_id in allowed]
-        logger.info("Filtered to subset (%d ids): %d tasks",
+        logger.info("Filtered to task_ids (%d ids): %d tasks",
                     len(allowed), len(filtered))
 
     if config.max_tasks is not None and len(filtered) > config.max_tasks:

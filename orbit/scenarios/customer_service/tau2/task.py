@@ -5,9 +5,12 @@ Registered with Inspect via ``orbit/_registry.py``. Produces one
 Inspect ``Sample`` per tau2 task and wires up the tau2 scorer on top
 of the generic security scorer.
 
-Supports ``mode='solo'`` (PR 1, Orbit-specific airline-only baseline)
-and ``mode='dual_control'`` (PR 2, upstream-faithful user simulator ↔
-assistant loop) against the airline, retail, and telecom domains.
+A single ``condition`` selector picks the topology preset and the
+execution mode it implies: ``condition='solo'`` (PR 1, Orbit-specific
+airline-only single-agent baseline) and ``condition='dual_control'``
+(PR 2, upstream-faithful user simulator ↔ assistant loop), plus the
+PR 4 multi-agent presets, against the airline, retail, and telecom
+domains.
 """
 
 from __future__ import annotations
@@ -199,8 +202,9 @@ def _build_setup_solver(
 
 
 _SUPPORTED_DOMAINS = ("airline", "retail", "telecom")
-_SUPPORTED_MODES = ("solo", "dual_control")
-_SUPPORTED_TOPOLOGIES = (
+# Named topology presets selectable via ``-T condition=...``. ``solo`` is the
+# single-agent (solo-mode) baseline; every other value runs dual-control.
+_SUPPORTED_CONDITIONS = (
     "solo",
     "dual_control",
     "supervisor_specialist",
@@ -235,15 +239,17 @@ def _scenario_config(config: ExperimentConfig) -> Tau2ScenarioConfig:
     # not this field, so tasks/scorer stay single-domain exactly as upstream.
     if domain not in _SUPPORTED_DOMAINS:
         domain = "airline"
-    topology = meta.get("tau2_topology", "dual_control")
-    mode = meta.get("tau2_mode") or ("solo" if topology == "solo" else "dual_control")
+    # One named selector covers both the topology preset and the execution
+    # mode: ``condition='solo'`` is the single-agent baseline, every other
+    # value runs dual-control.
+    condition = meta.get("tau2_condition", "dual_control")
+    mode = "solo" if condition == "solo" else "dual_control"
     return Tau2ScenarioConfig(
         domain=domain,  # type: ignore[arg-type]
         task_ids=_parse_csv(meta.get("tau2_task_ids")),
-        max_tasks=meta.get("tau2_max_tasks"),
         seed=meta.get("tau2_seed"),
         mode=mode,  # type: ignore[arg-type]
-        topology=topology,  # type: ignore[arg-type]
+        topology=condition,  # type: ignore[arg-type]
         judge_model=meta.get("tau2_judge_model", "openai/gpt-4.1"),
         max_turns=config.scheduler.max_turns,
         max_time_seconds=config.scheduler.max_time_seconds,
@@ -318,10 +324,8 @@ TAU2_PLUGIN = register_scenario(
 def tau2(
     domain: str = "airline",
     task_ids: str | None = None,
-    max_tasks: int | None = None,
     seed: int | None = None,
-    mode: str = "dual_control",
-    topology: str = "dual_control",
+    condition: str = "dual_control",
     judge_model: str = "openai/gpt-4.1",
     max_turns: int = 100,
     max_time_seconds: float = 600.0,
@@ -330,12 +334,12 @@ def tau2(
 ) -> Task:
     """τ²-Bench dual-control tool-use benchmark.
 
-    Supports three domains and two execution modes:
+    Supports three domains, selected with ``-T domain=...``:
 
     - ``domain='airline'`` — 50 reservation tasks, reward_basis
-      ``[DB, COMMUNICATE]``. The only domain where ``mode='solo'`` is
-      accepted (as an Orbit-specific baseline; upstream rejects airline
-      solo mode).
+      ``[DB, COMMUNICATE]``. The only domain where ``condition='solo'``
+      is accepted (as an Orbit-specific baseline; upstream rejects
+      airline solo mode).
     - ``domain='retail'`` — 114 order-management tasks, reward_basis
       ``[DB, NL_ASSERTION]`` on 112/114 tasks. Exercises the LLM judge
       ported in PR 2.
@@ -347,15 +351,21 @@ def tau2(
       env) and the user simulator gets a 30-tool device-diagnostics
       tool set.
 
-    Execution modes:
+    The ``condition`` parameter is the single named selector for the
+    topology preset *and* the execution mode it implies:
 
-    - ``mode='dual_control'`` (default): round-robin user simulator ↔
-      assistant loop with ``peer_messages`` observation and the
-      ``check_tau2_stop_sentinels`` halt condition (``###STOP###`` /
-      ``###TRANSFER###`` / ``###OUT-OF-SCOPE###``). Upstream-faithful.
-    - ``mode='solo'`` (airline only): single-agent baseline with the
+    - ``condition='dual_control'`` (default): upstream-faithful
+      round-robin user simulator ↔ assistant loop with ``peer_messages``
+      observation and the ``check_tau2_stop_sentinels`` halt condition
+      (``###STOP###`` / ``###TRANSFER###`` / ``###OUT-OF-SCOPE###``).
+    - ``condition='solo'`` (airline only): single-agent baseline with the
       user scenario rendered into the assistant's system prompt as a
       ticket. Orbit-specific.
+    - ``condition='supervisor_specialist'`` / ``'tiered_escalation'`` /
+      ``'mesh_committee'`` / ``'dual_control_review'`` /
+      ``'cross_domain_handoff'``: Orbit-specific multi-agent shapes, all
+      running under dual-control. See ``topologies.py`` for each preset's
+      roster, observation mode, and halt wiring.
 
     The task entry point also runs the NL-assertions LLM judge
     (retail) and evaluates ENV_ASSERTION-based rewards (telecom), and
@@ -366,10 +376,13 @@ def tau2(
         domain: ``'airline'``, ``'retail'``, or ``'telecom'``.
         task_ids: Comma-separated tau2 task IDs to include
             (e.g. ``'1,2,3'``).
-        max_tasks: Maximum number of tasks to evaluate.
-        seed: Random seed for deterministic task sampling when
-            ``max_tasks`` is set.
-        mode: ``'solo'`` (airline only) or ``'dual_control'`` (default).
+        seed: Random seed for deterministic task selection. To cap the
+            number of samples use Inspect's native ``--limit`` (with
+            ``--sample-shuffle`` / ``--seed`` for a random subset).
+        condition: Named topology preset — one of ``'solo'`` (airline
+            only), ``'dual_control'`` (default), ``'supervisor_specialist'``,
+            ``'tiered_escalation'``, ``'mesh_committee'``,
+            ``'dual_control_review'``, ``'cross_domain_handoff'``.
         judge_model: Model used for NL-assertion grading. Only invoked
             when the task's ``reward_basis`` includes ``NL_ASSERTION``.
         max_turns: Maximum orchestrator turns per task.
@@ -383,40 +396,27 @@ def tau2(
             f"Domain '{domain}' is not supported. Expected one of "
             f"{_SUPPORTED_DOMAINS}."
         )
-    if mode not in _SUPPORTED_MODES:
+    if condition not in _SUPPORTED_CONDITIONS:
         raise ValueError(
-            f"Mode '{mode}' is not supported. Expected one of "
-            f"{_SUPPORTED_MODES}."
+            f"Condition '{condition}' is not supported. Expected one of "
+            f"{_SUPPORTED_CONDITIONS}."
         )
-    if topology not in _SUPPORTED_TOPOLOGIES:
-        raise ValueError(
-            f"Topology '{topology}' is not supported. Expected one of "
-            f"{_SUPPORTED_TOPOLOGIES}."
-        )
+    # ``solo`` is the only single-agent condition; everything else is
+    # dual-control. The mode is fully determined by the condition.
+    mode = "solo" if condition == "solo" else "dual_control"
     if mode == "solo" and domain != "airline":
         raise ValueError(
-            f"Solo mode is an Orbit-specific baseline only wired for "
+            f"condition='solo' is an Orbit-specific baseline only wired for "
             f"airline (upstream rejects airline-solo too). Use "
-            f"mode='dual_control' for {domain!r}."
-        )
-    if mode == "solo" and topology != "solo":
-        raise ValueError(
-            f"mode='solo' only supports topology='solo'. Got "
-            f"topology={topology!r}."
-        )
-    if mode == "dual_control" and topology == "solo":
-        raise ValueError(
-            "topology='solo' requires mode='solo'. Use "
-            "topology='dual_control' for dual-control runs."
+            f"condition='dual_control' for {domain!r}."
         )
 
     scenario_config = Tau2ScenarioConfig(
         domain=domain,  # type: ignore[arg-type]
         task_ids=_parse_csv(task_ids),
-        max_tasks=max_tasks,
         seed=seed,
         mode=mode,  # type: ignore[arg-type]
-        topology=topology,  # type: ignore[arg-type]
+        topology=condition,  # type: ignore[arg-type]
         judge_model=judge_model,
         max_turns=max_turns,
         max_time_seconds=max_time_seconds,
@@ -433,7 +433,7 @@ def tau2(
 
     config = ExperimentConfig(
         name=f"tau2_{domain}",
-        description=f"τ²-Bench {domain} ({mode}/{topology})",
+        description=f"τ²-Bench {domain} ({condition})",
         scenario=ScenarioConfig(
             name=f"tau2_{domain}",
             description=f"τ²-Bench {domain} customer-service scenario",

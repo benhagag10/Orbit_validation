@@ -37,13 +37,12 @@ def _scenario_config(config: ExperimentConfig) -> BigCodeBenchScenarioConfig:
     meta = config.metadata or {}
     if "bigcodebench_scenario_config" in meta:
         return BigCodeBenchScenarioConfig(**meta["bigcodebench_scenario_config"])
-    subset = meta.get("bigcodebench_subset")
-    if isinstance(subset, str):
-        subset = [int(s.strip()) for s in subset.split(",") if s.strip()]
+    task_ids = meta.get("bigcodebench_task_ids")
+    if isinstance(task_ids, str):
+        task_ids = [int(s.strip()) for s in task_ids.split(",") if s.strip()]
     return BigCodeBenchScenarioConfig(
         version=meta.get("bigcodebench_version", "v0.1.2"),
-        subset=subset,
-        max_tasks=meta.get("bigcodebench_max_tasks"),
+        task_ids=task_ids,
         seed=meta.get("bigcodebench_seed"),
         max_turns=config.scheduler.max_turns,
         max_time_seconds=config.scheduler.max_time_seconds,
@@ -83,8 +82,7 @@ BIGCODEBENCH_PLUGIN = register_scenario(
 
 @task
 def bigcodebench(
-    subset: str | None = None,
-    max_tasks: int | None = None,
+    task_ids: str | None = None,
     seed: int | None = None,
     max_turns: int = 5,
     max_time_seconds: float = 300.0,
@@ -93,6 +91,7 @@ def bigcodebench(
     attack_preset: str | None = None,
     defense_preset: str | None = None,
     version: str = "v0.1.2",
+    orchestrator: str = "v1",
 ) -> Task:
     """BigCodeBench benign code generation baseline.
 
@@ -103,11 +102,9 @@ def bigcodebench(
     malware requests.
 
     Args:
-        subset: Comma-separated list of BigCodeBench task ids (integers)
+        task_ids: Comma-separated list of BigCodeBench task ids (integers)
             to include, e.g. ``"0,1,2"``.
-        max_tasks: Maximum number of tasks to evaluate.
-        seed: Random seed for deterministic sampling when ``max_tasks``
-            is set.
+        seed: Random seed for deterministic sampling.
         max_turns: Maximum turns per task.
         max_time_seconds: Maximum wall-clock time per task.
         topology_file: Custom topology YAML path or ``"default"``.
@@ -116,6 +113,7 @@ def bigcodebench(
         attack_preset: Attack preset name (e.g. ``"jailbreak"``).
         defense_preset: Defense preset name (e.g. ``"prompt_vaccination"``).
         version: HuggingFace dataset version (e.g. ``"v0.1.2"``).
+        orchestrator: MAS orchestrator variant (``"v1"`` or ``"v2"``).
     """
     from orbit.configs.experiment import ExperimentConfig
     from orbit.configs.metrics import MetricsConfig
@@ -123,14 +121,13 @@ def bigcodebench(
     from orbit.configs.scheduler import SchedulerConfig
     from orbit.scenarios.coding.bigcodebench.config_builder import default_topology_template
 
-    subset_ids: list[int] | None = None
-    if subset:
-        subset_ids = [int(s.strip()) for s in subset.split(",") if s.strip()]
+    task_id_list: list[int] | None = None
+    if task_ids:
+        task_id_list = [int(s.strip()) for s in task_ids.split(",") if s.strip()]
 
     scenario_config = BigCodeBenchScenarioConfig(
         version=version,
-        subset=subset_ids,
-        max_tasks=max_tasks,
+        task_ids=task_id_list,
         seed=seed,
         max_turns=max_turns,
         max_time_seconds=max_time_seconds,
@@ -175,4 +172,4 @@ def bigcodebench(
         metrics=MetricsConfig(),
         metadata={"bigcodebench_scenario_config": scenario_config.model_dump()},
     )
-    return build_scenario_task(config, BIGCODEBENCH_PLUGIN)
+    return build_scenario_task(config, BIGCODEBENCH_PLUGIN, orchestrator=orchestrator)

@@ -20,17 +20,17 @@ uv sync --extra dev
 ```bash
 # Single-agent BrowserART (1 behavior, BrowserGym mode, no Docker)
 inspect eval orbit/browserart_safety \
-  -T max_behaviors=1 -T max_turns=5 \
+  -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # Multi-agent with ICML condition preset (star + 4 specialists)
 inspect eval orbit/browserart_safety \
-  -T condition=m1_2 -T max_behaviors=1 -T max_turns=5 \
+  -T condition=m1_2 -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # Mesh delegation topology
 inspect eval orbit/browserart_safety \
-  -T condition=m2_3 -T max_behaviors=1 -T max_turns=5 \
+  -T condition=m2_3 -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # View results in browser
@@ -76,8 +76,7 @@ scheduler:
   max_turns: 5
   max_time_seconds: 120.0
 
-metadata:
-  browserart_max_behaviors: 5
+metadata: {}
 ```
 
 ### Multi-agent config (with condition preset)
@@ -105,7 +104,6 @@ scheduler:
 
 metadata:
   browserart_condition: "m1_2"
-  browserart_max_behaviors: 5
 ```
 
 Run it:
@@ -118,7 +116,6 @@ orbit run my_config.yaml --model openai/gpt-4o
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `browserart_max_behaviors` | int | Max number of behaviors to test |
 | `browserart_categories` | list[str] | Filter by category (e.g. `["content/phishing"]`) |
 | `browserart_condition` | str | ICML condition preset (see below) |
 | `browserart_headless` | bool | Run browser headlessly (default `true`) |
@@ -133,11 +130,10 @@ orbit run my_config.yaml --model openai/gpt-4o
 | `swe_bench_num_issues` | int | Number of issues per group (default: 2) |
 | `swe_bench_repos` | list[str] | Repository filter (e.g. `["django/django"]`) |
 | `swe_bench_seed` | int | Random seed for group sampling |
-| `swe_bench_mode` | str | Execution mode: `"round_robin"` or `"superstep"` |
+| `swe_bench_scheduling_mode` | str | Execution mode: `"round_robin"` or `"superstep"` |
 | `swe_bench_topology` | str | Topology template: `"default"` or path to YAML |
 | `swe_bench_attack_preset` | str | Attack preset: `"self_replication"`, `"sabotage"` |
 | `swe_bench_defense_preset` | str | Defense preset: `"file_monitor"`, `"diff_monitor"`, `"full"` |
-| `swe_bench_max_groups` | int | Cap groups per pool (limits Docker images built) |
 
 ### SWE-Bench YAML config example
 
@@ -164,8 +160,7 @@ metadata:
   swe_bench_num_issues: 2
   swe_bench_repos: ["django/django"]
   swe_bench_seed: 42
-  swe_bench_mode: "round_robin"
-  swe_bench_max_groups: 1
+  swe_bench_scheduling_mode: "round_robin"
 ```
 
 ## Multi-Agent Condition Presets
@@ -191,17 +186,17 @@ prompts, and execution style automatically.
 ```bash
 # Single agent baseline
 inspect eval orbit/browserart_safety \
-  -T condition=m1_0 -T max_behaviors=1 -T max_turns=5 \
+  -T condition=m1_0 -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # 4-specialist star topology
 inspect eval orbit/browserart_safety \
-  -T condition=m1_2 -T max_behaviors=1 -T max_turns=5 \
+  -T condition=m1_2 -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # Mesh delegation
 inspect eval orbit/browserart_safety \
-  -T condition=m2_3 -T max_behaviors=1 -T max_turns=5 \
+  -T condition=m2_3 -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # View all results
@@ -242,7 +237,7 @@ orbit suite examples/*.yaml --model openai/gpt-4o --baselines
 Run BrowserART directly (no YAML config needed):
 
 ```bash
-orbit browserart --model openai/gpt-4o --max-behaviors 5 --max-turns 10
+orbit browserart --model openai/gpt-4o --limit 5 --max-turns 10
 ```
 
 ### `orbit swe-bench`

@@ -76,7 +76,6 @@ def _scenario_config(
         threat_categories=_split(meta.get("osworld_threat_category")),
         violation_types=_split(meta.get("osworld_violation_type")),
         task_ids=_split(meta.get("osworld_task_ids")),
-        max_tasks=meta.get("osworld_max_tasks"),
         seed=meta.get("osworld_seed"),
         judge_model=meta.get("osworld_judge_model", "openai/gpt-4.1"),
         max_turns=config.scheduler.max_turns,
@@ -188,7 +187,6 @@ def _osworld_template_config(
         metrics=MetricsConfig(),
         metadata={
             "osworld_scenario_config": scenario_config.model_dump(),
-            "osworld_judge_model": scenario_config.judge_model,
         },
     )
 
@@ -238,7 +236,6 @@ def osworld_safety(
     threat_category: str | None = None,
     violation_type: str | None = None,
     task_ids: str | None = None,
-    max_tasks: int | None = None,
     seed: int | None = None,
     max_turns: int = 100,
     max_time_seconds: float = 600.0,
@@ -253,6 +250,7 @@ def osworld_safety(
     defense_preset: str | None = None,
     attack_preset: str | None = None,
     judge_model: str = "openai/gpt-4.1",
+    orchestrator: str = "v1",
 ) -> Task:
     """OSWorld multi-agent safety benchmark task.
 
@@ -271,11 +269,11 @@ def osworld_safety(
     Examples:
         # Basic evaluation (requires OS-Harm data):
         inspect eval orbit/osworld_safety \\
-            -T max_tasks=5 --model openai/gpt-4o
+            --limit 5 --model openai/gpt-4o
 
         # Named condition preset:
         inspect eval orbit/osworld_safety \\
-            -T condition=star_specialist -T max_tasks=5 --model openai/gpt-4o
+            -T condition=star_specialist --limit 5 --model openai/gpt-4o
 
     Args:
         dataset: Dataset to load. ``"osharm"`` loads the full OS-Harm
@@ -285,7 +283,6 @@ def osworld_safety(
         task_ids: Comma-separated list of task IDs to include.
         threat_category: Filter by threat category (comma-separated).
         violation_type: Filter by violation type (comma-separated).
-        max_tasks: Limit number of tasks to evaluate.
         seed: Random seed for task sampling.
         max_turns: Maximum turns per task.
         max_time_seconds: Maximum wall-clock seconds per task.
@@ -300,6 +297,7 @@ def osworld_safety(
         defense_preset: Defense preset name (e.g. ``"basic"``).
         attack_preset: Attack preset name (e.g. ``"prompt_injection"``).
         judge_model: Model for the safety judge scorer.
+        orchestrator: ``"v1"`` or ``"v2"`` — selects the orchestrator solver.
     """
     scenario_config = OSWorldScenarioConfig(
         dataset=dataset,
@@ -307,7 +305,6 @@ def osworld_safety(
         threat_categories=_split(threat_category),
         violation_types=_split(violation_type),
         task_ids=_split(task_ids),
-        max_tasks=max_tasks,
         seed=seed,
         judge_model=judge_model,
         max_turns=max_turns,
@@ -343,7 +340,9 @@ def osworld_safety(
         attacks=attacks,
         defenses=defenses,
     )
-    return build_scenario_task(config, OSWORLD_SAFETY_PLUGIN)
+    return build_scenario_task(
+        config, OSWORLD_SAFETY_PLUGIN, orchestrator=orchestrator
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -394,10 +393,9 @@ OSWORLD_BENCHMARK_PLUGIN = register_scenario(
 
 @task
 def osworld_benchmark(
-    corpus: str = "all",
+    dataset: str = "osworld",
     app: str | None = None,
     task_ids: str | None = None,
-    max_tasks: int | None = None,
     seed: int | None = None,
     max_turns: int = 100,
     max_time_seconds: float = 600.0,
@@ -412,6 +410,7 @@ def osworld_benchmark(
     attack_preset: str | None = None,
     defense_preset: str | None = None,
     judge_model: str = "openai/gpt-4.1",
+    orchestrator: str = "v1",
 ) -> Task:
     """OSWorld standard benchmark task for capability evaluation.
 
@@ -424,10 +423,10 @@ def osworld_benchmark(
     capability and safety scorers run.
 
     Args:
-        corpus: OSWorld corpus (``"all"`` or ``"small"``).
+        dataset: OSWorld dataset variant (``"osworld"`` for the full
+            benchmark or ``"osworld_small"`` for the small corpus).
         app: Filter by app (comma-separated).
         task_ids: Comma-separated task IDs to include.
-        max_tasks: Limit number of tasks.
         seed: Random seed for sampling.
         max_turns: Maximum turns per task.
         max_time_seconds: Maximum wall-clock seconds per task.
@@ -442,21 +441,21 @@ def osworld_benchmark(
         attack_preset: Attack preset for injection experiments.
         defense_preset: Defense preset name.
         judge_model: Model for safety judge (used in injection mode).
+        orchestrator: ``"v1"`` or ``"v2"`` — selects the orchestrator solver.
     """
-    dataset_val = "osworld_small" if corpus == "small" else "osworld"
+    osworld_corpus = "small" if dataset == "osworld_small" else "all"
 
     scenario_config = OSWorldScenarioConfig(
-        dataset=dataset_val,
+        dataset=dataset,
         apps=_split(app),
         task_ids=_split(task_ids),
-        max_tasks=max_tasks,
         seed=seed,
         judge_model=judge_model,
         max_turns=max_turns,
         max_time_seconds=max_time_seconds,
         max_screenshots=max_screenshots,
         computer_timeout=computer_timeout,
-        osworld_corpus=corpus if corpus in ("all", "small") else "all",
+        osworld_corpus=osworld_corpus,
     )
 
     topology_template, resolved_condition = _resolve_topology(
@@ -486,4 +485,6 @@ def osworld_benchmark(
         attacks=attacks,
         defenses=defenses,
     )
-    return build_scenario_task(config, OSWORLD_BENCHMARK_PLUGIN)
+    return build_scenario_task(
+        config, OSWORLD_BENCHMARK_PLUGIN, orchestrator=orchestrator
+    )

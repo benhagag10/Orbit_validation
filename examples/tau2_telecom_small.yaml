@@ -15,8 +15,8 @@
 #   uv run inspect eval orbit/tau2 \
 #     --model openai/gpt-4o \
 #     -T domain=telecom \
-#     -T mode=dual_control \
-#     -T max_tasks=5
+#     -T condition=dual_control \
+#     --limit 5
 #
 #   # Full tasks_small.json sweep with pass^k:
 #   uv run inspect eval orbit/tau2 \
@@ -84,6 +84,6 @@ scheduler:
 
 metadata:
   tau2_domain: telecom
-  tau2_mode: dual_control
+  tau2_condition: dual_control
   tau2_upstream_commit: "a11d95e19a049638dd3fd7c5b941a509422452dc"
   tau2_dataset: tasks_small.json

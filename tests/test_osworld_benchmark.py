@@ -163,35 +163,15 @@ class TestFilterBenchmarkTasks:
         assert len(result) == 2
         assert {t.task_id for t in result} == {"t01", "t03"}
 
-    def test_max_tasks(self):
-        tasks = _sample_benchmark_tasks()
-        config = OSWorldScenarioConfig(
-            dataset="osworld",
-            max_tasks=3,
-        )
-        result = filter_benchmark_tasks(tasks, config)
-        assert len(result) == 3
-
-    def test_max_tasks_with_seed(self):
-        tasks = _sample_benchmark_tasks()
-        config = OSWorldScenarioConfig(
-            dataset="osworld",
-            max_tasks=3,
-            seed=42,
-        )
-        result1 = filter_benchmark_tasks(tasks, config)
-        result2 = filter_benchmark_tasks(tasks, config)
-        assert [t.task_id for t in result1] == [t.task_id for t in result2]
-
     def test_combined_filters(self):
         tasks = _sample_benchmark_tasks()
         config = OSWorldScenarioConfig(
             dataset="osworld",
             apps=["libreoffice_writer", "libreoffice_calc", "libreoffice_impress"],
-            max_tasks=2,
         )
         result = filter_benchmark_tasks(tasks, config)
-        assert len(result) == 2
+        # t01 (calc), t02 (writer), t06 (impress), t08 (writer)
+        assert len(result) == 4
 
 
 # ---------------------------------------------------------------------------

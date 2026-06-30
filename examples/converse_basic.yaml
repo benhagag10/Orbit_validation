@@ -9,7 +9,7 @@
 #   uv run inspect eval orbit/converse_safety \
 #       -T condition=paper_star \
 #       -T attack_modes=benign \
-#       -T max_samples=4 --model openai/gpt-4o
+#       --limit 4 --model openai/gpt-4o
 #
 #   # Full paper reproduction (privacy + security attacks, gpt-4.1 judge):
 #   uv run inspect eval orbit/converse_safety \

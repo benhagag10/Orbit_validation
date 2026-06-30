@@ -170,7 +170,7 @@ echo "  inspect eval inspect_mas/browserart_safety \\"
 echo "    -T condition=single_agent \\"
 echo "    -T dataset=$DATASET \\"
 echo "    -T task_ids=$TASK_ID \\"
-echo "    -T max_behaviors=$MAX_BEHAVIORS \\"
+echo "    --limit $MAX_BEHAVIORS \\"
 echo "    -T max_turns=$MAX_TURNS \\"
 echo "    -T record_video_dir=$VIDEO_DIR_SINGLE \\"
 echo "    --model $MODEL"
@@ -182,7 +182,7 @@ inspect eval inspect_mas/browserart_safety \
     -T condition=single_agent \
     -T "dataset=$DATASET" \
     -T "task_ids=$TASK_ID" \
-    -T "max_behaviors=$MAX_BEHAVIORS" \
+    --limit "$MAX_BEHAVIORS" \
     -T "max_turns=$MAX_TURNS" \
     -T "record_video_dir=$VIDEO_DIR_SINGLE" \
     --model "$MODEL" \
@@ -202,7 +202,7 @@ echo "  inspect eval inspect_mas/browserart_safety \\"
 echo "    -T condition=star_4_specialists \\"
 echo "    -T dataset=$DATASET \\"
 echo "    -T task_ids=$TASK_ID \\"
-echo "    -T max_behaviors=$MAX_BEHAVIORS \\"
+echo "    --limit $MAX_BEHAVIORS \\"
 echo "    -T max_turns=$MAX_TURNS \\"
 echo "    -T record_video_dir=$VIDEO_DIR_MULTI \\"
 echo "    --model $MODEL"
@@ -214,7 +214,7 @@ inspect eval inspect_mas/browserart_safety \
     -T condition=star_4_specialists \
     -T "dataset=$DATASET" \
     -T "task_ids=$TASK_ID" \
-    -T "max_behaviors=$MAX_BEHAVIORS" \
+    --limit "$MAX_BEHAVIORS" \
     -T "max_turns=$MAX_TURNS" \
     -T "record_video_dir=$VIDEO_DIR_MULTI" \
     --model "$MODEL" \

@@ -76,10 +76,10 @@ def hospital_scheduling(
     persuasion_tactic: str | None = None,
     misalignment_strategy: str | None = None,
     compromised_agent: str | None = None,
-    topology_preset: str = "flat",
+    condition: str = "flat",
     defense_preset: str | None = None,
     max_turns: int = 15,
-    max_time: float = 600.0,
+    max_time_seconds: float = 600.0,
     orchestrator: str = "v1",
 ) -> Task:
     """Hospital patient scheduling and resource allocation scenario.
@@ -135,7 +135,7 @@ def hospital_scheduling(
     observation = ObservationConfig()
     all_agent_names = [s.name for s in agent_specs]
 
-    if topology_preset == "star":
+    if condition == "star":
         supervisor = all_agent_names[0]
         agent_specs[0] = agent_specs[0].model_copy(
             update={
@@ -151,7 +151,7 @@ def hospital_scheduling(
             edges.append(TopologyEdge(
                 from_agent=supervisor, to_agent=worker, mechanism="tool",
             ))
-    elif topology_preset == "mesh_shared":
+    elif condition == "mesh_shared":
         for a in all_agent_names:
             for b in all_agent_names:
                 if a != b:
@@ -247,10 +247,10 @@ def hospital_scheduling(
         execution=execution,
         scheduler=SchedulerConfig(
             max_turns=max_turns,
-            max_time_seconds=max_time,
+            max_time_seconds=max_time_seconds,
         ),
         max_turns=max_turns,
-        max_time_seconds=max_time,
+        max_time_seconds=max_time_seconds,
     )
 
     return build_scenario_task(config, HOSPITAL_PLUGIN, orchestrator=orchestrator)

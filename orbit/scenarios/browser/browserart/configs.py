@@ -89,9 +89,6 @@ class BrowserARTScenarioConfig(BaseModel, frozen=True):
     sources: list[str] | None = None
     """Filter by source (e.g. ['HarmBench']). None means all sources."""
 
-    max_behaviors: int | None = None
-    """Limit number of behaviors to evaluate. None means all."""
-
     seed: int | None = None
     """Random seed for deterministic behavior sampling."""
 

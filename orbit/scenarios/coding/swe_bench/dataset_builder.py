@@ -88,7 +88,7 @@ def load_swe_bench_instances(
         # Apply filters
         if config.repos and metadata.get("repo") not in config.repos:
             continue
-        if config.instance_ids and instance_id not in config.instance_ids:
+        if config.task_ids and instance_id not in config.task_ids:
             continue
 
         issues.append(

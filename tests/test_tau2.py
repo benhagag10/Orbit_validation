@@ -95,13 +95,6 @@ class TestDatasetLoader:
         tasks = filter_tasks(load_tau2_tasks(cfg), cfg)
         assert {t.id for t in tasks} == {"1", "3"}
 
-    def test_filter_max_tasks_is_deterministic(self):
-        cfg = Tau2ScenarioConfig(max_tasks=5, seed=42)
-        a = filter_tasks(load_tau2_tasks(cfg), cfg)
-        b = filter_tasks(load_tau2_tasks(cfg), cfg)
-        assert len(a) == 5
-        assert [t.id for t in a] == [t.id for t in b]
-
     def test_policy_and_db_load(self):
         cfg = Tau2ScenarioConfig()
         policy = load_policy(cfg)
@@ -498,7 +491,7 @@ def _make_scorer_state(
         metadata={
             "tau2_task_id": task.id,
             "tau2_domain": task.domain,
-            "tau2_mode": "dual_control",
+            "tau2_condition": "dual_control",
             "tau2_task": task.model_dump(mode="json"),
         },
     )
@@ -819,7 +812,7 @@ class TestTau2EntryPoint:
     def test_builds_samples_and_scorer_chain(self):
         from orbit.scenarios.customer_service.tau2.task import tau2
 
-        t = tau2(domain="airline", max_tasks=3, seed=0)
+        t = tau2(domain="airline", task_ids="0,1,2")
         assert len(t.dataset) == 3
         scorers = t.scorer if isinstance(t.scorer, list) else [t.scorer]
         assert len(scorers) == 2  # tau2_scorer + security_scorer
@@ -838,11 +831,11 @@ class TestTau2EntryPoint:
         with pytest.raises(ValueError, match="not supported"):
             tau2(domain="banking")
 
-    def test_rejects_unknown_mode(self):
+    def test_rejects_unknown_condition(self):
         from orbit.scenarios.customer_service.tau2.task import tau2
 
-        with pytest.raises(ValueError, match="Mode 'solo_plus'"):
-            tau2(mode="solo_plus")
+        with pytest.raises(ValueError, match="Condition 'solo_plus'"):
+            tau2(condition="solo_plus")
 
     def test_parse_csv_tolerates_inspect_coerced_shapes(self):
         # Inspect's ``-T task_ids=1,3`` coerces to a Python list, and
@@ -862,8 +855,8 @@ class TestTau2EntryPoint:
     def test_solo_mode_rejected_for_non_airline(self):
         from orbit.scenarios.customer_service.tau2.task import tau2
 
-        with pytest.raises(ValueError, match="Solo mode"):
-            tau2(domain="retail", mode="solo")
+        with pytest.raises(ValueError, match="condition='solo'"):
+            tau2(domain="retail", condition="solo")
 
 
 # ---------------------------------------------------------------------------
@@ -1008,7 +1001,7 @@ class TestDualControlConfigBuilder:
     def test_dual_control_task_builds(self):
         from orbit.scenarios.customer_service.tau2.task import tau2
 
-        t = tau2(domain="airline", mode="dual_control", max_tasks=2, seed=0)
+        t = tau2(domain="airline", condition="dual_control", task_ids="0,1")
         assert len(t.dataset) == 2
         for sample in t.dataset:
             from orbit.dataset.metadata import MASMetadata
@@ -1017,7 +1010,7 @@ class TestDualControlConfigBuilder:
             exp = meta.experiment
             assert {a.name for a in exp.setup.agents} == {"user_sim", "assistant"}
             assert exp.execution.observation.mode == "peer_messages"
-            assert meta.experiment.metadata["tau2_mode"] == "dual_control"
+            assert meta.experiment.metadata["tau2_condition"] == "dual_control"
 
 
 # ---------------------------------------------------------------------------
@@ -1651,7 +1644,7 @@ class TestRetailDomain:
     def test_retail_task_builds_end_to_end(self):
         from orbit.scenarios.customer_service.tau2.task import tau2
 
-        t = tau2(domain="retail", mode="dual_control", max_tasks=2, seed=0)
+        t = tau2(domain="retail", condition="dual_control", task_ids="0,1")
         assert len(t.dataset) == 2
 
 
@@ -1760,8 +1753,10 @@ class TestTelecomDomain:
     def test_telecom_task_builds_end_to_end(self):
         from orbit.scenarios.customer_service.tau2.task import tau2
 
-        t = tau2(domain="telecom", mode="dual_control", max_tasks=2, seed=0)
-        assert len(t.dataset) == 2
+        # telecom ships the 20-task tasks_small.json; the full set materializes
+        # (sample-count limiting is delegated to Inspect's --limit).
+        t = tau2(domain="telecom", condition="dual_control")
+        assert len(t.dataset) == 20
 
 
 # ---------------------------------------------------------------------------
@@ -2851,7 +2846,7 @@ def _make_retail_scorer_state(
         metadata={
             "tau2_task_id": task.id,
             "tau2_domain": "retail",
-            "tau2_mode": "dual_control",
+            "tau2_condition": "dual_control",
             "tau2_task": task.model_dump(mode="json"),
         },
     )
@@ -3384,7 +3379,7 @@ class TestSweepScript:
         cmd = mod._build_inspect_cmd(
             cell=cell,
             log_dir=tmp_path / "logs",
-            max_tasks=5,
+            limit=5,
             judge_model="openai/gpt-4.1",
             max_turns=100,
             max_time=600.0,
@@ -3397,19 +3392,20 @@ class TestSweepScript:
         # Core flags are present.
         assert "--model" in cmd and "openai/gpt-4o" in cmd
         assert "-T" in cmd
-        # Domain, mode, and judge model are passed as -T k=v tokens.
+        # Domain, condition, and judge model are passed as -T k=v tokens.
         joined = " ".join(cmd)
         assert "domain=airline" in joined
-        assert "mode=dual_control" in joined
+        assert "condition=dual_control" in joined
         assert "judge_model=openai/gpt-4.1" in joined
-        assert "max_tasks=5" in joined
+        # Sample count is limited via Inspect's --limit, not a -T cap.
+        assert "--limit" in cmd and "5" in cmd
         assert "seed=0" in joined
         assert "--epochs" in cmd
         assert "4" in cmd
         assert "--max-samples" in cmd
         assert "2" in cmd
 
-    def test_build_inspect_cmd_omits_max_tasks_when_none(self, tmp_path):
+    def test_build_inspect_cmd_omits_limit_when_none(self, tmp_path):
         mod = self._import_script()
         cell = mod.SweepCell(
             model="openai/gpt-4o", domain="telecom", epochs=1
@@ -3417,7 +3413,7 @@ class TestSweepScript:
         cmd = mod._build_inspect_cmd(
             cell=cell,
             log_dir=tmp_path / "logs",
-            max_tasks=None,
+            limit=None,
             judge_model="openai/gpt-4.1",
             max_turns=100,
             max_time=600.0,
@@ -3426,7 +3422,7 @@ class TestSweepScript:
             extra_args=["--trace"],
         )
         joined = " ".join(cmd)
-        assert "max_tasks=" not in joined
+        assert "--limit" not in cmd
         assert "seed=" not in joined
         # Passthrough args land at the end.
         assert cmd[-1] == "--trace"
@@ -3439,7 +3435,7 @@ class TestSweepScript:
         cmd = mod._build_inspect_cmd(
             cell=cell,
             log_dir=tmp_path / "logs",
-            max_tasks=3,
+            limit=3,
             judge_model="openai/gpt-4.1",
             max_turns=50,
             max_time=300.0,
@@ -3571,7 +3567,7 @@ class TestTopologyPresets:
             load_tau2_tasks,
         )
 
-        cfg = Tau2ScenarioConfig(domain=domain, max_tasks=1)
+        cfg = Tau2ScenarioConfig(domain=domain)
         return cfg, load_tau2_tasks(cfg)[0], load_policy(cfg)
 
     def test_solo_plan_airline_only(self):
@@ -3788,7 +3784,7 @@ class TestConfigBuilderTopologyMetadata:
             load_tau2_tasks,
         )
 
-        cfg = Tau2ScenarioConfig(domain="airline", max_tasks=1)
+        cfg = Tau2ScenarioConfig(domain="airline")
         return cfg, load_tau2_tasks(cfg)[0], load_policy(cfg)
 
     @pytest.mark.parametrize(
@@ -3816,8 +3812,8 @@ class TestConfigBuilderTopologyMetadata:
         agent_names = {a.name for a in ec.setup.agents}
         assert set(assistants).issubset(agent_names)
         assert set(user_sims).issubset(agent_names)
-        # Topology name is echoed for downstream filtering.
-        assert ec.metadata["tau2_topology"] == topology
+        # Condition (topology) name is echoed for downstream filtering.
+        assert ec.metadata["tau2_condition"] == topology
 
 
 class TestScorerMultiAssistantAttribution:
@@ -4117,7 +4113,6 @@ class TestCrossDomainSetupSolver:
 
         cfg = Tau2ScenarioConfig(
             domain="airline",
-            max_tasks=1,
             topology="cross_domain_handoff",
         )
         tasks = load_tau2_tasks(cfg)

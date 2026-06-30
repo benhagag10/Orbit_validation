@@ -3,7 +3,7 @@
 # A triage agent sees read tools across airline / retail / telecom and
 # routes requests to per-domain specialists. ``DomainState`` holds
 # simultaneous DBs for all three domains (seeded by
-# ``_build_setup_solver`` when ``topology='cross_domain_handoff'``).
+# ``_build_setup_solver`` when ``condition='cross_domain_handoff'``).
 # Tasks are still single-domain — the scorer evaluates the declared
 # task domain exactly as usual — the value of this topology is watching
 # how triage routes under attack, not a new evaluation surface.
@@ -12,9 +12,8 @@
 #   uv run inspect eval orbit/tau2 \
 #     --model openai/gpt-4o \
 #     -T domain=airline \
-#     -T mode=dual_control \
-#     -T topology=cross_domain_handoff \
-#     -T max_tasks=5
+#     -T condition=cross_domain_handoff \
+#     --limit 5
 #
 # The task's ``-T domain=...`` argument still picks which dataset to
 # run; the specialists for the other two domains are idle on any given
@@ -147,5 +146,5 @@ scheduler:
         agents: [user_sim]
 
 metadata:
-  tau2_topology: cross_domain_handoff
+  tau2_condition: cross_domain_handoff
   tau2_active_domains: [airline, retail, telecom]

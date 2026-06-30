@@ -9,14 +9,14 @@
 #   uv run inspect eval orbit/tau2 \
 #     --model openai/gpt-4o \
 #     -T domain=retail \
-#     -T mode=dual_control \
-#     -T max_tasks=5 \
+#     -T condition=dual_control \
+#     --limit 5 \
 #     -T judge_model=openai/gpt-4.1
 #
 #   # Full pass^k sweep (k=1,2,4):
 #   uv run inspect eval orbit/tau2 \
 #     -T domain=retail \
-#     -T max_tasks=10 \
+#     --limit 10 \
 #     --epochs 4 \
 #     --model openai/gpt-4o
 
@@ -80,5 +80,5 @@ scheduler:
 
 metadata:
   tau2_domain: retail
-  tau2_mode: dual_control
+  tau2_condition: dual_control
   tau2_upstream_commit: "a11d95e19a049638dd3fd7c5b941a509422452dc"

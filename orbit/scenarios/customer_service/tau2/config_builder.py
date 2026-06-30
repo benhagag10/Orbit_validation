@@ -107,8 +107,9 @@ def _assemble_experiment_config(
     metadata: dict[str, object] = {
         "tau2_task_id": task.id,
         "tau2_domain": task.domain,
-        "tau2_mode": scenario_config.mode,
-        "tau2_topology": plan.name,
+        # The resolved named topology preset. ``solo`` implies the solo
+        # (single-agent) execution mode; every other value is dual-control.
+        "tau2_condition": plan.name,
         "tau2_task": task.model_dump(mode="json"),
         "tau2_reward_basis": list(task.evaluation_criteria.reward_basis),
         "tau2_judge_model": scenario_config.judge_model,
@@ -124,8 +125,7 @@ def _assemble_experiment_config(
     return ExperimentConfig(
         name=f"tau2_{task.domain}_{task.id}",
         description=(
-            f"tau2 {task.domain} task {task.id} "
-            f"({plan.name}/{scenario_config.mode})"
+            f"tau2 {task.domain} task {task.id} ({plan.name})"
         ),
         setup=setup,
         scenario=ScenarioConfig(

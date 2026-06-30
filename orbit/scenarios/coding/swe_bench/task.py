@@ -106,11 +106,10 @@ def _scenario_config(config: ExperimentConfig) -> SWEBenchScenarioConfig:
         num_issues=meta.get("swe_bench_num_issues", 2),
         seed=meta.get("swe_bench_seed"),
         repos=meta.get("swe_bench_repos"),
-        instance_ids=meta.get("swe_bench_instance_ids"),
-        execution_mode=meta.get("swe_bench_mode", "round_robin"),
+        task_ids=meta.get("swe_bench_task_ids"),
+        execution_mode=meta.get("swe_bench_scheduling_mode", "round_robin"),
         max_turns_per_agent=config.scheduler.max_turns,
         max_time_seconds=config.scheduler.max_time_seconds,
-        max_groups=meta.get("swe_bench_max_groups"),
         force_arch=meta.get("swe_bench_force_arch", ""),
     )
 
@@ -201,28 +200,30 @@ def swe_bench_multi_issue(
     num_issues: int = 2,
     seed: int | None = None,
     repos: str | None = None,
-    instance_ids: str | None = None,
+    task_ids: str | None = None,
     instance_set: str | None = None,
     model: str | None = None,
-    mode: str = "round_robin",
+    scheduling_mode: str = "round_robin",
     topology: str | SetupConfig = "star",
     topology_file: str = "default",
     attack_preset: str | None = None,
     defense_preset: str | None = None,
     max_turns: int = 30,
-    max_time: float = 900.0,
-    max_groups: int | None = None,
+    max_time_seconds: float = 900.0,
     force_arch: str = "",
     condition: str | None = None,
     agents: str | None = None,
     memory: str = "none",
     instructions: str = "detailed",
+    orchestrator: str = "v1",
 ) -> Task:
     """SWE-Bench multi-issue security benchmark task.
 
     Args:
         topology: Topology style (star, round_robin, delegation).
         topology_file: Custom topology YAML path or ``"default"``.
+        scheduling_mode: How agents are scheduled relative to each other
+            (``"round_robin"`` or ``"superstep"``).
         condition: Condition preset name (e.g. ``"star_specialist"``,
             ``"memory_full"``). When set, overrides topology with the
             condition's setup.
@@ -232,6 +233,7 @@ def swe_bench_multi_issue(
             shared_actions, full). Only used with ``agents``.
         instructions: Instruction detail level (detailed, relaxed).
             Only used with ``agents``.
+        orchestrator: MAS orchestrator variant (``"v1"`` or ``"v2"``).
     """
     from orbit.configs.experiment import ExperimentConfig
     from orbit.configs.metrics import MetricsConfig
@@ -263,8 +265,8 @@ def swe_bench_multi_issue(
         repo_list = [r.strip() for r in repos.split(",")] if repos else None
 
         id_list: list[str] | None = None
-        if instance_ids:
-            id_list = [i.strip() for i in instance_ids.split(",")]
+        if task_ids:
+            id_list = [i.strip() for i in task_ids.split(",")]
         elif instance_set:
             import json
 
@@ -279,11 +281,10 @@ def swe_bench_multi_issue(
             num_issues=num_issues,
             seed=seed,
             repos=repo_list,
-            instance_ids=id_list,
-            execution_mode=mode,
+            task_ids=id_list,
+            execution_mode=scheduling_mode,
             max_turns_per_agent=max_turns,
-            max_time_seconds=max_time,
-            max_groups=max_groups,
+            max_time_seconds=max_time_seconds,
             force_arch=force_arch,
         )
 
@@ -336,4 +337,4 @@ def swe_bench_multi_issue(
         metadata={"swe_bench_scenario_config": scenario_config.model_dump()},
     )
 
-    return build_scenario_task(config, SWE_BENCH_PLUGIN)
+    return build_scenario_task(config, SWE_BENCH_PLUGIN, orchestrator=orchestrator)

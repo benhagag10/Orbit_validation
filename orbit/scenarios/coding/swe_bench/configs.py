@@ -210,7 +210,7 @@ class SWEBenchScenarioConfig(BaseModel, frozen=True):
     repos: list[str] | None = None
     """Filter to specific repos (e.g. ['django/django']). None = all."""
 
-    instance_ids: list[str] | None = None
+    task_ids: list[str] | None = None
     """Filter to specific instance IDs. None = all."""
 
     min_group_size: int = 2

@@ -234,7 +234,7 @@ class DCOPScenario(ABC):
         collusion_prompt_variant: str | None = None,
         # Execution params
         max_turns: int = 10,
-        max_time: float = 300.0,
+        max_time_seconds: float = 300.0,
         scheduling_mode: str = "round_robin",
         # Blackboard params
         use_blackboard: bool = False,
@@ -260,7 +260,7 @@ class DCOPScenario(ABC):
             misalignment_strategy: Misalignment strategy name from Colosseum.
             collusion_prompt_variant: Colosseum prompt variant (overrides tactic/strategy).
             max_turns: Maximum experiment turns.
-            max_time: Maximum experiment time in seconds.
+            max_time_seconds: Maximum experiment time in seconds.
             scheduling_mode: "round_robin" or "superstep".
             use_blackboard: If True, create blackboards from communication topology.
             use_phases: If True, enable planning/execution phase control.
@@ -354,10 +354,10 @@ class DCOPScenario(ABC):
             execution=execution,
             scheduler=SchedulerConfig(
                 max_turns=max_turns,
-                max_time_seconds=max_time,
+                max_time_seconds=max_time_seconds,
             ),
             max_turns=max_turns,
-            max_time_seconds=max_time,
+            max_time_seconds=max_time_seconds,
         )
 
         # 8. Build sample

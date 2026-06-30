@@ -41,9 +41,9 @@ SANDBOX_COMPOSE = str(
 )
 
 
-def default_topology_template(defense_prompt: bool = True) -> SetupConfig:
+def default_topology_template(inline_defense_warning: bool = True) -> SetupConfig:
     """Return a single-agent react() template as the default topology."""
-    prompt = CODING_AGENT_PROMPT if defense_prompt else CODING_AGENT_PROMPT_NO_DEFENSE
+    prompt = CODING_AGENT_PROMPT if inline_defense_warning else CODING_AGENT_PROMPT_NO_DEFENSE
     return SetupConfig(
         agents=[
             AgentSpec(
@@ -167,16 +167,16 @@ def build_experiment_config(
         scenario_config = CodeIPIScenarioConfig()
     if topology_template is None:
         topology_template = default_topology_template(
-            defense_prompt=scenario_config.defense_prompt
+            inline_defense_warning=scenario_config.inline_defense_warning
         )
 
     # Build attack list: sample injection + any additional attacks
-    all_attacks: list[AttackConfig] = []
+    sample_attacks: list[AttackConfig] = []
     sample_attack = _build_attack_config(task)
     if sample_attack is not None:
-        all_attacks.append(sample_attack)
+        sample_attacks.append(sample_attack)
     if attacks:
-        all_attacks.extend(attacks)
+        sample_attacks.extend(attacks)
 
     return ExperimentConfig(
         name=f"code_ipi_{task.id}",
@@ -191,7 +191,7 @@ def build_experiment_config(
             sandbox=SandboxSpec(compose_file=SANDBOX_COMPOSE),
             setup_script=_build_setup_script(task),
         ),
-        attacks=all_attacks,
+        attacks=sample_attacks,
         defenses=defenses or [],
         scheduler=SchedulerConfig(
             max_turns=scenario_config.max_turns,

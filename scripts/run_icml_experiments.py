@@ -165,7 +165,7 @@ def run_experiment(
         "--condition", condition,
         "--seed", str(seed),
         "--max-turns", str(max_turns),
-        "--classifier-model", classifier,
+        "--judge-model", classifier,
         "--retry-on-error", str(retry_on_error),
         "--log-dir", str(log_dir),
     ]
@@ -295,8 +295,8 @@ def main():
         help=f"Model (default: {DEFAULT_MODEL})",
     )
     parser.add_argument(
-        "--classifier-model", type=str, default=DEFAULT_CLASSIFIER,
-        help=f"Classifier model (default: {DEFAULT_CLASSIFIER})",
+        "--judge-model", type=str, default=DEFAULT_CLASSIFIER,
+        help=f"Judge model (default: {DEFAULT_CLASSIFIER})",
     )
     parser.add_argument(
         "--seed", type=int, nargs="+", default=[DEFAULT_SEED],
@@ -370,7 +370,7 @@ def main():
         else:
             run["log_dir"] = str(log_root / run["exp_name"] / run["label"])
         run["model"] = args.model
-        run["classifier"] = args.classifier_model
+        run["classifier"] = args.judge_model
         run["max_turns"] = max_turns
         run["retry_on_error"] = args.retry_on_error
         run["limit"] = limit

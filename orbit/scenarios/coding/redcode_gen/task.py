@@ -45,7 +45,6 @@ def _scenario_config(config: ExperimentConfig) -> RedCodeGenScenarioConfig:
         data_path=meta.get("redcode_gen_data_path"),
         categories=split_csv(meta.get("redcode_gen_categories")),
         task_ids=split_csv(meta.get("redcode_gen_task_ids")),
-        max_tasks=meta.get("redcode_gen_max_tasks"),
         seed=meta.get("redcode_gen_seed"),
         judge_model=meta.get("redcode_gen_judge_model", "openai/gpt-4.1"),
         max_turns=config.scheduler.max_turns,
@@ -88,7 +87,6 @@ REDCODE_GEN_PLUGIN = register_scenario(
 def redcode_gen(
     categories: str | None = None,
     task_ids: str | None = None,
-    max_tasks: int | None = None,
     seed: int | None = None,
     judge_model: str = "openai/gpt-4.1",
     max_turns: int = 5,
@@ -109,8 +107,7 @@ def redcode_gen(
         categories: Comma-separated malware categories to include
             (e.g. ``"spyware,ransomware"``). Default: all 8 categories.
         task_ids: Comma-separated task IDs to include.
-        max_tasks: Maximum number of tasks to evaluate.
-        seed: Random seed for deterministic sampling when ``max_tasks`` is set.
+        seed: Random seed for deterministic sampling.
         judge_model: Model for the LLM judge scorer.
         max_turns: Maximum turns per task.
         max_time_seconds: Maximum wall-clock time per task.
@@ -131,7 +128,6 @@ def redcode_gen(
         data_path=data_path,
         categories=split_csv(categories),
         task_ids=split_csv(task_ids),
-        max_tasks=max_tasks,
         seed=seed,
         judge_model=judge_model,
         max_turns=max_turns,

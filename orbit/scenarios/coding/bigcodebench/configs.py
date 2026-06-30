@@ -40,7 +40,7 @@ class BigCodeBenchScenarioConfig(BaseModel, frozen=True):
     version: str = "v0.1.2"
     """HuggingFace dataset split/version."""
 
-    subset: list[int] | None = None
+    task_ids: list[int] | None = None
     """Optional list of task integer ids to include."""
 
     max_tasks: int | None = None

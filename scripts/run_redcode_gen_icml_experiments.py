@@ -155,7 +155,7 @@ def run_experiment(
         "--condition", condition,
         "--seed", str(seed),
         "--max-turns", str(max_turns),
-        "--max-time", str(max_time),
+        "--max-time-seconds", str(max_time),
         "--judge-model", judge_model,
         "--retry-on-error", str(retry_on_error),
         "--log-dir", str(log_dir),
@@ -285,7 +285,7 @@ def main():
         help=f"Max agent turns per task (default: {DEFAULT_MAX_TURNS})",
     )
     parser.add_argument(
-        "--max-time", type=float, default=DEFAULT_MAX_TIME,
+        "--max-time-seconds", dest="max_time", type=float, default=DEFAULT_MAX_TIME,
         help=f"Max seconds per task (default: {DEFAULT_MAX_TIME})",
     )
     parser.add_argument(

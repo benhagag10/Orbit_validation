@@ -38,10 +38,9 @@ def _scenario_config(config: ExperimentConfig) -> CodeIPIScenarioConfig:
     return CodeIPIScenarioConfig(
         vectors=split_csv(meta.get("code_ipi_vectors")),
         severities=split_csv(meta.get("code_ipi_severities")),
-        max_tasks=meta.get("code_ipi_max_tasks"),
         seed=meta.get("code_ipi_seed"),
         include_benign=meta.get("code_ipi_include_benign", True),
-        defense_prompt=meta.get("code_ipi_defense_prompt", True),
+        inline_defense_warning=meta.get("code_ipi_inline_defense_warning", True),
         max_turns=config.scheduler.max_turns,
         max_time_seconds=config.scheduler.max_time_seconds,
     )
@@ -53,7 +52,7 @@ def _code_ipi_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
         topology_template = config.setup
     else:
         topology_template = default_topology_template(
-            defense_prompt=scenario_config.defense_prompt
+            inline_defense_warning=scenario_config.inline_defense_warning
         )
     configs = build_experiment_configs(
         scenario_config=scenario_config,
@@ -89,16 +88,16 @@ CODE_IPI_PLUGIN = register_scenario(
 def code_ipi(
     vectors: str | None = None,
     severities: str | None = None,
-    defense_prompt: str = "true",
-    max_tasks: int | None = None,
+    inline_defense_warning: bool = True,
     seed: int | None = None,
-    include_benign: str = "true",
+    include_benign: bool = True,
     condition: str = "single_agent",
     topology: str | None = None,
     attack_preset: str | None = None,
     defense_preset: str | None = None,
     max_turns: int = 30,
-    max_time: float = 300.0,
+    max_time_seconds: float = 300.0,
+    orchestrator: str = "v1",
 ) -> Task:
     """Indirect Prompt Injection benchmark for coding agents.
 
@@ -110,9 +109,9 @@ def code_ipi(
         vectors: Comma-separated injection vectors to include.
             Options: issue_text, code_comment, readme, config_file.
         severities: Comma-separated severity tiers. Options: S1, S2, S3.
-        defense_prompt: Whether to include anti-injection warning.
-            "true" (default) adds explicit instruction. "false" uses neutral.
-        max_tasks: Maximum number of samples to include.
+        inline_defense_warning: Whether to include the anti-injection warning
+            in the agent system prompt. ``True`` (default) adds explicit
+            instruction; ``False`` uses a neutral prompt.
         seed: Random seed for reproducible sampling.
         include_benign: Whether to include benign control samples.
         condition: Named topology condition.
@@ -120,25 +119,22 @@ def code_ipi(
         attack_preset: Named attack preset to layer on top of sample injection.
         defense_preset: Named defense preset.
         max_turns: Maximum turns per agent.
-        max_time: Maximum wall-clock time in seconds.
+        max_time_seconds: Maximum wall-clock time in seconds.
+        orchestrator: MAS orchestrator variant (``"v1"`` or ``"v2"``).
     """
     from orbit.configs.experiment import ExperimentConfig
     from orbit.configs.metrics import MetricsConfig
     from orbit.configs.scenario import ScenarioConfig
     from orbit.configs.scheduler import SchedulerConfig
 
-    use_defense = str(defense_prompt).lower() != "false"
-    use_benign = str(include_benign).lower() != "false"
-
     scenario_config = CodeIPIScenarioConfig(
         vectors=split_csv(vectors),
         severities=split_csv(severities),
-        max_tasks=max_tasks,
         seed=seed,
-        include_benign=use_benign,
-        defense_prompt=use_defense,
+        include_benign=include_benign,
+        inline_defense_warning=inline_defense_warning,
         max_turns=max_turns,
-        max_time_seconds=max_time,
+        max_time_seconds=max_time_seconds,
     )
 
     # Resolve topology
@@ -157,7 +153,9 @@ def code_ipi(
 
         topology_template = get_condition_setup(condition)
     else:
-        topology_template = default_topology_template(defense_prompt=use_defense)
+        topology_template = default_topology_template(
+            inline_defense_warning=inline_defense_warning
+        )
 
     attacks = None
     defenses = None
@@ -179,10 +177,10 @@ def code_ipi(
         defenses=defenses or [],
         scheduler=SchedulerConfig(
             max_turns=max_turns,
-            max_time_seconds=max_time,
+            max_time_seconds=max_time_seconds,
             halt_on_convergence=False,
         ),
         metrics=MetricsConfig(),
         metadata={"code_ipi_scenario_config": scenario_config.model_dump()},
     )
-    return build_scenario_task(config, CODE_IPI_PLUGIN)
+    return build_scenario_task(config, CODE_IPI_PLUGIN, orchestrator=orchestrator)

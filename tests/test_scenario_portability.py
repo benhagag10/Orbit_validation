@@ -60,7 +60,7 @@ CODING_YAML = textwrap.dedent("""\
       swe_bench_num_issues: 2
       swe_bench_repos: ["django/django"]
       swe_bench_seed: 42
-      swe_bench_mode: "round_robin"
+      swe_bench_scheduling_mode: "round_robin"
 """)
 
 BROWSING_YAML = textwrap.dedent("""\
@@ -85,7 +85,7 @@ BROWSING_YAML = textwrap.dedent("""\
     max_turns: 30
     user_prompt: "Navigate to example.com and click the login button"
     metadata:
-      browserart_max_behaviors: 5
+      browserart_task_ids: [5]
       browserart_headless: true
 """)
 
@@ -288,7 +288,7 @@ class TestTaskDispatch:
         cfg = mock_build.call_args[0][0]
         assert cfg.scenario.name == "browserart"
         assert [a.name for a in cfg.setup.agents] == ["browser_agent"]
-        assert cfg.metadata["browserart_max_behaviors"] == 5
+        assert cfg.metadata["browserart_task_ids"] == [5]
         assert cfg.metadata["browserart_headless"] is True
 
     @patch("orbit.wrapper.runner.eval")
@@ -572,7 +572,7 @@ class TestScenarioSwap:
                 )],
             ),
             "metadata": {
-                "browserart_max_behaviors": 3,
+                "browserart_task_ids": [3],
                 "browserart_headless": True,
             },
         })
@@ -594,7 +594,7 @@ class TestScenarioSwap:
                 "swe_bench_num_issues": 2,
                 "swe_bench_repos": ["django/django"],
                 "swe_bench_seed": 42,
-                "swe_bench_mode": "round_robin",
+                "swe_bench_scheduling_mode": "round_robin",
             },
         })
 
@@ -624,7 +624,7 @@ class TestScenarioSwap:
         cfg = mock_build.call_args[0][0]
         assert cfg.scenario.name == "browserart"
         assert [a.name for a in cfg.setup.agents] == ["browser_agent"]
-        assert cfg.metadata["browserart_max_behaviors"] == 3
+        assert cfg.metadata["browserart_task_ids"] == [3]
 
     @patch("orbit.tasks.security_benchmark.build_scenario_task")
     def test_swapped_browsing_to_coding_dispatches_correctly(
@@ -780,7 +780,7 @@ class TestMetadataIsolation:
             metadata:
               swe_bench_num_issues: 99
               swe_bench_repos: ["django/django"]
-              browserart_max_behaviors: 3
+              browserart_task_ids: [3]
         """)
         p = tmp_path / "mixed.yaml"
         p.write_text(content)
@@ -794,7 +794,7 @@ class TestMetadataIsolation:
         mock_build.assert_called_once()
         cfg = mock_build.call_args[0][0]
         assert cfg.scenario.name == "browserart"
-        assert cfg.metadata["browserart_max_behaviors"] == 3
+        assert cfg.metadata["browserart_task_ids"] == [3]
 
     @patch("orbit.wrapper.runner.eval")
     @patch("orbit.tasks.security_benchmark.build_scenario_task")
@@ -808,10 +808,9 @@ class TestMetadataIsolation:
               max_turns: 10
               max_time_seconds: 60.0
             metadata:
-              browserart_max_behaviors: 99
               browserart_headless: false
               swe_bench_num_issues: 4
-              swe_bench_mode: "round_robin"
+              swe_bench_scheduling_mode: "round_robin"
         """)
         p = tmp_path / "mixed_swe.yaml"
         p.write_text(content)
@@ -855,7 +854,7 @@ class TestMultiAgentParity:
             scheduler=SchedulerConfig(max_turns=30, max_time_seconds=600.0),
             metadata={
                 "swe_bench_num_issues": 2,
-                "swe_bench_mode": "round_robin",
+                "swe_bench_scheduling_mode": "round_robin",
             },
         )
 
@@ -876,7 +875,7 @@ class TestMultiAgentParity:
             scenario=ScenarioConfig(name="browserart"),
             scheduler=SchedulerConfig(max_turns=15, max_time_seconds=300.0),
             metadata={
-                "browserart_max_behaviors": 5,
+                "browserart_task_ids": [5],
             },
         )
 

@@ -87,10 +87,9 @@ def agentharm(
     partition: str = "test_public",
     condition: str = "single_agent",
     categories: str | None = None,
-    behavior_ids: str | None = None,
+    task_ids: str | None = None,
     detailed_prompt: bool | None = None,
     hint_included: bool | None = None,
-    max_samples: int | None = None,
     seed: int = 0,
     judge_model: str = "openai/gpt-4.1",
     n_irrelevant_tools: int = 0,
@@ -113,11 +112,10 @@ def agentharm(
         condition: Topology preset — see
             :func:`orbit.scenarios.agentharm.condition_presets.list_conditions`.
         categories: Comma-separated harm-category filter.
-        behavior_ids: Comma-separated behavior-ID filter.
+        task_ids: Comma-separated behavior-ID filter.
         detailed_prompt: Keep only behaviors with matching ``detailed_prompt``.
         hint_included: Keep only behaviors with matching ``hint_included``.
-        max_samples: Cap the number of samples after filtering.
-        seed: Seed for deterministic subsampling + irrelevant-tool selection.
+        seed: Seed for deterministic irrelevant-tool selection.
         judge_model: Model used for the refusal judge and graders.
         n_irrelevant_tools: Pad each agent's tool list with distractor tools.
         tool_mode: ``filtered`` (default) or ``full_domain``.
@@ -137,8 +135,8 @@ def agentharm(
         if categories else None
     )
     id_list = (
-        tuple(b.strip() for b in behavior_ids.split(",") if b.strip())
-        if behavior_ids else None
+        tuple(b.strip() for b in task_ids.split(",") if b.strip())
+        if task_ids else None
     )
 
     scenario_config = AgentHarmScenarioConfig(
@@ -146,10 +144,9 @@ def agentharm(
         split=split,  # type: ignore[arg-type]
         partition=partition,  # type: ignore[arg-type]
         categories=category_list,
-        behavior_ids=id_list,
+        task_ids=id_list,
         detailed_prompt=detailed_prompt,
         hint_included=hint_included,
-        max_samples=max_samples,
         seed=seed,
         judge_model=judge_model,
         n_irrelevant_tools=n_irrelevant_tools,
@@ -173,7 +170,6 @@ def agentharm(
         metadata={
             "agentharm_scenario_config": scenario_config.model_dump(),
             "agentharm_condition": condition,
-            "agentharm_judge_model": judge_model,
         },
     )
     return build_scenario_task(config, AGENTHARM_PLUGIN, orchestrator=orchestrator)
