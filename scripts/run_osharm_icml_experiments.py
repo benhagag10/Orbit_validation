@@ -174,7 +174,6 @@ def run_experiment(
         "--model", model,
         "--dataset", dataset,
         "--condition", condition,
-        "--seed", str(seed),
         "--max-turns", str(max_turns),
         "--max-time-seconds", str(max_time),
         "--judge-model", judge_model,

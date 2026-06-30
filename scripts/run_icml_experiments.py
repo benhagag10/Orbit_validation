@@ -163,7 +163,6 @@ def run_experiment(
         "--model", model,
         "--dataset", dataset,
         "--condition", condition,
-        "--seed", str(seed),
         "--max-turns", str(max_turns),
         "--judge-model", classifier,
         "--retry-on-error", str(retry_on_error),

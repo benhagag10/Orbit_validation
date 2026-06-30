@@ -26,11 +26,9 @@ orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin
 | `--limit` | int | all | Limit number of behaviors (Inspect passthrough) |
 | `--task-id` | int | — | Run a single task by ID |
 | `--dataset` | choice | `hbb` | `hbb` or `hbb_extension` |
-| `--seed` | int | — | Random seed for behavior sampling |
 | `--headless / --no-headless` | bool | true | Run browser headlessly |
 | `--record-video-dir` | string | — | Save browser recordings to this directory |
-| `--judge-model` | string | openai/gpt-4o | Model for the safety classifier |
-| `--solver-mode` | choice | browsergym | `browsergym` (local) or `orchestrator` (Docker) |
+| `--judge-model` | string | openai/gpt-4.1 | Model for the safety classifier |
 | `--topology-file` | string | `default` | Custom topology YAML path (advanced) |
 
 ### Examples
@@ -394,9 +392,7 @@ orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin
 | `--headless / --no-headless` | Run browser headlessly (default: on) |
 | `--record-video-dir PATH` | Directory for video recordings |
 | `--judge-model TEXT` | Model for scoring classifier |
-| `--solver-mode CHOICE` | `browsergym` or `orchestrator` |
 | `--topology-file PATH` | Custom topology YAML path (advanced) |
-| `--seed INT` | Random seed for sampling |
 | `-v, --verbose` | Verbose logging |
 
 ### `orbit run`

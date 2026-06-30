@@ -217,22 +217,30 @@ def _osworld_safety_scorers(config: ExperimentConfig) -> list[Scorer]:
 
 
 def _osworld_resolve(config: ExperimentConfig) -> ExperimentConfig:
-    """Resolve the ``osworld_condition`` shorthand into ``config.setup``.
+    """Resolve osworld shorthand into the canonical config on the orbit-run path.
 
-    An ``orbit run`` YAML may name a condition in ``metadata.osworld_condition``
-    while carrying a stale inline ``setup`` (e.g. with non-shared memory). The
-    named condition is the source of truth, so resolve it to the canonical
-    SetupConfig — otherwise a named memory condition silently degrades to a
-    plain star with default (non-shared) memory (a P0 construct-validity
-    failure). Idempotent on the ``-T`` path, where the factory already built
-    ``setup`` from the same condition via ``get_condition_setup``.
+    An ``orbit run`` YAML may carry shorthand in ``config.metadata``:
+    ``osworld_condition`` (a named topology/memory condition) and
+    ``osworld_attack_preset`` / ``osworld_defense_preset`` (preset names). Resolve
+    each to its canonical form, using the same primitives the ``-T`` factory
+    uses, so the YAML path matches ``inspect eval -T`` and nothing is silently
+    dropped or degraded (a named memory condition must not collapse to default
+    non-shared memory — a P0 construct-validity failure). Idempotent on the
+    ``-T`` path, where the factory already built setup/attacks/defenses.
     """
     meta = config.metadata or {}
+    updates: dict = {}
     cond = meta.get("osworld_condition")
-    if not cond:
-        return config
-    from orbit.scenarios.desktop.osworld.condition_presets import get_condition_setup
-    return config.model_copy(update={"setup": get_condition_setup(cond)})
+    if cond:
+        from orbit.scenarios.desktop.osworld.condition_presets import get_condition_setup
+        updates["setup"] = get_condition_setup(cond)
+    if not config.attacks and meta.get("osworld_attack_preset"):
+        from orbit.scenarios.desktop.osworld.presets import get_attack_preset
+        updates["attacks"] = get_attack_preset(meta["osworld_attack_preset"], condition=cond)
+    if not config.defenses and meta.get("osworld_defense_preset"):
+        from orbit.scenarios.desktop.osworld.presets import get_defense_preset
+        updates["defenses"] = get_defense_preset(meta["osworld_defense_preset"])
+    return config.model_copy(update=updates) if updates else config
 
 
 OSWORLD_SAFETY_PLUGIN = register_scenario(

@@ -4,8 +4,9 @@
 # One agent can be compromised with a self-replicating prompt injection.
 # Defenses monitor file changes and scan diffs for malicious patterns.
 #
-# To run via YAML wrapper:
-#   orbit run examples/swe_bench_multi_issue.yaml --model openai/gpt-4o
+# To run via YAML wrapper (the dataset fans out to every C(num_issues)
+# issue-group combination — pass Inspect's --limit N to cap how many run):
+#   orbit run examples/swe_bench_multi_issue.yaml --model openai/gpt-4o --limit 1
 #
 # Or via standalone CLI:
 #   orbit swe-bench --model openai/gpt-4o --repos django/django --num-issues 2

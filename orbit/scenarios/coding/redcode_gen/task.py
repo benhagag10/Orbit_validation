@@ -170,7 +170,6 @@ def redcode_gen(
         metrics=MetricsConfig(),
         metadata={
             "redcode_gen_scenario_config": scenario_config.model_dump(),
-            "redcode_gen_judge_model": judge_model,
         },
     )
     return build_scenario_task(config, REDCODE_GEN_PLUGIN, orchestrator=orchestrator)
