@@ -23,14 +23,14 @@ inspect eval orbit/browserart_safety \
   -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
-# Multi-agent with ICML condition preset (star + 4 specialists)
+# Multi-agent with condition preset (star + specialists)
 inspect eval orbit/browserart_safety \
-  -T condition=m1_2 -T max_turns=5 --limit 1 \
+  -T condition=star_specialist -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # Mesh delegation topology
 inspect eval orbit/browserart_safety \
-  -T condition=m2_3 -T max_turns=5 --limit 1 \
+  -T condition=mesh_delegation -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # View results in browser
@@ -103,7 +103,7 @@ scheduler:
   max_time_seconds: 120.0
 
 metadata:
-  browserart_condition: "m1_2"
+  browserart_condition: "star_specialist"
 ```
 
 Run it:
@@ -117,7 +117,7 @@ orbit run my_config.yaml --model openai/gpt-4o
 | Field | Type | Description |
 |-------|------|-------------|
 | `browserart_categories` | list[str] | Filter by category (e.g. `["content/phishing"]`) |
-| `browserart_condition` | str | ICML condition preset (see below) |
+| `browserart_condition` | str | Multi-agent condition preset (see below) |
 | `browserart_headless` | bool | Run browser headlessly (default `true`) |
 | `browserart_record_video_dir` | str | Directory for video recordings |
 | `browserart_seed` | int | Random seed for behavior sampling |
@@ -170,33 +170,34 @@ prompts, and execution style automatically.
 
 | Condition | Description |
 |-----------|-------------|
-| `m1_0` | Single agent (baseline) |
-| `m1_1` | Star: orchestrator + 1 batch executor (detailed prompts) |
-| `m1_1b` | Star: orchestrator + 1 batch executor (relaxed prompts) |
-| `m1_2` | Star: orchestrator + 4 specialists (detailed dispatch) |
-| `m1_2b` | Star: orchestrator + 4 specialists (relaxed dispatch) |
-| `m1_3` | Star: orchestrator + 1 step executor |
-| `m2_0` | Single agent (same as m1_0) |
-| `m2_2` | Mesh: 4 peers, round-robin turns |
-| `m2_3` | Mesh: 4 peers, dynamic delegation |
-| `m3_0`..`m3_4` | Star + 4 specialists with increasing memory visibility |
+| `single_agent` | Single agent (baseline) |
+| `star_batch` | Star: orchestrator + 1 batch executor (detailed prompts) |
+| `star_batch_relaxed` | Star: orchestrator + 1 batch executor (relaxed prompts) |
+| `star_specialist` | Star: orchestrator + specialists (detailed dispatch) |
+| `star_specialist_relaxed` | Star: orchestrator + specialists (relaxed dispatch) |
+| `star_2_specialist` / `star_3_specialist` | Star: orchestrator + 2 or 3 specialists |
+| `star_step` | Star: orchestrator + 1 step executor |
+| `mesh_round_robin` | Mesh: peers, round-robin turns |
+| `mesh_delegation` | Mesh: peers, dynamic delegation |
+| `mesh_delegation_cot` / `mesh_delegation_full` | Mesh delegation with more memory visibility |
+| `memory_none`, `memory_own_reasoning`, `memory_own_actions`, `memory_shared_actions`, `memory_full` | Star + specialists with increasing memory visibility |
 
 ### Example: Compare single vs multi-agent
 
 ```bash
 # Single agent baseline
 inspect eval orbit/browserart_safety \
-  -T condition=m1_0 -T max_turns=5 --limit 1 \
+  -T condition=single_agent -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
-# 4-specialist star topology
+# Specialist star topology
 inspect eval orbit/browserart_safety \
-  -T condition=m1_2 -T max_turns=5 --limit 1 \
+  -T condition=star_specialist -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # Mesh delegation
 inspect eval orbit/browserart_safety \
-  -T condition=m2_3 -T max_turns=5 --limit 1 \
+  -T condition=mesh_delegation -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # View all results

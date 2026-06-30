@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import logging
-import random
 from pathlib import Path
 
 from orbit.scenarios.coding.code_ipi.configs import CodeIPIScenarioConfig, CodeIPITask
@@ -96,15 +95,10 @@ def filter_tasks(
             if t.severity in config.severities or t.severity == "none"
         ]
 
-    if config.max_tasks is not None and len(filtered) > config.max_tasks:
-        rng = random.Random(config.seed)
-        filtered = rng.sample(filtered, config.max_tasks)
-
     logger.info(
-        "Filtered to %d tasks (vectors=%s, severities=%s, max_tasks=%s)",
+        "Filtered to %d tasks (vectors=%s, severities=%s)",
         len(filtered),
         config.vectors,
         config.severities,
-        config.max_tasks,
     )
     return filtered

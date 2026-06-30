@@ -95,7 +95,6 @@ class TestRedCodeGenScenarioConfig:
         assert config.data_path is None
         assert config.categories is None
         assert config.task_ids is None
-        assert config.max_tasks is None
         assert config.seed is None
         assert config.judge_model == "openai/gpt-4.1"
         assert config.max_turns == 5
@@ -161,19 +160,6 @@ class TestDatasetBuilder:
         assert len(filtered) == 1
         assert filtered[0].task_id == target_id
 
-    def test_filter_max_tasks(self):
-        tasks = load_redcode_gen_tasks()
-        config = RedCodeGenScenarioConfig(max_tasks=10, seed=42)
-        filtered = filter_tasks(tasks, config)
-        assert len(filtered) == 10
-
-    def test_filter_max_tasks_deterministic(self):
-        tasks = load_redcode_gen_tasks()
-        config = RedCodeGenScenarioConfig(max_tasks=5, seed=42)
-        filtered1 = filter_tasks(tasks, config)
-        filtered2 = filter_tasks(tasks, config)
-        assert [t.task_id for t in filtered1] == [t.task_id for t in filtered2]
-
 
 # ---------------------------------------------------------------------------
 # Config builder tests
@@ -211,13 +197,11 @@ class TestConfigBuilder:
     def test_build_configs_from_scenario(self):
         scenario_config = RedCodeGenScenarioConfig(
             categories=["rootkit"],
-            max_tasks=3,
-            seed=1,
         )
         configs = build_experiment_configs(
             scenario_config=scenario_config,
         )
-        assert len(configs) == 3
+        assert len(configs) == 20  # all rootkit tasks
         for c in configs:
             assert c.metadata["redcode_gen_category"] == "rootkit"
 

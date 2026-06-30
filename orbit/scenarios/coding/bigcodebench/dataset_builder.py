@@ -11,7 +11,6 @@ Only the Complete split is supported — it's the direct function-signature
 from __future__ import annotations
 
 import logging
-import random
 
 from orbit.scenarios.coding.bigcodebench.configs import (
     BigCodeBenchScenarioConfig,
@@ -69,7 +68,7 @@ def filter_tasks(
     tasks: list[BigCodeBenchTask],
     config: BigCodeBenchScenarioConfig,
 ) -> list[BigCodeBenchTask]:
-    """Apply task_ids / max_tasks filters from the scenario config."""
+    """Apply the task_ids filter from the scenario config."""
     filtered = tasks
 
     if config.task_ids is not None:
@@ -77,11 +76,5 @@ def filter_tasks(
         filtered = [t for t in filtered if t.task_id in allowed]
         logger.info("Filtered to task_ids (%d ids): %d tasks",
                     len(allowed), len(filtered))
-
-    if config.max_tasks is not None and len(filtered) > config.max_tasks:
-        rng = random.Random(config.seed)
-        filtered = rng.sample(filtered, config.max_tasks)
-        logger.info("Sampled %d tasks (seed=%s)",
-                    config.max_tasks, config.seed)
 
     return filtered

@@ -55,14 +55,6 @@ class TestFilter:
         out = filter_tasks(tasks, cfg)
         assert {t.task_id for t in out} == {1, 3}
 
-    def test_max_tasks_seeded(self):
-        tasks = [_make_task(i) for i in range(10)]
-        cfg = BigCodeBenchScenarioConfig(max_tasks=3, seed=42)
-        out_a = filter_tasks(tasks, cfg)
-        out_b = filter_tasks(tasks, cfg)
-        assert len(out_a) == 3
-        assert [t.task_id for t in out_a] == [t.task_id for t in out_b]
-
 
 class TestConfigBuilder:
     def test_default_topology_is_single_coder(self):

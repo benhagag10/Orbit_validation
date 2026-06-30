@@ -128,14 +128,12 @@ class TestCodeIPIScenarioConfig:
         cfg = CodeIPIScenarioConfig(
             vectors=["issue_text"],
             severities=["S1", "S2"],
-            max_tasks=10,
             seed=42,
             include_benign=False,
             inline_defense_warning=False,
         )
         assert cfg.vectors == ["issue_text"]
         assert cfg.severities == ["S1", "S2"]
-        assert cfg.max_tasks == 10
         assert cfg.seed == 42
         assert not cfg.include_benign
         assert not cfg.inline_defense_warning
@@ -199,17 +197,6 @@ class TestFiltering:
         filtered = filter_tasks(sample_tasks, cfg)
         assert all(not t.is_benign for t in filtered)
         assert len(filtered) == 5
-
-    def test_filter_max_tasks(self, sample_tasks: list[CodeIPITask]):
-        cfg = CodeIPIScenarioConfig(max_tasks=3, seed=42)
-        filtered = filter_tasks(sample_tasks, cfg)
-        assert len(filtered) == 3
-
-    def test_filter_max_tasks_deterministic(self, sample_tasks: list[CodeIPITask]):
-        cfg = CodeIPIScenarioConfig(max_tasks=3, seed=42)
-        a = filter_tasks(sample_tasks, cfg)
-        b = filter_tasks(sample_tasks, cfg)
-        assert [t.id for t in a] == [t.id for t in b]
 
     def test_filter_combined(self, sample_tasks: list[CodeIPITask]):
         cfg = CodeIPIScenarioConfig(
@@ -295,9 +282,11 @@ class TestConfigBuilder:
         assert len(config.attacks) == 2  # sample injection + additional
 
     def test_build_experiment_configs(self):
-        cfg = CodeIPIScenarioConfig(max_tasks=3, seed=42)
+        cfg = CodeIPIScenarioConfig()
         configs = build_experiment_configs(scenario_config=cfg)
-        assert len(configs) == 3
+        expected = len(filter_tasks(load_code_ipi_tasks(), cfg))
+        assert len(configs) == expected
+        assert len(configs) > 0
 
     def test_metadata_keys(self):
         task = _make_task()

@@ -51,16 +51,26 @@ def _assert_experiment_dimensions_preserved(
 ) -> None:
     """Fail loud if dataset expansion dropped an experiment-level dimension.
 
-    ``expand`` owns per-sample construction, so it MAY transform attacks per
-    sample (swe_bench resolves an ``auto`` side-task per group) or ADD
-    scenario-specific ones (code_ipi prepends a per-task injection). The one
-    thing it must never do is *drop* a declared attack/defense type: that
+    The contract, stated precisely: ``expand`` owns per-sample construction, so
+    a plugin's ``expand()`` MAY ADD attacks/defenses (code_ipi prepends a
+    per-task injection) or transform an attack's *properties* (swe_bench
+    resolves an ``auto`` side-task payload per group) — but it must PRESERVE
+    each declared ``attack_type``/``defense_type``, count included. The one
+    thing it must never do is reduce the multiset of declared types: that
     silently collapses a security condition into a benign run — the issue-#9
-    bug class. Enforcing it here, in the single builder every scenario funnels
-    through, makes the drop structurally impossible regardless of whether an
-    individual plugin author remembered to thread the dimensions through. The
-    check is a multiset *floor* (``>=``), so transforms and additions pass; only
-    a genuine drop fails.
+    bug class.
+
+    The check is a per-type multiset *floor* (``>=`` on the ``attack_type`` /
+    ``defense_type`` Counters), keyed on the declared *type*, not on attack
+    identity. So a property-only transform that keeps the type passes, and
+    additions pass — but a *type-changing* transform is, by design, treated as
+    a drop: turning a declared ``injection`` attack into a ``misuse`` one
+    leaves the ``injection`` floor unmet and is flagged. Preserve the declared
+    type (transform within it) if you need to mutate an attack.
+
+    Enforcing this here, in the single builder every scenario funnels through,
+    makes the drop structurally impossible regardless of whether an individual
+    plugin author remembered to thread the dimensions through.
     """
     want_attacks = Counter(a.attack_type for a in original.attacks)
     want_defenses = Counter(d.defense_type for d in original.defenses)
@@ -200,9 +210,11 @@ def build_scenario_task(
     # 1. Dataset expansion (threads config.setup/attacks/defenses through).
     configs = plugin.expand(config) if plugin.expand else [config]
 
-    # 1a. Central guarantee: a plugin's expand() may transform or add attacks/
-    # defenses per sample, but may never DROP a declared one (issue #9). This is
-    # enforced once, here, for every scenario — see the helper's docstring.
+    # 1a. Central guarantee: a plugin's expand() may add attacks/defenses or
+    # transform an attack's properties, but must preserve each declared
+    # attack_type/defense_type (count included); a type-changing transform is
+    # treated as a drop by design (issue #9). Enforced once, here, for every
+    # scenario — see the helper's docstring.
     _assert_experiment_dimensions_preserved(config, configs, plugin.name)
 
     # 2. Build one sample per config (serializes the whole config to metadata).

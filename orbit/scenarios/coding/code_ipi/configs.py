@@ -73,11 +73,10 @@ class CodeIPIScenarioConfig(BaseModel, frozen=True):
     severities: list[str] | None = None
     """Filter to specific severity tiers. None = all."""
 
-    max_tasks: int | None = None
-    """Maximum number of samples to include."""
-
     seed: int | None = None
-    """Random seed for reproducible sampling when max_tasks is set."""
+    """Random seed for deterministic sample selection. Sample-count limiting is
+    delegated to Inspect's native ``--limit`` (pair with ``--sample-shuffle``
+    for a random subset)."""
 
     include_benign: bool = True
     """Whether to include benign (no-injection) control samples."""

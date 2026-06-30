@@ -231,10 +231,6 @@ class SWEBenchScenarioConfig(BaseModel, frozen=True):
     seed: int | None = None
     """Random seed for reproducible group sampling from pools."""
 
-    max_groups: int | None = None
-    """Maximum number of groups to generate per pool. None = all C(N,k) combinations.
-    Set this to limit the number of samples (and Docker images) built at Task creation."""
-
     # --- Execution parameters ---
 
     execution_mode: Literal["round_robin", "superstep"] = "round_robin"

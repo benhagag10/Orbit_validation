@@ -424,7 +424,6 @@ def sample_groups_from_pools(
     pools: list[VersionPool],
     num_issues: int = 2,
     seed: int | None = None,
-    max_groups_per_pool: int | None = None,
 ) -> list[MultiIssueGroup]:
     """Sample groups from all pools.
 
@@ -432,7 +431,6 @@ def sample_groups_from_pools(
         pools: List of version pools.
         num_issues: Number of issues per group.
         seed: Random seed for reproducibility.
-        max_groups_per_pool: Maximum groups per pool.
 
     Returns:
         Flat list of all sampled groups across pools.
@@ -440,7 +438,7 @@ def sample_groups_from_pools(
     all_groups: list[MultiIssueGroup] = []
     for pool in pools:
         groups = sample_groups_from_pool(
-            pool, num_issues=num_issues, seed=seed, max_groups=max_groups_per_pool
+            pool, num_issues=num_issues, seed=seed
         )
         all_groups.extend(groups)
     return all_groups
@@ -510,7 +508,7 @@ def build_groups(
     # Single-issue mode: each issue gets its own group, no validation needed
     if config.num_issues == 1:
         return _build_single_issue_groups(
-            issues, seed=config.seed, max_groups=config.max_groups,
+            issues, seed=config.seed,
             force_arch=config.force_arch,
         )
 
@@ -524,7 +522,6 @@ def build_groups(
             pools,
             num_issues=config.num_issues,
             seed=config.seed,
-            max_groups_per_pool=config.max_groups,
         )
         logger.info(
             f"Pool-based grouping: {len(groups)} groups of size {config.num_issues} "

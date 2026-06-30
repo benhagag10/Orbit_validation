@@ -5,14 +5,14 @@ Configs for `ipi_swe_bench_si_baseline` and `ipi_swe_bench_si_star` from PLAN.md
 ## Dataset
 
 Fixed 50-instance subset of SWE-Bench Verified (seed=42).
-Instance list: `orbit/scenarios/swe_bench/data/ipi_50_instances.json`
+Instance list: `orbit/scenarios/coding/swe_bench/data/ipi_50_instances.json`
 
 ## Running
 
 ### Baseline (single agent) — benign
 
 ```bash
-inspect eval orbit/scenarios/swe_bench/task.py@swe_bench_multi_issue \
+inspect eval orbit/scenarios/coding/swe_bench/task.py@swe_bench_multi_issue \
   -T num_issues=1 \
   -T instance_set=ipi_50_instances.json \
   -T condition=single_agent \
@@ -24,7 +24,7 @@ inspect eval orbit/scenarios/swe_bench/task.py@swe_bench_multi_issue \
 ### Baseline (single agent) — ASR (AIShellJack IPI)
 
 ```bash
-inspect eval orbit/scenarios/swe_bench/task.py@swe_bench_multi_issue \
+inspect eval orbit/scenarios/coding/swe_bench/task.py@swe_bench_multi_issue \
   -T num_issues=1 \
   -T instance_set=ipi_50_instances.json \
   -T condition=single_agent \
@@ -37,7 +37,7 @@ inspect eval orbit/scenarios/swe_bench/task.py@swe_bench_multi_issue \
 ### Star (4 specialists) — benign
 
 ```bash
-inspect eval orbit/scenarios/swe_bench/task.py@swe_bench_multi_issue \
+inspect eval orbit/scenarios/coding/swe_bench/task.py@swe_bench_multi_issue \
   -T num_issues=1 \
   -T instance_set=ipi_50_instances.json \
   -T condition=star_specialist \
@@ -49,7 +49,7 @@ inspect eval orbit/scenarios/swe_bench/task.py@swe_bench_multi_issue \
 ### Star (4 specialists) — ASR (AIShellJack IPI)
 
 ```bash
-inspect eval orbit/scenarios/swe_bench/task.py@swe_bench_multi_issue \
+inspect eval orbit/scenarios/coding/swe_bench/task.py@swe_bench_multi_issue \
   -T num_issues=1 \
   -T instance_set=ipi_50_instances.json \
   -T condition=star_specialist \
@@ -74,7 +74,7 @@ Add `-T defense_preset=<name>` to any command above:
 ## Smoke test (Haiku, 1 sample)
 
 ```bash
-inspect eval orbit/scenarios/swe_bench/task.py@swe_bench_multi_issue \
+inspect eval orbit/scenarios/coding/swe_bench/task.py@swe_bench_multi_issue \
   -T num_issues=1 \
   -T task_ids=django__django-11292 \
   -T condition=single_agent \

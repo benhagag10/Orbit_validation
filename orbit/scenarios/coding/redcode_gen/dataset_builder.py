@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import importlib.resources
 import logging
-import random
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -142,13 +141,6 @@ def filter_tasks(
         filtered = [t for t in filtered if t.task_id in task_id_set]
         logger.info(
             "Filtered to task_ids: %d tasks", len(filtered)
-        )
-
-    if config.max_tasks is not None and len(filtered) > config.max_tasks:
-        rng = random.Random(config.seed)
-        filtered = rng.sample(filtered, config.max_tasks)
-        logger.info(
-            "Sampled %d tasks (seed=%s)", config.max_tasks, config.seed
         )
 
     return filtered
