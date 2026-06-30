@@ -153,7 +153,6 @@ def run_experiment(
         "uv", "run", "orbit", "redcode-gen",
         "--model", model,
         "--condition", condition,
-        "--seed", str(seed),
         "--max-turns", str(max_turns),
         "--max-time-seconds", str(max_time),
         "--judge-model", judge_model,

@@ -3384,7 +3384,6 @@ class TestSweepScript:
             max_turns=100,
             max_time=600.0,
             max_samples=2,
-            seed=0,
             extra_args=[],
         )
         # Required positional prefix.
@@ -3399,7 +3398,6 @@ class TestSweepScript:
         assert "judge_model=openai/gpt-4.1" in joined
         # Sample count is limited via Inspect's --limit, not a -T cap.
         assert "--limit" in cmd and "5" in cmd
-        assert "seed=0" in joined
         assert "--epochs" in cmd
         assert "4" in cmd
         assert "--max-samples" in cmd
@@ -3418,12 +3416,10 @@ class TestSweepScript:
             max_turns=100,
             max_time=600.0,
             max_samples=1,
-            seed=None,
             extra_args=["--trace"],
         )
         joined = " ".join(cmd)
         assert "--limit" not in cmd
-        assert "seed=" not in joined
         # Passthrough args land at the end.
         assert cmd[-1] == "--trace"
 
@@ -3440,7 +3436,6 @@ class TestSweepScript:
             max_turns=50,
             max_time=300.0,
             max_samples=4,
-            seed=42,
             extra_args=["--token-limit", "50000", "--fail-on-error", "0.25"],
         )
         # Extras appear verbatim at the tail of the command.

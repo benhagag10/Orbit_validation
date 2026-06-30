@@ -92,7 +92,6 @@ def _build_inspect_cmd(
     max_turns: int,
     max_time: float,
     max_samples: int,
-    seed: int | None,
     extra_args: list[str],
 ) -> list[str]:
     cmd: list[str] = [
@@ -109,8 +108,6 @@ def _build_inspect_cmd(
     ]
     if limit is not None:
         cmd += ["--limit", str(limit)]
-    if seed is not None:
-        cmd += ["-T", f"seed={seed}"]
     cmd += extra_args
     return cmd
 
@@ -171,10 +168,6 @@ def main() -> int:
     parser.add_argument(
         "--limit", type=int, default=None,
         help="Limit tasks per domain via Inspect --limit (default: all).",
-    )
-    parser.add_argument(
-        "--seed", type=int, default=None,
-        help="Deterministic task-sampling seed.",
     )
     parser.add_argument(
         "--log-dir", default=DEFAULT_LOG_DIR,
@@ -271,7 +264,6 @@ def main() -> int:
             max_turns=args.max_turns,
             max_time=args.max_time,
             max_samples=max_samples,
-            seed=args.seed,
             extra_args=list(args.passthrough),
         )
         _, rc, duration = _run_one(cell, cmd, dry_run=args.dry_run)

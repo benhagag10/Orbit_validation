@@ -154,7 +154,6 @@ def run_experiment(
         "uv", "run", "inspect", "eval", "orbit/bigcodebench",
         "--model", model,
         "-T", f"condition={condition}",
-        "-T", f"seed={seed}",
         "-T", f"max_turns={max_turns}",
         "-T", f"max_time_seconds={max_time}",
         "-T", f"version={version}",
