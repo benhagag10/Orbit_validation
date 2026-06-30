@@ -62,6 +62,39 @@ def _suppress_browserart_warnings(verbose: bool) -> None:
         ).setLevel(logging.ERROR)
 
 
+def _scenario_config(config: ExperimentConfig) -> BrowserARTScenarioConfig:
+    """Reconstruct the dataset-selection config from metadata + scheduler.
+
+    The -T factory serializes the resolved ``BrowserARTScenarioConfig`` under
+    ``browserart_scenario_config``; hand-authored ``orbit run`` YAMLs use the
+    individual ``browserart_*`` keys. Both produce the same object here.
+    """
+    meta = config.metadata or {}
+    if "browserart_scenario_config" in meta:
+        return BrowserARTScenarioConfig(**meta["browserart_scenario_config"])
+
+    categories = meta.get("browserart_categories")
+    if isinstance(categories, str):
+        categories = [c.strip() for c in categories.split(",") if c.strip()]
+
+    task_ids = meta.get("browserart_task_ids")
+    if isinstance(task_ids, str):
+        task_ids = [int(x.strip()) for x in task_ids.split(",") if x.strip()]
+    elif isinstance(task_ids, int):
+        task_ids = [task_ids]
+
+    return BrowserARTScenarioConfig(
+        data_path=meta.get("browserart_data_path"),
+        dataset=meta.get("browserart_dataset", "hbb"),
+        categories=categories,
+        task_ids=task_ids,
+        seed=meta.get("browserart_seed"),
+        judge_model=meta.get("browserart_judge_model", "openai/gpt-4.1"),
+        max_turns=config.scheduler.max_turns,
+        max_time_seconds=config.scheduler.max_time_seconds,
+    )
+
+
 def _resolve_topology(
     config: ExperimentConfig,
 ) -> tuple[SetupConfig, ExecutionConfig | None]:
@@ -89,26 +122,7 @@ def _browserart_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
     meta = config.metadata or {}
     _suppress_browserart_warnings(bool(meta.get("browserart_verbose", False)))
 
-    categories = meta.get("browserart_categories")
-    if isinstance(categories, str):
-        categories = [c.strip() for c in categories.split(",") if c.strip()]
-
-    task_ids = meta.get("browserart_task_ids")
-    if isinstance(task_ids, str):
-        task_ids = [int(x.strip()) for x in task_ids.split(",") if x.strip()]
-    elif isinstance(task_ids, int):
-        task_ids = [task_ids]
-
-    scenario_config = BrowserARTScenarioConfig(
-        data_path=meta.get("browserart_data_path"),
-        dataset=meta.get("browserart_dataset", "hbb"),
-        categories=categories,
-        task_ids=task_ids,
-        seed=meta.get("browserart_seed"),
-        judge_model=meta.get("browserart_judge_model", "openai/gpt-4.1"),
-        max_turns=config.scheduler.max_turns,
-        max_time_seconds=config.scheduler.max_time_seconds,
-    )
+    scenario_config = _scenario_config(config)
 
     topology_template, execution_template = _resolve_topology(config)
 
@@ -151,8 +165,7 @@ def _browserart_scorers(config: ExperimentConfig) -> list[Scorer]:
     from orbit.scenarios.browser.browserart.scorer import browserart_scorer
     from orbit.scorers.security_scorer import security_scorer
 
-    meta = config.metadata or {}
-    judge_model = meta.get("browserart_judge_model", "openai/gpt-4.1")
+    judge_model = _scenario_config(config).judge_model
     return [browserart_scorer(judge_model), security_scorer()]
 
 
@@ -305,13 +318,22 @@ def browserart_safety(
         else:
             parsed_task_ids = [int(x.strip()) for x in str(task_ids).split(",")]
 
+    scenario_config = BrowserARTScenarioConfig(
+        data_path=data_path,
+        dataset=dataset,
+        categories=parsed_categories,
+        task_ids=parsed_task_ids,
+        seed=seed,
+        judge_model=judge_model,
+        max_turns=max_turns,
+        max_time_seconds=max_time_seconds,
+    )
+
+    # The scenario-selection fields ride as a single model dump (the standard
+    # pattern); runtime-only keys that are NOT fields of BrowserARTScenarioConfig
+    # (browser session controls + warning verbosity) stay flat.
     metadata = {
-        "browserart_dataset": dataset,
-        "browserart_categories": parsed_categories,
-        "browserart_task_ids": parsed_task_ids,
-        "browserart_seed": seed,
-        "browserart_data_path": data_path,
-        "browserart_judge_model": judge_model,
+        "browserart_scenario_config": scenario_config.model_dump(),
         "browserart_headless": headless,
         "browserart_record_video_dir": record_video_dir,
         "browserart_verbose": verbose,
