@@ -490,7 +490,7 @@ def suite_cmd(
 @click.option("--category", default=None, help="Filter by category (comma-separated).")
 @click.option("--headless/--no-headless", default=True, help="Run browser headless.")
 @click.option("--record-video-dir", default=None, help="Directory to save video recordings.")
-@click.option("--classifier-model", default="openai/gpt-4.1", help="Model for scoring classifier.")
+@click.option("--judge-model", default="openai/gpt-4.1", help="Model for the LLM judge scorer.")
 @click.option("--data-path", default=None, help="Custom data file path.")
 @scenario_options
 @inspect_eval_options
@@ -503,7 +503,7 @@ def browserart_cmd(
     category: str | None,
     headless: bool,
     record_video_dir: str | None,
-    classifier_model: str,
+    judge_model: str,
     data_path: str | None,
     # Shared scenario options
     model: str,
@@ -560,7 +560,7 @@ def browserart_cmd(
         category=category,
         max_behaviors=limit,
         seed=seed,
-        classifier_model=classifier_model,
+        judge_model=judge_model,
         data_path=data_path,
         max_turns=max_turns,
         max_time=max_time,

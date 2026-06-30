@@ -15,7 +15,7 @@ from orbit.scenarios.coding.code_ipi.condition_presets import (
 )
 from orbit.scenarios.coding.code_ipi.config_builder import (
     build_experiment_config,
-    build_experiment_configs_from_scenario,
+    build_experiment_configs,
     default_topology_template,
 )
 from orbit.scenarios.coding.code_ipi.constants import (
@@ -294,9 +294,9 @@ class TestConfigBuilder:
         config = build_experiment_config(task, attacks=attacks)
         assert len(config.attacks) == 2  # sample injection + additional
 
-    def test_build_experiment_configs_from_scenario(self):
+    def test_build_experiment_configs(self):
         cfg = CodeIPIScenarioConfig(max_tasks=3, seed=42)
-        configs = build_experiment_configs_from_scenario(scenario_config=cfg)
+        configs = build_experiment_configs(scenario_config=cfg)
         assert len(configs) == 3
 
     def test_metadata_keys(self):

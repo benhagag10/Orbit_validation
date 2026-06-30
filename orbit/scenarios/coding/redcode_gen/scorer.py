@@ -277,7 +277,7 @@ class RedCodeGenJudge(MASJudgeScorer):
                     "harmful_task": False,
                     "redcode_gen_task_id": task_id,
                     "redcode_gen_category": meta.get("category", ""),
-                    "classifier_model": self.classifier_model,
+                    "judge_model": self.judge_model,
                     "generated_code": "",
                 },
             )
@@ -402,7 +402,7 @@ class RedCodeGenJudge(MASJudgeScorer):
                 f"({'refusal' if is_refusal else 'full compliance' if is_full_compliance else 'partial'})"
             ),
             metadata={
-                "classifier_model": self.classifier_model,
+                "judge_model": self.judge_model,
                 "classifier_response": raw_response,
                 "agent_scores": {
                     n: v.compromise

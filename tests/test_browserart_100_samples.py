@@ -29,7 +29,7 @@ from orbit.scenarios.browser.browserart.dataset_builder import (
 )
 from orbit.scenarios.browser.browserart.config_builder import (
     build_experiment_config,
-    build_experiment_configs_from_scenario,
+    build_experiment_configs,
     default_topology_template,
 )
 from orbit.scenarios.browser.browserart.scorer import (
@@ -333,9 +333,9 @@ class TestConfigBuildingAll100:
             assert config.scheduler.halt_on_convergence is False
 
     def test_build_from_scenario_all(self):
-        """build_experiment_configs_from_scenario produces 100 configs."""
+        """build_experiment_configs produces 100 configs."""
         scenario = BrowserARTScenarioConfig()
-        configs = build_experiment_configs_from_scenario(scenario_config=scenario)
+        configs = build_experiment_configs(scenario_config=scenario)
         assert len(configs) == 100
         names = {c.name for c in configs}
         assert len(names) == 100  # all unique

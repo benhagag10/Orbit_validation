@@ -29,7 +29,7 @@ orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin
 | `--seed` | int | — | Random seed for behavior sampling |
 | `--headless / --no-headless` | bool | true | Run browser headlessly |
 | `--record-video-dir` | string | — | Save browser recordings to this directory |
-| `--classifier-model` | string | openai/gpt-4o | Model for the safety classifier |
+| `--judge-model` | string | openai/gpt-4o | Model for the safety classifier |
 | `--solver-mode` | choice | browsergym | `browsergym` (local) or `orchestrator` (Docker) |
 | `--topology-file` | string | `default` | Custom topology YAML path (advanced) |
 
@@ -78,7 +78,7 @@ inspect eval orbit/browserart_safety \
 | `seed` | int | — | Random seed for behavior sampling |
 | `headless` | bool | true | Run browser headlessly |
 | `record_video_dir` | string | — | Save browser recordings to this directory |
-| `classifier_model` | string | openai/gpt-4o | Model for the safety classifier |
+| `judge_model` | string | openai/gpt-4o | Model for the safety classifier |
 | `topology_file` | string | `default` | Custom topology YAML path (advanced) |
 | `data_path` | string | — | Override path to hbb.json dataset |
 
@@ -399,7 +399,7 @@ orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin
 | `--dataset CHOICE` | `hbb` or `hbb_extension` |
 | `--headless / --no-headless` | Run browser headlessly (default: on) |
 | `--record-video-dir PATH` | Directory for video recordings |
-| `--classifier-model TEXT` | Model for scoring classifier |
+| `--judge-model TEXT` | Model for scoring classifier |
 | `--solver-mode CHOICE` | `browsergym` or `orchestrator` |
 | `--topology-file PATH` | Custom topology YAML path (advanced) |
 | `--seed INT` | Random seed for sampling |

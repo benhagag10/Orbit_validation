@@ -216,7 +216,7 @@ _SUPPORTED_TOPOLOGIES = (
 # ---------------------------------------------------------------------------
 
 
-def _tau2_scenario_config(config: ExperimentConfig) -> Tau2ScenarioConfig:
+def _scenario_config(config: ExperimentConfig) -> Tau2ScenarioConfig:
     """Reconstruct the tau2 scenario config from metadata.
 
     The -T factory serializes the resolved config under
@@ -252,7 +252,7 @@ def _tau2_scenario_config(config: ExperimentConfig) -> Tau2ScenarioConfig:
 
 
 def _tau2_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
-    sc = _tau2_scenario_config(config)
+    sc = _scenario_config(config)
     tasks = filter_tasks(load_tau2_tasks(sc), sc)
     policy_text = load_policy(sc)
     configs = [
@@ -279,7 +279,7 @@ def _tau2_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
 
 
 def _tau2_setup(config: ExperimentConfig) -> Solver:
-    sc = _tau2_scenario_config(config)
+    sc = _scenario_config(config)
     return _build_setup_solver(
         domain=sc.domain,
         initial_db=load_initial_db(sc),
@@ -289,7 +289,7 @@ def _tau2_setup(config: ExperimentConfig) -> Solver:
 
 
 def _tau2_scorers(config: ExperimentConfig) -> list:
-    sc = _tau2_scenario_config(config)
+    sc = _scenario_config(config)
     return [
         tau2_scorer(data_path=sc.data_path, judge_model=sc.judge_model),
         security_scorer(),

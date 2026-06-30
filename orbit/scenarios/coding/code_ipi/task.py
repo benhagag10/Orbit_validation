@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 from inspect_ai import Task, task
 
 from orbit.scenarios.coding.code_ipi.config_builder import (
-    build_experiment_configs_from_scenario,
+    build_experiment_configs,
     default_topology_template,
 )
 from orbit.scenarios.coding.code_ipi.configs import CodeIPIScenarioConfig
@@ -55,7 +55,7 @@ def _code_ipi_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
         topology_template = default_topology_template(
             defense_prompt=scenario_config.defense_prompt
         )
-    configs = build_experiment_configs_from_scenario(
+    configs = build_experiment_configs(
         scenario_config=scenario_config,
         topology_template=topology_template,
         attacks=list(config.attacks) or None,

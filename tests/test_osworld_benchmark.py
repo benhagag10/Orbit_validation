@@ -12,7 +12,7 @@ import pytest
 
 from orbit.configs.experiment import ExperimentConfig
 from orbit.scenarios.desktop.osworld.config_builder import (
-    build_benchmark_experiment_config,
+    build_benchmark_config,
     default_topology_template,
 )
 from orbit.scenarios.desktop.osworld.configs import (
@@ -200,11 +200,11 @@ class TestFilterBenchmarkTasks:
 
 
 class TestBuildBenchmarkExperimentConfig:
-    """Tests for build_benchmark_experiment_config()."""
+    """Tests for build_benchmark_config()."""
 
     def test_basic_config(self):
         task = _make_benchmark_task()
-        config = build_benchmark_experiment_config(task)
+        config = build_benchmark_config(task)
 
         assert isinstance(config, ExperimentConfig)
         assert config.name == f"osworld_bench_{task.task_id}"
@@ -213,19 +213,19 @@ class TestBuildBenchmarkExperimentConfig:
 
     def test_files_propagation(self):
         task = _make_benchmark_task()
-        config = build_benchmark_experiment_config(task)
+        config = build_benchmark_config(task)
 
         assert config.scenario.files == task.files
 
     def test_setup_command_propagation(self):
         task = _make_benchmark_task()
-        config = build_benchmark_experiment_config(task)
+        config = build_benchmark_config(task)
 
         assert config.scenario.setup_script == task.setup_command
 
     def test_benign_mode_metadata(self):
         task = _make_benchmark_task()
-        config = build_benchmark_experiment_config(task)
+        config = build_benchmark_config(task)
 
         assert config.metadata["osworld_benchmark_mode"] == "benign"
         assert config.metadata["osworld_benchmark_task_id"] == task.task_id
@@ -238,7 +238,7 @@ class TestBuildBenchmarkExperimentConfig:
 
         task = _make_benchmark_task()
         attacks = desktop_injection_attack_preset()
-        config = build_benchmark_experiment_config(task, attacks=attacks)
+        config = build_benchmark_config(task, attacks=attacks)
 
         assert config.metadata["osworld_benchmark_mode"] == "injection"
         assert len(config.attacks) == 1
@@ -246,7 +246,7 @@ class TestBuildBenchmarkExperimentConfig:
     def test_custom_topology(self):
         task = _make_benchmark_task()
         topo = default_topology_template()
-        config = build_benchmark_experiment_config(
+        config = build_benchmark_config(
             task, topology_template=topo
         )
 
@@ -255,7 +255,7 @@ class TestBuildBenchmarkExperimentConfig:
 
     def test_topology_summary_in_metadata(self):
         task = _make_benchmark_task()
-        config = build_benchmark_experiment_config(task)
+        config = build_benchmark_config(task)
 
         topo_summary = config.metadata["topology_summary"]
         assert topo_summary["agent_count"] == 1
@@ -263,7 +263,7 @@ class TestBuildBenchmarkExperimentConfig:
 
     def test_sandbox_spec(self):
         task = _make_benchmark_task()
-        config = build_benchmark_experiment_config(task)
+        config = build_benchmark_config(task)
 
         assert config.scenario.sandbox is not None
         assert config.scenario.sandbox.compose_file is not None

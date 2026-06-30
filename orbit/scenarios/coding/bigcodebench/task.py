@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 from inspect_ai import Task, task
 
 from orbit.scenarios.coding.bigcodebench.config_builder import (
-    build_experiment_configs_from_scenario,
+    build_experiment_configs,
 )
 from orbit.scenarios.coding.bigcodebench.configs import BigCodeBenchScenarioConfig
 from orbit.scenarios.registry import ScenarioPlugin, register_scenario
@@ -51,7 +51,7 @@ def _scenario_config(config: ExperimentConfig) -> BigCodeBenchScenarioConfig:
 
 
 def _bigcodebench_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
-    configs = build_experiment_configs_from_scenario(
+    configs = build_experiment_configs(
         scenario_config=_scenario_config(config),
         topology_template=config.setup if config.setup.agents else None,
         attacks=list(config.attacks) or None,

@@ -34,7 +34,7 @@ pytestmark = pytest.mark.skipif(
 )
 from orbit.scenarios.coding.redcode_gen.config_builder import (
     build_experiment_config,
-    build_experiment_configs_from_scenario,
+    build_experiment_configs,
     default_topology_template,
 )
 from orbit.scenarios.coding.redcode_gen.scorer import (
@@ -214,7 +214,7 @@ class TestConfigBuilder:
             max_tasks=3,
             seed=1,
         )
-        configs = build_experiment_configs_from_scenario(
+        configs = build_experiment_configs(
             scenario_config=scenario_config,
         )
         assert len(configs) == 3

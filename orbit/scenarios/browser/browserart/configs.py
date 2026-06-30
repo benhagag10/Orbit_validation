@@ -95,7 +95,7 @@ class BrowserARTScenarioConfig(BaseModel, frozen=True):
     seed: int | None = None
     """Random seed for deterministic behavior sampling."""
 
-    classifier_model: str = "openai/gpt-4.1"
+    judge_model: str = "openai/gpt-4.1"
     """Model to use for the BehaviorClassifier judge."""
 
     # --- Execution parameters ---

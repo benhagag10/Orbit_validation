@@ -26,7 +26,7 @@ from inspect_ai import Task, task
 from inspect_ai.solver import chain
 
 from orbit.scenarios.coding.swe_bench.config_builder import (
-    build_experiment_configs_from_scenario,
+    build_experiment_configs,
     default_topology_template,
 )
 from orbit.scenarios.coding.swe_bench.configs import SWEBenchScenarioConfig
@@ -92,7 +92,7 @@ def _check_swe_bench_prerequisites() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _scenario_config_from(config: ExperimentConfig) -> SWEBenchScenarioConfig:
+def _scenario_config(config: ExperimentConfig) -> SWEBenchScenarioConfig:
     """Reconstruct the issue-selection config from metadata + scheduler.
 
     The -T factory serializes the resolved ``SWEBenchScenarioConfig`` under
@@ -119,14 +119,14 @@ def _swe_bench_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
     """Fan the config out into one ExperimentConfig per multi-issue group."""
     _check_swe_bench_prerequisites()
 
-    scenario_config = _scenario_config_from(config)
+    scenario_config = _scenario_config(config)
 
     # The topology in config.setup is the template replicated per issue.
     # An empty setup (e.g. an attack-only YAML) falls back to the single-agent
     # default; the replicator suffixes agents per issue (solver -> solver_0…).
     topology_template = config.setup if config.setup.agents else default_topology_template()
 
-    configs = build_experiment_configs_from_scenario(
+    configs = build_experiment_configs(
         scenario_config=scenario_config,
         topology_template=topology_template,
         attacks=list(config.attacks) or None,

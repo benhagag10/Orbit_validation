@@ -27,8 +27,8 @@ from inspect_ai import Task, task
 
 from orbit.scenarios.desktop.osworld.config_builder import (
     _resolve_osworld_compose_file,
-    build_benchmark_configs_from_scenario,
-    build_experiment_configs_from_scenario,
+    build_benchmark_configs,
+    build_experiment_configs,
     default_topology_template,
 )
 from orbit.scenarios.desktop.osworld.configs import OSWorldScenarioConfig
@@ -58,7 +58,7 @@ def _split(value: object) -> list[str] | None:
     return [v.strip() for v in str(value).split(",") if v.strip()]
 
 
-def _osworld_scenario_config(
+def _scenario_config(
     config: ExperimentConfig, *, default_dataset: str
 ) -> OSWorldScenarioConfig:
     """Reconstruct the task-selection config from metadata + scheduler.
@@ -199,9 +199,9 @@ def _osworld_template_config(
 
 
 def _osworld_safety_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
-    scenario_config = _osworld_scenario_config(config, default_dataset="osharm")
+    scenario_config = _scenario_config(config, default_dataset="osharm")
     topology_template = config.setup if config.setup.agents else default_topology_template()
-    configs = build_experiment_configs_from_scenario(
+    configs = build_experiment_configs(
         scenario_config=scenario_config,
         topology_template=topology_template,
         attacks=list(config.attacks) or None,
@@ -352,9 +352,9 @@ def osworld_safety(
 
 
 def _osworld_benchmark_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
-    scenario_config = _osworld_scenario_config(config, default_dataset="osworld")
+    scenario_config = _scenario_config(config, default_dataset="osworld")
     topology_template = config.setup if config.setup.agents else default_topology_template()
-    configs = build_benchmark_configs_from_scenario(
+    configs = build_benchmark_configs(
         scenario_config=scenario_config,
         topology_template=topology_template,
         attacks=list(config.attacks) or None,

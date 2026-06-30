@@ -14,7 +14,7 @@ from orbit.scenarios.agentharm.condition_presets import (
 )
 from orbit.scenarios.agentharm.config_builder import (
     build_experiment_config,
-    build_experiment_configs_from_scenario,
+    build_experiment_configs,
 )
 from orbit.scenarios.agentharm.configs import (
     AGENTHARM_CATEGORIES,
@@ -283,7 +283,7 @@ class TestConfigBuilder:
         )
 
     def test_build_from_scenario_produces_one_per_sample(self):
-        cfgs = build_experiment_configs_from_scenario(
+        cfgs = build_experiment_configs(
             AgentHarmScenarioConfig(split="harmful", max_samples=4),
             condition="star_specialist",
         )
@@ -294,7 +294,7 @@ class TestConfigBuilder:
             assert "comms_specialist" in agent_names
 
     def test_mesh_condition_wires_execution_path_c(self):
-        cfgs = build_experiment_configs_from_scenario(
+        cfgs = build_experiment_configs(
             AgentHarmScenarioConfig(split="harmful", max_samples=1),
             condition="mesh_round_robin",
         )

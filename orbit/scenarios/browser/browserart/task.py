@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING
 from inspect_ai import Task, task
 
 from orbit.scenarios.browser.browserart.config_builder import (
-    build_experiment_configs_from_scenario,
+    build_experiment_configs,
     default_topology_template,
 )
 from orbit.scenarios.browser.browserart.configs import BrowserARTScenarioConfig
@@ -106,14 +106,14 @@ def _browserart_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
         task_ids=task_ids,
         max_behaviors=meta.get("browserart_max_behaviors"),
         seed=meta.get("browserart_seed"),
-        classifier_model=meta.get("browserart_classifier_model", "openai/gpt-4.1"),
+        judge_model=meta.get("browserart_judge_model", "openai/gpt-4.1"),
         max_turns=config.scheduler.max_turns,
         max_time_seconds=config.scheduler.max_time_seconds,
     )
 
     topology_template, execution_template = _resolve_topology(config)
 
-    configs = build_experiment_configs_from_scenario(
+    configs = build_experiment_configs(
         scenario_config=scenario_config,
         topology_template=topology_template,
         attacks=list(config.attacks) or None,
@@ -153,8 +153,8 @@ def _browserart_scorers(config: ExperimentConfig) -> list[Scorer]:
     from orbit.scorers.security_scorer import security_scorer
 
     meta = config.metadata or {}
-    classifier_model = meta.get("browserart_classifier_model", "openai/gpt-4.1")
-    return [browserart_scorer(classifier_model), security_scorer()]
+    judge_model = meta.get("browserart_judge_model", "openai/gpt-4.1")
+    return [browserart_scorer(judge_model), security_scorer()]
 
 
 BROWSERART_PLUGIN = register_scenario(
@@ -180,7 +180,7 @@ def browserart_safety(
     category: str | None = None,
     max_behaviors: int | None = None,
     seed: int | None = None,
-    classifier_model: str = "openai/gpt-4.1",
+    judge_model: str = "openai/gpt-4.1",
     data_path: str | None = None,
     max_turns: int = 15,
     max_time: float = 300.0,
@@ -218,7 +218,7 @@ def browserart_safety(
         category: Filter behaviors by semantic_category.
         max_behaviors: Limit number of behaviors.
         seed: Random seed for behavior sampling.
-        classifier_model: Model for the behavior classifier judge.
+        judge_model: Model for the behavior classifier judge.
         data_path: Override path to hbb.json dataset.
         max_turns: Maximum turns per behavior.
         max_time: Maximum wall-clock seconds per behavior.
@@ -310,7 +310,7 @@ def browserart_safety(
         "browserart_max_behaviors": max_behaviors,
         "browserart_seed": seed,
         "browserart_data_path": data_path,
-        "browserart_classifier_model": classifier_model,
+        "browserart_judge_model": judge_model,
         "browserart_headless": headless,
         "browserart_record_video_dir": record_video_dir,
         "browserart_verbose": verbose,

@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 from inspect_ai import Task, task
 
 from orbit.scenarios.agentharm.config_builder import (
-    build_experiment_configs_from_scenario,
+    build_experiment_configs,
 )
 from orbit.scenarios.agentharm.configs import AgentHarmScenarioConfig
 from orbit.scenarios.registry import ScenarioPlugin, register_scenario
@@ -51,7 +51,7 @@ def _agentharm_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
     # but the experiment-level attacks/defenses MUST still reach every behavior's
     # config — otherwise an `orbit run` YAML that declares them is silently a
     # benign run (issue #9). The builder enforces this; we satisfy it here.
-    configs = build_experiment_configs_from_scenario(
+    configs = build_experiment_configs(
         scenario_config=_scenario_config(config),
         condition=condition,
         attacks=list(config.attacks) or None,

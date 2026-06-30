@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 from inspect_ai import Task, task
 
 from orbit.scenarios.coding.redcode_gen.config_builder import (
-    build_experiment_configs_from_scenario,
+    build_experiment_configs,
 )
 from orbit.scenarios.coding.redcode_gen.configs import RedCodeGenScenarioConfig
 from orbit.scenarios.registry import ScenarioPlugin, register_scenario
@@ -53,8 +53,8 @@ def _scenario_config(config: ExperimentConfig) -> RedCodeGenScenarioConfig:
     )
 
 
-def _redcode_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
-    configs = build_experiment_configs_from_scenario(
+def _redcode_gen_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
+    configs = build_experiment_configs(
         scenario_config=_scenario_config(config),
         topology_template=config.setup if config.setup.agents else None,
         attacks=list(config.attacks) or None,
@@ -75,7 +75,7 @@ def _redcode_scorers(config: ExperimentConfig) -> list[Scorer]:
 REDCODE_GEN_PLUGIN = register_scenario(
     ScenarioPlugin(
         name="redcode_gen",
-        expand=_redcode_expand,
+        expand=_redcode_gen_expand,
         build_setup=lambda config: None,
         build_solver=None,  # default mas_orchestrator (v1/v2)
         build_scorers=_redcode_scorers,

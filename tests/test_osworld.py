@@ -22,7 +22,7 @@ from orbit.scenarios.desktop.osworld.condition_presets import (
 )
 from orbit.scenarios.desktop.osworld.config_builder import (
     build_experiment_config,
-    build_experiment_configs_from_scenario,
+    build_experiment_configs,
     default_topology_template,
 )
 from orbit.scenarios.desktop.osworld.configs import (
@@ -763,7 +763,7 @@ class TestBuildExperimentConfig:
 class TestBuildExperimentConfigsFromScenario:
     def test_builds_from_tasks(self) -> None:
         tasks = [_make_task("t1"), _make_task("t2"), _make_task("t3")]
-        configs = build_experiment_configs_from_scenario(tasks=tasks)
+        configs = build_experiment_configs(tasks=tasks)
         assert len(configs) == 3
         assert configs[0].name == "osworld_t1"
         assert configs[2].name == "osworld_t3"
@@ -1060,7 +1060,7 @@ class TestModuleExports:
             OSHarmTask,
             OSWorldScenarioConfig,
             build_experiment_config,
-            build_experiment_configs_from_scenario,
+            build_experiment_configs,
             default_topology_template,
             get_condition_setup,
             list_conditions,

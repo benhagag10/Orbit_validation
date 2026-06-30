@@ -8,7 +8,7 @@ security attacks (e.g. self-replicating prompt injections) on top.
 
 from orbit.scenarios.coding.swe_bench.config_builder import (
     build_experiment_config,
-    build_experiment_configs_from_scenario,
+    build_experiment_configs,
     default_topology_template,
 )
 from orbit.scenarios.coding.swe_bench.configs import (
@@ -29,7 +29,7 @@ __all__ = [
     "ValidationResult",
     "VersionPool",
     "build_experiment_config",
-    "build_experiment_configs_from_scenario",
+    "build_experiment_configs",
     "default_topology_template",
     "swe_bench_multi_issue_scorer",
 ]

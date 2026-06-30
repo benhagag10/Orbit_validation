@@ -23,7 +23,7 @@ from orbit.scenarios.browser.browserart.dataset_builder import (
 )
 from orbit.scenarios.browser.browserart.config_builder import (
     build_experiment_config,
-    build_experiment_configs_from_scenario,
+    build_experiment_configs,
     default_topology_template,
 )
 from orbit.scenarios.browser.browserart.scorer import (
@@ -202,7 +202,7 @@ class TestConfigBuilder:
 
     def test_build_configs_from_scenario(self):
         behaviors = [_make_behavior(behavior_id=i) for i in range(3)]
-        configs = build_experiment_configs_from_scenario(
+        configs = build_experiment_configs(
             behaviors=behaviors,
         )
         assert len(configs) == 3
