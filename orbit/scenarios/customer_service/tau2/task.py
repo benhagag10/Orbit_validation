@@ -376,7 +376,7 @@ def tau2(
         domain: ``'airline'``, ``'retail'``, or ``'telecom'``.
         task_ids: Comma-separated tau2 task IDs to include
             (e.g. ``'1,2,3'``).
-        seed: Random seed for deterministic task selection. To cap the
+        seed: Retained for ``-T``/API parity; does not affect which samples run. To cap the
             number of samples use Inspect's native ``--limit`` (with
             ``--sample-shuffle`` / ``--seed`` for a random subset).
         condition: Named topology preset — one of ``'solo'`` (airline

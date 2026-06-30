@@ -104,7 +104,8 @@ def bigcodebench(
     Args:
         task_ids: Comma-separated list of BigCodeBench task ids (integers)
             to include, e.g. ``"0,1,2"``.
-        seed: Random seed for deterministic sampling.
+        seed: Retained for ``-T``/API parity; does not affect which samples
+            run (use Inspect ``--limit`` / ``--sample-shuffle``).
         max_turns: Maximum turns per task.
         max_time_seconds: Maximum wall-clock time per task.
         topology_file: Custom topology YAML path or ``"default"``.

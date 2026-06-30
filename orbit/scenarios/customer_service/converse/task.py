@@ -243,7 +243,7 @@ def converse_safety(
         persona_ids: Comma-separated persona id filter.
         data_categories: Privacy-attack filter (``unrelated,related_private,related_useful``).
         security_categories: Security-attack filter (upstream sub-taxonomy keys).
-        seed: Random seed for deterministic sample selection. To cap the number
+        seed: Retained for ``-T``/API parity; does not affect which samples run. To cap the number
             of samples use Inspect's native ``--limit`` (with ``--sample-shuffle``
             / ``--seed`` for a random subset).
         judge_model: LLM judge model for utility and security scoring.

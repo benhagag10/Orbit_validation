@@ -74,9 +74,9 @@ class CodeIPIScenarioConfig(BaseModel, frozen=True):
     """Filter to specific severity tiers. None = all."""
 
     seed: int | None = None
-    """Random seed for deterministic sample selection. Sample-count limiting is
-    delegated to Inspect's native ``--limit`` (pair with ``--sample-shuffle``
-    for a random subset)."""
+    """Retained for ``-T``/API parity; does not affect which samples run.
+    Sample selection is delegated to Inspect's native ``--limit`` (pair with
+    ``--sample-shuffle`` for a random subset)."""
 
     include_benign: bool = True
     """Whether to include benign (no-injection) control samples."""

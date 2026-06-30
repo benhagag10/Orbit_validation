@@ -42,7 +42,7 @@ constant) and writes them into this directory.
 
 ```bash
 git clone https://github.com/AI-secure/RedCode.git
-orbit run examples/redcode_gen.yaml \
+orbit run examples/redcode_gen_basic.yaml \
   -T data_path=/path/to/RedCode/dataset/RedCode-Gen
 ```
 

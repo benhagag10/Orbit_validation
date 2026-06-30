@@ -153,7 +153,9 @@ class OSWorldScenarioConfig(BaseModel, frozen=True):
     None means all violation types."""
 
     seed: int | None = None
-    """Random seed for deterministic task sampling."""
+    """Retained for ``-T``/API parity; does not affect which samples run.
+    Sample selection is delegated to Inspect's native ``--limit`` (pair with
+    ``--sample-shuffle`` for a random subset)."""
 
     judge_model: str = "openai/gpt-4.1"
     """Model to use for the safety judge scorer."""

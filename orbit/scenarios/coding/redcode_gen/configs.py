@@ -72,9 +72,9 @@ class RedCodeGenScenarioConfig(BaseModel, frozen=True):
     """Filter to specific task IDs. ``None`` = all tasks."""
 
     seed: int | None = None
-    """Random seed for deterministic task selection. Sample-count limiting is
-    delegated to Inspect's native ``--limit`` (pair with ``--sample-shuffle``
-    for a random subset)."""
+    """Retained for ``-T``/API parity; does not affect which samples run.
+    Sample selection is delegated to Inspect's native ``--limit`` (pair with
+    ``--sample-shuffle`` for a random subset)."""
 
     judge_model: str = "openai/gpt-4.1"
     """Model to use as the LLM judge for scoring generated code."""

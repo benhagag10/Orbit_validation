@@ -107,7 +107,8 @@ def redcode_gen(
         categories: Comma-separated malware categories to include
             (e.g. ``"spyware,ransomware"``). Default: all 8 categories.
         task_ids: Comma-separated task IDs to include.
-        seed: Random seed for deterministic sampling.
+        seed: Retained for ``-T``/API parity; does not affect which samples
+            run (use Inspect ``--limit`` / ``--sample-shuffle``).
         judge_model: Model for the LLM judge scorer.
         max_turns: Maximum turns per task.
         max_time_seconds: Maximum wall-clock time per task.
