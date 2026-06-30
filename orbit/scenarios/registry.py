@@ -60,10 +60,20 @@ class ScenarioImportError(ImportError):
     """A registered scenario's module failed to import.
 
     Raised by :func:`get_scenario` when a *known* scenario (one in ``_LOADERS``)
-    cannot be imported. Scenario modules import their heavy optional deps lazily
-    (inside ``expand``/dataset builders), so an import-time failure here is a
-    real bug — never a merely-missing extra — and must surface instead of
-    silently degrading the run to the generic plugin.
+    cannot be imported and the failure is NOT explained by a missing optional
+    extra (that case raises :class:`MissingScenarioDependencyError` instead).
+    Must surface instead of silently degrading the run to the generic plugin.
+    """
+
+
+class MissingScenarioDependencyError(ScenarioImportError):
+    """A known scenario could not be loaded because an optional dependency is
+    missing.
+
+    Raised by :func:`get_scenario` when a registered scenario's module fails to
+    import AND the scenario's declared extra packages are absent (per
+    :mod:`orbit.scenarios.requirements`). The message names the exact
+    ``uv sync --extra <name>`` command.
     """
 
 
@@ -206,11 +216,17 @@ def get_scenario(name: str | None) -> ScenarioPlugin | None:
     name is requested. Returns ``None`` for an *unknown* name (no registered
     plugin) — the caller falls back to the generic path.
 
-    Raises :class:`ScenarioImportError` if a *known* scenario's module fails to
-    import. Scenario modules import optional deps lazily, so an import failure
-    is a genuine bug (a missing extra surfaces later, from ``expand``); silently
-    returning ``None`` here would run a declared scenario as a benign
-    single-sample generic task with no error — the issue-#9 failure class.
+    Raises if a *known* scenario's module fails to import — silently returning
+    ``None`` here would run a declared scenario as a benign single-sample
+    generic task with no error (the issue-#9 failure class):
+
+    * :class:`MissingScenarioDependencyError` when the scenario's declared
+      optional extra is not installed (per
+      :mod:`orbit.scenarios.requirements`) — the message names the exact
+      ``uv sync --extra <name>`` command;
+    * :class:`ScenarioImportError` otherwise — the declared optional deps are
+      all importable, so this is a bug in the scenario module (or an
+      undeclared dependency; keep ``requirements.py`` complete).
     """
     if not name:
         return None
@@ -219,12 +235,20 @@ def get_scenario(name: str | None) -> ScenarioPlugin | None:
         try:
             importlib.import_module(_LOADERS[key])
         except Exception as exc:
+            # Deferred import: requirements.py imports _canonical from here.
+            from orbit.scenarios.requirements import missing_extra_message
+
+            hint = missing_extra_message(key)
+            if hint is not None:
+                logger.error("Scenario plugin %r unavailable: %s", key, hint)
+                raise MissingScenarioDependencyError(hint) from exc
             logger.error("Scenario plugin %r failed to import: %s", key, exc)
             raise ScenarioImportError(
                 f"Scenario {key!r} is registered but its module "
-                f"{_LOADERS[key]!r} failed to import ({exc!s}). Optional scenario "
-                f"dependencies are imported lazily, so this is a bug in the "
-                f"scenario module, not a missing extra."
+                f"{_LOADERS[key]!r} failed to import ({exc!s}). Its declared "
+                f"optional dependencies are all importable, so this is likely "
+                f"a bug in the scenario module (or an undeclared dependency — "
+                f"see orbit/scenarios/requirements.py)."
             ) from exc
     return _PLUGINS.get(key)
 

@@ -1228,13 +1228,19 @@ def validate_cmd(
 
 
 @cli.command("verify-setup")
-@click.argument("scenario", type=click.Choice(["browserart", "swe-bench", "osworld", "all"]))
+@click.argument(
+    "scenario",
+    type=click.Choice(
+        ["browserart", "swe-bench", "osworld", "bigcodebench", "dcop", "all"]
+    ),
+)
 def verify_setup_cmd(scenario: str) -> None:
     """Verify prerequisites for a scenario are met."""
     from orbit.wrapper.preflight import run_preflight
 
     scenarios: list[str] = (
-        ["browserart", "swe-bench", "osworld"] if scenario == "all"
+        ["browserart", "swe-bench", "osworld", "bigcodebench", "dcop"]
+        if scenario == "all"
         else [scenario]
     )
 

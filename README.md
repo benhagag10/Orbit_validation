@@ -200,21 +200,39 @@ orbit/
 
 ## Scenario-Specific Setup
 
-| Scenario | Install | Notes |
-|----------|---------|-------|
-| BrowserART | `uv sync --extra browserart` + fetch data | Requires serving test websites locally |
-| SWE-Bench | `uv sync --extra swebench` | Docker required |
-| OSWorld / OS-Harm | `uv sync --extra osworld` | Docker required |
-| DCOP scenarios | `uv sync --extra dev` | No extra requirements |
-| RedCode-Gen | Fetch data script | Data not redistributed |
-| AgentHarm | Build data script | MIT + safety-use-only restriction |
+The core install (`uv sync --extra dev`) runs most scenarios as-is. Four scenarios
+need an optional pip extra; several also need Docker and/or a one-time data fetch.
+Install only what the scenarios you actually run require.
+
+| Scenario | Family | Install | System / runtime | Data step |
+|----------|--------|---------|------------------|-----------|
+| BrowserART | Browser | `uv sync --extra browserart` | Docker (browserart-service), Playwright/Chromium | `scripts/fetch_browserart_data.py` |
+| SWE-Bench | Coding | `uv sync --extra swebench` | Docker, `GITHUB_TOKEN` | auto (runtime) |
+| BigCodeBench | Coding | `uv sync --extra bigcodebench` | Docker (sandbox) | auto (HuggingFace) |
+| RedCode-Gen | Coding | core | Docker (sandbox) | `scripts/fetch_redcode_data.py` |
+| CodeIPI | Coding | core | Docker (sandbox) | vendored |
+| OSWorld / OS-Harm | Desktop | `uv sync --extra osworld` | Docker | auto (HuggingFace) |
+| AgentHarm | Tool safety | core | — | `scripts/build_agentharm_data.py` |
+| &tau;&sup2;-Bench | Customer Service | core | — | vendored |
+| ConVerse | Customer Service | core | — | vendored |
+| JiraTicket | Cooperative Allocation | `uv sync --extra dcop` | — | generated |
+| Hospital | Cooperative Allocation | core | — | generated |
+| MeetSched | Cooperative Allocation | core | — | generated |
+| Colosseum DCOP | Cooperative Allocation | core | — | generated |
+
+Running a scenario without its extra raises an actionable error naming the exact
+`uv sync --extra <name>` command to run. Check prerequisites up front with:
 
 ```bash
-# Verify setup for a scenario
-orbit verify-setup browserart   # or swe-bench, osworld
+orbit verify-setup browserart   # or: swe-bench, osworld, bigcodebench, dcop, all
 ```
 
-See [Scenario Requirements](docs/scenarios.md) for full setup instructions.
+> **Figure/report scripts.** The paper-figure helpers under `scripts/` need
+> `uv sync --extra figures` (matplotlib + pymupdf). They are kept out of the
+> core install so the base stays lean — no scenario or reporting dependency
+> leaks into a default `uv sync --extra dev`.
+
+See [Scenario Requirements](docs/scenarios.md) for full per-scenario setup.
 
 ---
 

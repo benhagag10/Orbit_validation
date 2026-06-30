@@ -16,7 +16,8 @@ from typing import Literal
 import click
 
 ScenarioKind = Literal[
-    "browserart", "swe-bench", "osworld", "redcode_gen", "tau2", "generic"
+    "browserart", "swe-bench", "osworld", "bigcodebench", "dcop",
+    "redcode_gen", "tau2", "generic"
 ]
 
 
@@ -152,19 +153,21 @@ def check_browserart() -> list[CheckResult]:
             message="Install with: uv sync --extra browserart",
         ))
 
-    # Test websites served
+    # browserart-service reachable. The service container (started via
+    # `scripts/browserart_service.sh up`) exposes the session API on :7878 and
+    # serves the mock websites internally — the host no longer serves :8000.
     import urllib.request
 
-    port = int(os.environ.get("BROWSERART_PORT", "8000"))
+    service_url = os.environ.get("BROWSERART_SERVICE_URL", "http://localhost:7878")
     try:
         urllib.request.urlopen(  # noqa: S310
-            f"http://localhost:{port}/", timeout=3,
+            f"{service_url.rstrip('/')}/healthz", timeout=3,
         )
-        results.append(CheckResult(f"BrowserART websites (port {port})", passed=True))
+        results.append(CheckResult(f"browserart-service ({service_url})", passed=True))
     except Exception:
         results.append(CheckResult(
-            f"BrowserART websites (port {port})", passed=False,
-            message="Not served — will auto-start, or run manually",
+            f"browserart-service ({service_url})", passed=False,
+            message="Not reachable — start it with: scripts/browserart_service.sh up",
             warning=True,
         ))
 
@@ -229,6 +232,45 @@ def check_osworld() -> list[CheckResult]:
     return results
 
 
+def check_bigcodebench() -> list[CheckResult]:
+    """Check BigCodeBench-specific prerequisites."""
+    results: list[CheckResult] = []
+
+    missing_pkgs: list[str] = []
+    if find_spec("inspect_evals") is None:
+        missing_pkgs.append("inspect_evals")
+    if find_spec("datasets") is None:
+        missing_pkgs.append("datasets")
+
+    if not missing_pkgs:
+        results.append(CheckResult("Python packages (inspect_evals, datasets)", passed=True))
+    else:
+        results.append(CheckResult(
+            f"Python packages ({', '.join(missing_pkgs)})", passed=False,
+            message="Install with: uv sync --extra bigcodebench",
+        ))
+
+    # Unit tests run inside a Docker sandbox
+    results.append(_check_docker())
+
+    return results
+
+
+def check_dcop() -> list[CheckResult]:
+    """Check DCOP / cooperative-allocation prerequisites (JiraTicket needs scipy)."""
+    results: list[CheckResult] = []
+
+    if find_spec("scipy") is not None:
+        results.append(CheckResult("Python packages (scipy)", passed=True))
+    else:
+        results.append(CheckResult(
+            "Python packages (scipy)", passed=False,
+            message="Install with: uv sync --extra dcop (required for JiraTicket)",
+        ))
+
+    return results
+
+
 def detect_scenario_from_config(config_path: str) -> ScenarioKind:
     """Best-effort detection of scenario type from a YAML config."""
     try:
@@ -272,6 +314,10 @@ def run_preflight(
         all_results.extend(check_swe_bench())
     elif scenario == "osworld":
         all_results.extend(check_osworld())
+    elif scenario == "bigcodebench":
+        all_results.extend(check_bigcodebench())
+    elif scenario == "dcop":
+        all_results.extend(check_dcop())
 
     # Print results
     click.echo(f"\nPreflight ({scenario})")
