@@ -15,6 +15,7 @@ rationale. When ``config.scenario.name`` has no registered plugin, the generic
 
 from __future__ import annotations
 
+from collections import Counter
 from typing import TYPE_CHECKING, Any
 
 from inspect_ai import Task
@@ -29,9 +30,55 @@ if TYPE_CHECKING:
     from orbit.configs.experiment import ExperimentConfig
 
 
+class ScenarioExpansionError(ValueError):
+    """A scenario plugin's ``expand`` violated the Task-construction contract.
+
+    Raised by the shared builder when dataset expansion silently dropped an
+    experiment-level dimension (an attack/defense declared on the config) —
+    the issue-#9 bug class, made impossible to do silently.
+    """
+
+
 # ---------------------------------------------------------------------------
 # Small shared helpers for scenario plugins
 # ---------------------------------------------------------------------------
+
+
+def _assert_experiment_dimensions_preserved(
+    original: ExperimentConfig,
+    produced: list[ExperimentConfig],
+    plugin_name: str,
+) -> None:
+    """Fail loud if dataset expansion dropped an experiment-level dimension.
+
+    ``expand`` owns per-sample construction, so it MAY transform attacks per
+    sample (swe_bench resolves an ``auto`` side-task per group) or ADD
+    scenario-specific ones (code_ipi prepends a per-task injection). The one
+    thing it must never do is *drop* a declared attack/defense type: that
+    silently collapses a security condition into a benign run — the issue-#9
+    bug class. Enforcing it here, in the single builder every scenario funnels
+    through, makes the drop structurally impossible regardless of whether an
+    individual plugin author remembered to thread the dimensions through. The
+    check is a multiset *floor* (``>=``), so transforms and additions pass; only
+    a genuine drop fails.
+    """
+    want_attacks = Counter(a.attack_type for a in original.attacks)
+    want_defenses = Counter(d.defense_type for d in original.defenses)
+    if not want_attacks and not want_defenses:
+        return
+    for i, cfg in enumerate(produced):
+        missing_a = want_attacks - Counter(a.attack_type for a in cfg.attacks)
+        missing_d = want_defenses - Counter(d.defense_type for d in cfg.defenses)
+        if missing_a or missing_d:
+            raise ScenarioExpansionError(
+                f"Scenario plugin {plugin_name!r} dropped experiment-level "
+                f"dimensions while expanding sample {i} ({cfg.name!r}): "
+                f"missing attacks={dict(missing_a)}, defenses={dict(missing_d)}. "
+                f"A plugin's expand() must thread config.attacks/config.defenses "
+                f"into every produced config (it may add to or transform them, "
+                f"but never drop a declared type). See "
+                f"orbit.scenarios.registry.ScenarioPlugin.expand."
+            )
 
 
 def split_csv(value: object) -> list[str] | None:
@@ -152,6 +199,11 @@ def build_scenario_task(
 
     # 1. Dataset expansion (threads config.setup/attacks/defenses through).
     configs = plugin.expand(config) if plugin.expand else [config]
+
+    # 1a. Central guarantee: a plugin's expand() may transform or add attacks/
+    # defenses per sample, but may never DROP a declared one (issue #9). This is
+    # enforced once, here, for every scenario — see the helper's docstring.
+    _assert_experiment_dimensions_preserved(config, configs, plugin.name)
 
     # 2. Build one sample per config (serializes the whole config to metadata).
     samples = []

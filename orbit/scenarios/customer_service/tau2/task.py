@@ -228,6 +228,13 @@ def _tau2_scenario_config(config: ExperimentConfig) -> Tau2ScenarioConfig:
     if "tau2_scenario_config" in meta:
         return Tau2ScenarioConfig(**meta["tau2_scenario_config"])
     domain = meta.get("tau2_domain") or config.scenario.name.replace("tau2_", "") or "airline"
+    # A scenario name that doesn't encode a concrete dataset domain — e.g. the
+    # cross_domain_handoff topology ships as scenario.name "tau2_cross_domain" —
+    # falls back to the airline dataset (the documented base for `-T domain=...`).
+    # The per-domain specialists that actually run are driven by the topology,
+    # not this field, so tasks/scorer stay single-domain exactly as upstream.
+    if domain not in _SUPPORTED_DOMAINS:
+        domain = "airline"
     topology = meta.get("tau2_topology", "dual_control")
     mode = meta.get("tau2_mode") or ("solo" if topology == "solo" else "dual_control")
     return Tau2ScenarioConfig(
@@ -252,6 +259,20 @@ def _tau2_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
         build_experiment_config(task=t, scenario_config=sc, policy_text=policy_text)
         for t in tasks
     ]
+    # tau2 builds its topology per task (not from config.setup) and synthesizes
+    # no attacks/defenses of its own, so thread the experiment-level ones onto
+    # every produced config. Without this an `orbit run` YAML that declares an
+    # attack/defense would silently run benign (issue #9); the builder enforces it.
+    if config.attacks or config.defenses:
+        configs = [
+            c.model_copy(
+                update={
+                    "attacks": list(config.attacks),
+                    "defenses": list(config.defenses),
+                }
+            )
+            for c in configs
+        ]
     if not configs:
         logger.warning("No tau2 samples built — check filters and domain")
     return configs

@@ -47,9 +47,15 @@ def _scenario_config(config: ExperimentConfig) -> AgentHarmScenarioConfig:
 def _agentharm_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
     meta = config.metadata or {}
     condition = meta.get("agentharm_condition", "single_agent")
+    # Topology is derived per-behavior from the named condition (not config.setup),
+    # but the experiment-level attacks/defenses MUST still reach every behavior's
+    # config — otherwise an `orbit run` YAML that declares them is silently a
+    # benign run (issue #9). The builder enforces this; we satisfy it here.
     configs = build_experiment_configs_from_scenario(
         scenario_config=_scenario_config(config),
         condition=condition,
+        attacks=list(config.attacks) or None,
+        defenses=list(config.defenses) or None,
     )
     if not configs:
         logger.warning("AgentHarm produced 0 samples — check split/partition/filters")
