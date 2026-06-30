@@ -151,11 +151,6 @@ class ConverseScenarioConfig(BaseModel, frozen=True):
     """For security mode: restrict to these upstream sub-taxonomy keys
     (e.g. ``("calendar_manipulation", "email_manipulation")``)."""
 
-    seed: int | None = None
-    """Retained for ``-T``/API parity; does not affect which samples run.
-    Sample selection is delegated to Inspect's native ``--limit`` (pair with
-    ``--sample-shuffle`` for a random subset)."""
-
     judge_model: str = "openai/gpt-4.1"
     """Model used by the ConVerse LLM judge for utility / preference scoring."""
 

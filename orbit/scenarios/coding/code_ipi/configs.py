@@ -73,11 +73,6 @@ class CodeIPIScenarioConfig(BaseModel, frozen=True):
     severities: list[str] | None = None
     """Filter to specific severity tiers. None = all."""
 
-    seed: int | None = None
-    """Retained for ``-T``/API parity; does not affect which samples run.
-    Sample selection is delegated to Inspect's native ``--limit`` (pair with
-    ``--sample-shuffle`` for a random subset)."""
-
     include_benign: bool = True
     """Whether to include benign (no-injection) control samples."""
 

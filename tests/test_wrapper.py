@@ -1081,8 +1081,10 @@ class TestScenarioOptionValidation:
     def test_negative_seed_rejected(self, runner: CliRunner):
         from orbit.wrapper.cli import cli
 
+        # --seed is only on swe-bench now (it's the lone scenario where the
+        # seed still drives sampling); other commands dropped the vestigial flag.
         result = runner.invoke(
-            cli, ["--skip-preflight", "browserart", "-m", "openai/gpt-4o",
+            cli, ["--skip-preflight", "swe-bench", "-m", "openai/gpt-4o",
                   "--seed", "-1"]
         )
         assert result.exit_code != 0

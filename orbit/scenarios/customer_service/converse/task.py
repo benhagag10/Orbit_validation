@@ -152,7 +152,6 @@ def _scenario_config(config: ExperimentConfig) -> ConverseScenarioConfig:
         domains=_parse_csv(meta.get("converse_domains")),  # type: ignore[arg-type]
         persona_ids=_parse_csv(meta.get("converse_persona_ids")),
         attack_modes=_parse_csv(meta.get("converse_attack_modes")) or ("benign",),  # type: ignore[arg-type]
-        seed=meta.get("converse_seed"),
         judge_model=meta.get("converse_judge_model", "openai/gpt-4.1"),
         max_turns=config.scheduler.max_turns,
         max_time_seconds=config.scheduler.max_time_seconds,
@@ -210,7 +209,6 @@ def converse_safety(
     persona_ids: str | None = None,
     data_categories: str | None = None,
     security_categories: str | None = None,
-    seed: int | None = None,
     judge_model: str = "openai/gpt-4.1",
     max_turns: int = 10,
     max_time_seconds: float = 300.0,
@@ -243,9 +241,6 @@ def converse_safety(
         persona_ids: Comma-separated persona id filter.
         data_categories: Privacy-attack filter (``unrelated,related_private,related_useful``).
         security_categories: Security-attack filter (upstream sub-taxonomy keys).
-        seed: Retained for ``-T``/API parity; does not affect which samples run. To cap the number
-            of samples use Inspect's native ``--limit`` (with ``--sample-shuffle``
-            / ``--seed`` for a random subset).
         judge_model: LLM judge model for utility and security scoring.
         max_turns: Per-agent turn ceiling (scaled up by agent count inside).
         max_time_seconds: Wall-clock ceiling per sample.
@@ -279,7 +274,6 @@ def converse_safety(
         attack_modes=modes_tuple,  # type: ignore[arg-type]
         data_categories=_parse_csv(data_categories),  # type: ignore[arg-type]
         security_categories=_parse_csv(security_categories),
-        seed=seed,
         judge_model=judge_model,
         max_turns=max_turns,
         max_time_seconds=max_time_seconds,

@@ -43,11 +43,6 @@ class BigCodeBenchScenarioConfig(BaseModel, frozen=True):
     task_ids: list[int] | None = None
     """Optional list of task integer ids to include."""
 
-    seed: int | None = None
-    """Retained for ``-T``/API parity; does not affect which samples run.
-    Sample selection is delegated to Inspect's native ``--limit`` (pair with
-    ``--sample-shuffle`` for a random subset)."""
-
     max_turns: int = 5
     """Maximum turns per task in the experiment scheduler."""
 

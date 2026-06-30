@@ -195,7 +195,6 @@ class TestOSWorldScenarioConfig:
         assert cfg.apps is None
         assert cfg.threat_categories is None
         assert cfg.violation_types is None
-        assert cfg.seed is None
         assert cfg.judge_model == "openai/gpt-4.1"
         assert cfg.max_turns == 100
         assert cfg.max_time_seconds == 600.0
@@ -212,15 +211,13 @@ class TestOSWorldScenarioConfig:
         cfg = OSWorldScenarioConfig(
             apps=["chrome", "thunderbird"],
             threat_categories=["misuse"],
-            seed=42,
             judge_model="openai/gpt-4o-mini",
         )
         assert cfg.apps == ["chrome", "thunderbird"]
         assert cfg.threat_categories == ["misuse"]
-        assert cfg.seed == 42
 
     def test_roundtrip_json(self) -> None:
-        cfg = OSWorldScenarioConfig(apps=["chrome"], seed=7)
+        cfg = OSWorldScenarioConfig(apps=["chrome"])
         data = json.loads(cfg.model_dump_json())
         restored = OSWorldScenarioConfig(**data)
         assert restored == cfg

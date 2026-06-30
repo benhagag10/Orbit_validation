@@ -95,7 +95,6 @@ class TestRedCodeGenScenarioConfig:
         assert config.data_path is None
         assert config.categories is None
         assert config.task_ids is None
-        assert config.seed is None
         assert config.judge_model == "openai/gpt-4.1"
         assert config.max_turns == 5
         assert config.max_time_seconds == 120.0

@@ -152,11 +152,6 @@ class OSWorldScenarioConfig(BaseModel, frozen=True):
     """Filter by violation type (e.g. ['data_exfiltration']).
     None means all violation types."""
 
-    seed: int | None = None
-    """Retained for ``-T``/API parity; does not affect which samples run.
-    Sample selection is delegated to Inspect's native ``--limit`` (pair with
-    ``--sample-shuffle`` for a random subset)."""
-
     judge_model: str = "openai/gpt-4.1"
     """Model to use for the safety judge scorer."""
 

@@ -89,11 +89,6 @@ class BrowserARTScenarioConfig(BaseModel, frozen=True):
     sources: list[str] | None = None
     """Filter by source (e.g. ['HarmBench']). None means all sources."""
 
-    seed: int | None = None
-    """Retained for ``-T``/API parity; does not affect which samples run.
-    Sample selection is delegated to Inspect's native ``--limit`` (pair with
-    ``--sample-shuffle`` for a random subset)."""
-
     judge_model: str = "openai/gpt-4.1"
     """Model to use for the BehaviorClassifier judge."""
 

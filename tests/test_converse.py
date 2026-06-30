@@ -908,7 +908,6 @@ class TestEndToEnd:
         # (--limit handles count capping now; take the first built sample.)
         scenario_config = ConverseScenarioConfig(
             attack_modes=("benign",),
-            seed=0,
             max_turns=2,
             max_time_seconds=60.0,
         )
@@ -1024,7 +1023,6 @@ class TestEndToEnd:
         # catches MemoryConfig / AgentMemoryAccess shape regressions.
         scenario_config = ConverseScenarioConfig(
             attack_modes=("privacy",),
-            seed=0,
             max_turns=4,
             max_time_seconds=60.0,
         )

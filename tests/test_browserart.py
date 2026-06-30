@@ -98,10 +98,8 @@ class TestBrowserARTScenarioConfig:
     def test_with_filters(self):
         cfg = BrowserARTScenarioConfig(
             categories=["content/phishing"],
-            seed=42,
         )
         assert cfg.categories == ["content/phishing"]
-        assert cfg.seed == 42
 
     def test_frozen(self):
         cfg = BrowserARTScenarioConfig()

@@ -216,8 +216,6 @@ def scenario_options(fn):  # noqa: ANN001, ANN201
         click.option("--instructions", type=click.Choice(["detailed", "relaxed"]),
                       default="detailed", help="Instruction detail level."),
         click.option("--condition", default=None, help="Condition preset name."),
-        click.option("--seed", type=int, default=None,
-                      callback=_validate_non_negative_int, help="Random seed."),
         click.option("--max-turns", type=int, default=None,
                       callback=_validate_positive_int, help="Max agent turns."),
         click.option("--max-time-seconds", type=float, default=None,
@@ -515,7 +513,6 @@ def browserart_cmd(
     memory: str,
     instructions: str,
     condition: str | None,
-    seed: int | None,
     max_turns: int | None,
     max_time_seconds: float | None,
     # Shared eval options
@@ -561,7 +558,6 @@ def browserart_cmd(
     # Inspect's --limit, not a scenario param).
     task_kwargs: dict[str, Any] = dict(
         categories=categories,
-        seed=seed,
         judge_model=judge_model,
         data_path=data_path,
         max_turns=max_turns,
@@ -606,6 +602,9 @@ def browserart_cmd(
 @cli.command("swe-bench")
 @click.option("--repos", default=None, help="Comma-separated repo filter (e.g. django/django).")
 @click.option("--num-issues", type=int, default=2, help="Number of issues per group.")
+@click.option("--seed", type=int, default=None,
+              callback=_validate_non_negative_int,
+              help="Random seed for reproducible issue-group sampling.")
 @click.option("--scheduling-mode", type=click.Choice(["round_robin", "superstep"]),
               default="round_robin", help="Execution scheduling mode.")
 @click.option("--attack-preset", default=None,
@@ -737,8 +736,6 @@ def swe_bench_cmd(
               help="Filter by violation type (comma-separated).")
 @click.option("--task-ids", default=None,
               help="Comma-separated task IDs to include (applied before other filters).")
-@click.option("--seed", type=int, default=None,
-              help="Random seed for task sampling.")
 @click.option("--max-turns", type=int, default=100, help="Max agent turns per task.")
 @click.option("--max-time-seconds", type=float, default=600.0,
               callback=_validate_positive_float,
@@ -780,7 +777,6 @@ def osworld_cmd(
     threat_category: str | None,
     violation_type: str | None,
     task_ids: str | None,
-    seed: int | None,
     max_turns: int,
     max_time_seconds: float,
     max_screenshots: int,
@@ -843,7 +839,6 @@ def osworld_cmd(
             dataset=dataset,
             app=app,
             task_ids=task_ids,
-            seed=seed,
             max_turns=max_turns,
             max_time_seconds=max_time_seconds,
             max_screenshots=max_screenshots,
@@ -867,7 +862,6 @@ def osworld_cmd(
             threat_category=threat_category,
             violation_type=violation_type,
             task_ids=task_ids,
-            seed=seed,
             max_turns=max_turns,
             max_time_seconds=max_time_seconds,
             max_screenshots=max_screenshots,
@@ -910,8 +904,6 @@ def osworld_cmd(
               help="Comma-separated malware categories (e.g. spyware,ransomware).")
 @click.option("--task-ids", default=None,
               help="Comma-separated task IDs to include.")
-@click.option("--seed", type=int, default=None,
-              help="Random seed for task sampling.")
 @click.option("--max-turns", type=int, default=5, help="Max agent turns per task.")
 @click.option("--max-time-seconds", type=float, default=120.0,
               callback=_validate_positive_float,
@@ -935,7 +927,6 @@ def redcode_gen_cmd(
     model: str,
     categories: str | None,
     task_ids: str | None,
-    seed: int | None,
     max_turns: int,
     max_time_seconds: float,
     topology_file: str,
@@ -983,7 +974,6 @@ def redcode_gen_cmd(
     task = redcode_gen(
         categories=categories,
         task_ids=task_ids,
-        seed=seed,
         judge_model=judge_model,
         max_turns=max_turns,
         max_time_seconds=max_time_seconds,
@@ -1040,8 +1030,6 @@ def redcode_gen_cmd(
 )
 @click.option("--task-ids", default=None,
               help="Comma-separated tau2 task IDs to include (e.g. '1,3,7').")
-@click.option("--seed", type=int, default=None,
-              help="Random seed for task sampling.")
 @click.option("--max-turns", type=int, default=100,
               help="Max orchestrator turns per task.")
 @click.option("--max-time-seconds", type=float, default=600.0,
@@ -1059,7 +1047,6 @@ def tau2_cmd(
     domain: str,
     condition: str,
     task_ids: str | None,
-    seed: int | None,
     max_turns: int,
     max_time_seconds: float,
     judge_model: str,
@@ -1101,7 +1088,6 @@ def tau2_cmd(
     task = tau2(
         domain=domain,
         task_ids=task_ids,
-        seed=seed,
         condition=condition,
         judge_model=judge_model,
         max_turns=max_turns,

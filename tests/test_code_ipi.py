@@ -128,13 +128,11 @@ class TestCodeIPIScenarioConfig:
         cfg = CodeIPIScenarioConfig(
             vectors=["issue_text"],
             severities=["S1", "S2"],
-            seed=42,
             include_benign=False,
             inline_defense_warning=False,
         )
         assert cfg.vectors == ["issue_text"]
         assert cfg.severities == ["S1", "S2"]
-        assert cfg.seed == 42
         assert not cfg.include_benign
         assert not cfg.inline_defense_warning
 

@@ -38,7 +38,6 @@ def _scenario_config(config: ExperimentConfig) -> CodeIPIScenarioConfig:
     return CodeIPIScenarioConfig(
         vectors=split_csv(meta.get("code_ipi_vectors")),
         severities=split_csv(meta.get("code_ipi_severities")),
-        seed=meta.get("code_ipi_seed"),
         include_benign=meta.get("code_ipi_include_benign", True),
         inline_defense_warning=meta.get("code_ipi_inline_defense_warning", True),
         max_turns=config.scheduler.max_turns,
@@ -89,7 +88,6 @@ def code_ipi(
     vectors: str | None = None,
     severities: str | None = None,
     inline_defense_warning: bool = True,
-    seed: int | None = None,
     include_benign: bool = True,
     condition: str = "single_agent",
     topology: str | None = None,
@@ -112,7 +110,6 @@ def code_ipi(
         inline_defense_warning: Whether to include the anti-injection warning
             in the agent system prompt. ``True`` (default) adds explicit
             instruction; ``False`` uses a neutral prompt.
-        seed: Random seed for reproducible sampling.
         include_benign: Whether to include benign control samples.
         condition: Named topology condition.
         topology: Path to a YAML topology file (overrides condition).
@@ -130,7 +127,6 @@ def code_ipi(
     scenario_config = CodeIPIScenarioConfig(
         vectors=split_csv(vectors),
         severities=split_csv(severities),
-        seed=seed,
         include_benign=include_benign,
         inline_defense_warning=inline_defense_warning,
         max_turns=max_turns,

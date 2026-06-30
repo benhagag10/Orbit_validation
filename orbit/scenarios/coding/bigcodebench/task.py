@@ -43,7 +43,6 @@ def _scenario_config(config: ExperimentConfig) -> BigCodeBenchScenarioConfig:
     return BigCodeBenchScenarioConfig(
         version=meta.get("bigcodebench_version", "v0.1.2"),
         task_ids=task_ids,
-        seed=meta.get("bigcodebench_seed"),
         max_turns=config.scheduler.max_turns,
         max_time_seconds=config.scheduler.max_time_seconds,
     )
@@ -83,7 +82,6 @@ BIGCODEBENCH_PLUGIN = register_scenario(
 @task
 def bigcodebench(
     task_ids: str | None = None,
-    seed: int | None = None,
     max_turns: int = 5,
     max_time_seconds: float = 300.0,
     topology_file: str = "default",
@@ -104,8 +102,6 @@ def bigcodebench(
     Args:
         task_ids: Comma-separated list of BigCodeBench task ids (integers)
             to include, e.g. ``"0,1,2"``.
-        seed: Retained for ``-T``/API parity; does not affect which samples
-            run (use Inspect ``--limit`` / ``--sample-shuffle``).
         max_turns: Maximum turns per task.
         max_time_seconds: Maximum wall-clock time per task.
         topology_file: Custom topology YAML path or ``"default"``.
@@ -129,7 +125,6 @@ def bigcodebench(
     scenario_config = BigCodeBenchScenarioConfig(
         version=version,
         task_ids=task_id_list,
-        seed=seed,
         max_turns=max_turns,
         max_time_seconds=max_time_seconds,
     )

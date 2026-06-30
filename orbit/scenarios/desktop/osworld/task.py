@@ -76,7 +76,6 @@ def _scenario_config(
         threat_categories=_split(meta.get("osworld_threat_category")),
         violation_types=_split(meta.get("osworld_violation_type")),
         task_ids=_split(meta.get("osworld_task_ids")),
-        seed=meta.get("osworld_seed"),
         judge_model=meta.get("osworld_judge_model", "openai/gpt-4.1"),
         max_turns=config.scheduler.max_turns,
         max_time_seconds=config.scheduler.max_time_seconds,
@@ -256,7 +255,6 @@ def osworld_safety(
     threat_category: str | None = None,
     violation_type: str | None = None,
     task_ids: str | None = None,
-    seed: int | None = None,
     max_turns: int = 100,
     max_time_seconds: float = 600.0,
     max_screenshots: int = 1,
@@ -303,7 +301,6 @@ def osworld_safety(
         task_ids: Comma-separated list of task IDs to include.
         threat_category: Filter by threat category (comma-separated).
         violation_type: Filter by violation type (comma-separated).
-        seed: Random seed for task sampling.
         max_turns: Maximum turns per task.
         max_time_seconds: Maximum wall-clock seconds per task.
         max_screenshots: Maximum screenshots per turn for the computer tool.
@@ -325,7 +322,6 @@ def osworld_safety(
         threat_categories=_split(threat_category),
         violation_types=_split(violation_type),
         task_ids=_split(task_ids),
-        seed=seed,
         judge_model=judge_model,
         max_turns=max_turns,
         max_time_seconds=max_time_seconds,
@@ -417,7 +413,6 @@ def osworld_benchmark(
     dataset: str = "osworld",
     app: str | None = None,
     task_ids: str | None = None,
-    seed: int | None = None,
     max_turns: int = 100,
     max_time_seconds: float = 600.0,
     max_screenshots: int = 1,
@@ -448,7 +443,6 @@ def osworld_benchmark(
             benchmark or ``"osworld_small"`` for the small corpus).
         app: Filter by app (comma-separated).
         task_ids: Comma-separated task IDs to include.
-        seed: Random seed for sampling.
         max_turns: Maximum turns per task.
         max_time_seconds: Maximum wall-clock seconds per task.
         max_screenshots: Maximum screenshots per turn.
@@ -470,7 +464,6 @@ def osworld_benchmark(
         dataset=dataset,
         apps=_split(app),
         task_ids=_split(task_ids),
-        seed=seed,
         judge_model=judge_model,
         max_turns=max_turns,
         max_time_seconds=max_time_seconds,

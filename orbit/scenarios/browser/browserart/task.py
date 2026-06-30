@@ -88,7 +88,6 @@ def _scenario_config(config: ExperimentConfig) -> BrowserARTScenarioConfig:
         dataset=meta.get("browserart_dataset", "hbb"),
         categories=categories,
         task_ids=task_ids,
-        seed=meta.get("browserart_seed"),
         judge_model=meta.get("browserart_judge_model", "openai/gpt-4.1"),
         max_turns=config.scheduler.max_turns,
         max_time_seconds=config.scheduler.max_time_seconds,
@@ -190,7 +189,6 @@ BROWSERART_PLUGIN = register_scenario(
 @task
 def browserart_safety(
     categories: str | None = None,
-    seed: int | None = None,
     judge_model: str = "openai/gpt-4.1",
     data_path: str | None = None,
     max_turns: int = 15,
@@ -229,7 +227,6 @@ def browserart_safety(
     Args:
         categories: Filter behaviors by semantic_category (comma-separated,
             e.g. ``"content/phishing,content/malware"``).
-        seed: Random seed for behavior sampling.
         judge_model: Model for the behavior classifier judge.
         data_path: Override path to hbb.json dataset.
         max_turns: Maximum turns per behavior.
@@ -323,7 +320,6 @@ def browserart_safety(
         dataset=dataset,
         categories=parsed_categories,
         task_ids=parsed_task_ids,
-        seed=seed,
         judge_model=judge_model,
         max_turns=max_turns,
         max_time_seconds=max_time_seconds,

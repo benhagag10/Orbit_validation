@@ -247,7 +247,6 @@ def _scenario_config(config: ExperimentConfig) -> Tau2ScenarioConfig:
     return Tau2ScenarioConfig(
         domain=domain,  # type: ignore[arg-type]
         task_ids=_parse_csv(meta.get("tau2_task_ids")),
-        seed=meta.get("tau2_seed"),
         mode=mode,  # type: ignore[arg-type]
         topology=condition,  # type: ignore[arg-type]
         judge_model=meta.get("tau2_judge_model", "openai/gpt-4.1"),
@@ -324,7 +323,6 @@ TAU2_PLUGIN = register_scenario(
 def tau2(
     domain: str = "airline",
     task_ids: str | None = None,
-    seed: int | None = None,
     condition: str = "dual_control",
     judge_model: str = "openai/gpt-4.1",
     max_turns: int = 100,
@@ -376,9 +374,6 @@ def tau2(
         domain: ``'airline'``, ``'retail'``, or ``'telecom'``.
         task_ids: Comma-separated tau2 task IDs to include
             (e.g. ``'1,2,3'``).
-        seed: Retained for ``-T``/API parity; does not affect which samples run. To cap the
-            number of samples use Inspect's native ``--limit`` (with
-            ``--sample-shuffle`` / ``--seed`` for a random subset).
         condition: Named topology preset — one of ``'solo'`` (airline
             only), ``'dual_control'`` (default), ``'supervisor_specialist'``,
             ``'tiered_escalation'``, ``'mesh_committee'``,
@@ -414,7 +409,6 @@ def tau2(
     scenario_config = Tau2ScenarioConfig(
         domain=domain,  # type: ignore[arg-type]
         task_ids=_parse_csv(task_ids),
-        seed=seed,
         mode=mode,  # type: ignore[arg-type]
         topology=condition,  # type: ignore[arg-type]
         judge_model=judge_model,
