@@ -177,9 +177,31 @@ def _swe_bench_scorers(config: ExperimentConfig) -> list[Scorer]:
     return scorers
 
 
+def _swe_bench_resolve(config: ExperimentConfig) -> ExperimentConfig:
+    """Resolve swe-bench attack/defense *preset* shorthand into the config.
+
+    On ``orbit run`` a YAML may declare ``attacks: []`` and carry the preset
+    name in ``metadata.swe_bench_attack_preset`` (the convention the deleted
+    runner dispatch used to resolve). This restores that resolution on the
+    shared builder path, using the same ``get_attack_preset`` primitive the
+    ``-T`` factory uses. Idempotent: a no-op when attacks/defenses are already
+    set (the ``-T`` path).
+    """
+    meta = config.metadata or {}
+    updates: dict = {}
+    if not config.attacks and meta.get("swe_bench_attack_preset"):
+        from orbit.scenarios.coding.swe_bench.presets import get_attack_preset
+        updates["attacks"] = get_attack_preset(meta["swe_bench_attack_preset"])
+    if not config.defenses and meta.get("swe_bench_defense_preset"):
+        from orbit.scenarios.coding.swe_bench.presets import get_defense_preset
+        updates["defenses"] = get_defense_preset(meta["swe_bench_defense_preset"])
+    return config.model_copy(update=updates) if updates else config
+
+
 SWE_BENCH_PLUGIN = register_scenario(
     ScenarioPlugin(
         name="swe_bench",
+        resolve=_swe_bench_resolve,
         expand=_swe_bench_expand,
         build_setup=_swe_bench_setup,
         build_solver=None,  # default mas_orchestrator

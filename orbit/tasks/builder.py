@@ -207,6 +207,14 @@ def build_scenario_task(
     if plugin is None:
         plugin = get_scenario(config.scenario.name) or DEFAULT_PLUGIN
 
+    # 0. Resolve scenario-specific shorthand (preset/condition metadata keys)
+    # into the canonical config. Runs on BOTH entry points, so a preset declared
+    # in an `orbit run` YAML is resolved exactly as the `-T` factory resolves it
+    # — and BEFORE the dimension invariant, so the resolved attacks/defenses are
+    # guarded too. Idempotent: a no-op when the config is already resolved.
+    if plugin.resolve is not None:
+        config = plugin.resolve(config)
+
     # 1. Dataset expansion (threads config.setup/attacks/defenses through).
     configs = plugin.expand(config) if plugin.expand else [config]
 

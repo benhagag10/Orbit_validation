@@ -62,6 +62,18 @@ class ScenarioPlugin:
     name: str
     """The ``scenario.name`` this plugin handles."""
 
+    resolve: Callable[[ExperimentConfig], ExperimentConfig] | None = None
+    """Resolve scenario-specific *shorthand* into the canonical config, BEFORE
+    dataset expansion. e.g. a preset name in ``config.metadata``
+    (``swe_bench_attack_preset``) -> ``config.attacks``; a named
+    ``osworld_condition`` -> ``config.setup``. The shared builder calls this on
+    BOTH entry points, so shorthand declared in an ``orbit run`` YAML is resolved
+    exactly as the ``inspect eval -T`` factory resolves it — closing the gap
+    where the deleted runner dispatch was the only resolver (and making the
+    resolved attacks/defenses visible to the dimension-preserving invariant).
+    MUST be idempotent: no-op when the config is already resolved (e.g. when
+    ``config.attacks`` is already populated). Default: no resolution."""
+
     expand: Callable[[ExperimentConfig], list[ExperimentConfig]] | None = None
     """Fan one config out into per-sample configs (dataset expansion). The
     expansion MUST thread ``config.setup`` (topology), ``config.attacks`` and

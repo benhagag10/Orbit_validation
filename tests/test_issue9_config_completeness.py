@@ -218,3 +218,47 @@ class TestExpandingPluginsPreserveDimensions:
         for exp in configs:
             assert "indirect_injection" in [a.attack_type for a in exp.attacks]
             assert "prompt_vaccination" in [d.defense_type for d in exp.defenses]
+
+
+class TestShorthandResolvedOnOrbitRun:
+    """`orbit run` must resolve scenario *shorthand* (preset / condition metadata
+    keys) into the full config — the deleted runner dispatch was the only
+    resolver, so a shipped YAML relying on a preset/condition silently degraded.
+    These lock in the ``ScenarioPlugin.resolve`` hook (same issue-#9 class, on
+    the reader path the builder invariant alone could not see).
+    """
+
+    def _build_or_skip(self, path: str):
+        import os
+
+        from orbit.wrapper.runner import _build_task
+        from orbit.wrapper.yaml_loader import load_experiment_config
+
+        if not os.path.exists(path):
+            pytest.skip(f"{path} not present")
+        try:
+            return _build_task(load_experiment_config(path))
+        except Exception as exc:  # missing dataset / optional dep
+            pytest.skip(f"{path} data/deps unavailable: {exc}")
+
+    def test_swe_bench_attack_preset_resolved_not_benign(self):
+        # examples/swe_bench_ipi_preset.yaml declares attacks: [] and relies on
+        # metadata.swe_bench_attack_preset — must NOT silently run benign.
+        task = self._build_or_skip("examples/swe_bench_ipi_preset.yaml")
+        exp = _sample_configs(task)[0]
+        assert [a.attack_type for a in exp.attacks] == ["codebase_injection"], (
+            "swe_bench_attack_preset must resolve into an attack on `orbit run`"
+        )
+
+    def test_osworld_condition_resolved_to_correct_memory(self):
+        # 08 names memory_shared_actions; must restore shared=True + shared-action
+        # access (was degrading to default non-shared memory — a P0 violation).
+        task = self._build_or_skip(
+            "examples/osharm_misuse_conditions/08_star_shared_memory.yaml"
+        )
+        exp = _sample_configs(task)[0]
+        mem = exp.setup.memory
+        assert mem.shared is True
+        assert mem.agent_memory_access and all(
+            a.shared_action_history for a in mem.agent_memory_access
+        ), "osworld_condition=memory_shared_actions must restore shared-action access"
