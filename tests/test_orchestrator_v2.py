@@ -175,6 +175,37 @@ class TestTopologyExecutor:
         executor.initialize(SimpleNamespace(messages=[]), config)
         assert executor._root is not None
 
+    def test_attribute_credits_subagent_tool_results(self, single_agent_setup):
+        """message_attribution credits an as_tool() sub-agent's tool-result to
+        that sub-agent and every other message to the producing agent — so the
+        shared-state topology path populates the same store the mesh path does.
+        """
+        from orbit.execution.topology_executor import TopologyExecutor
+        executor = TopologyExecutor(single_agent_setup)
+        env_state = SimpleNamespace(message_attribution=[])
+        state = SimpleNamespace(messages=[
+            SimpleNamespace(role="user"),
+            SimpleNamespace(role="assistant"),                 # root, with tool_call
+            SimpleNamespace(role="tool", function="worker"),   # sub-agent via as_tool
+            SimpleNamespace(role="tool", function="bash"),     # ordinary tool
+        ])
+        executor._attribute(
+            env_state, state, 0, "orchestrator", {"orchestrator", "worker"}
+        )
+        attr = {e["index"]: e["agent"] for e in env_state.message_attribution}
+        assert attr == {0: "orchestrator", 1: "orchestrator", 2: "worker", 3: "orchestrator"}
+
+    def test_attribute_only_records_from_start_index(self, single_agent_setup):
+        from orbit.execution.topology_executor import TopologyExecutor
+        executor = TopologyExecutor(single_agent_setup)
+        env_state = SimpleNamespace(message_attribution=[])
+        state = SimpleNamespace(messages=[
+            SimpleNamespace(role="user"),
+            SimpleNamespace(role="assistant"),
+        ])
+        executor._attribute(env_state, state, 1, "root", set())
+        assert [e["index"] for e in env_state.message_attribution] == [1]
+
 
 # ── ScheduledExecutor ────────────────────────────────────────────────
 
@@ -899,3 +930,62 @@ class TestPendingInjectionRouting:
         injection = {"payload": "x", "applied": False}
         source = injection.get("target_tool", injection.get("type", "unknown"))
         assert source == "unknown"
+
+
+# ── Invoked-agent tracking (regression: issue #21) ───────────────────
+
+
+class TestTrackInvokedAgents:
+    """``_track_invoked_agents`` must record sub-agents a ``TopologyExecutor``
+    fans out to via ``as_tool()`` / ``direct_run`` within a single root turn —
+    not just the one ``AgentTurnResult.agent_name``.
+
+    Regression for issue #21: v2 under-recorded star delegations to a single
+    agent, so the construct-validity checker false-FAILed ``agent_participation``
+    ("star degenerated to 1 agent") on correctly-functioning multi-agent runs.
+    """
+
+    def test_records_executor_delegated_subagents(self):
+        from orbit.solvers.orchestrator_v2 import _track_invoked_agents
+        runtime = SimpleNamespace(invoked_agents=[])
+        # TopologyExecutor exposes root + delegated specialists; the turn
+        # yields a single result naming only the last agent.
+        executor = SimpleNamespace(
+            invoked_agents=["orchestrator", "web_specialist", "comms_specialist"]
+        )
+        results = [SimpleNamespace(agent_name="comms_specialist")]
+        _track_invoked_agents(runtime, executor, results)
+        assert runtime.invoked_agents == [
+            "orchestrator", "web_specialist", "comms_specialist",
+        ]
+
+    def test_falls_back_to_result_names_when_executor_empty(self):
+        # ScheduledExecutor: invoked_agents defaults to []; each agent is its
+        # own turn/result and is recorded from result.agent_name.
+        from orbit.solvers.orchestrator_v2 import _track_invoked_agents
+        runtime = SimpleNamespace(invoked_agents=[])
+        executor = SimpleNamespace(invoked_agents=[])
+        results = [
+            SimpleNamespace(agent_name="alice"),
+            SimpleNamespace(agent_name="bob"),
+        ]
+        _track_invoked_agents(runtime, executor, results)
+        assert runtime.invoked_agents == ["alice", "bob"]
+
+    def test_dedups_across_turns(self):
+        from orbit.solvers.orchestrator_v2 import _track_invoked_agents
+        runtime = SimpleNamespace(invoked_agents=[])
+        executor = SimpleNamespace(invoked_agents=["orchestrator", "web_specialist"])
+        results = [SimpleNamespace(agent_name="web_specialist")]
+        _track_invoked_agents(runtime, executor, results)
+        _track_invoked_agents(runtime, executor, results)  # same agents next turn
+        assert runtime.invoked_agents == ["orchestrator", "web_specialist"]
+
+    def test_scheduled_executor_invoked_agents_defaults_empty(
+        self, scheduled_setup, scheduled_execution
+    ):
+        # The TurnExecutor ABC default keeps ScheduledExecutor's contract: it
+        # relies on per-turn result names, not this property.
+        from orbit.execution.scheduled_executor import ScheduledExecutor
+        executor = ScheduledExecutor(scheduled_setup, scheduled_execution)
+        assert executor.invoked_agents == []
