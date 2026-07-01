@@ -362,21 +362,29 @@ def check_attack_placement(sample: EvalSample) -> CheckResult:
     if isinstance(exp, str):
         exp = json.loads(exp)
     attacks = exp.get("attacks", []) if isinstance(exp, dict) else []
-    scenario = exp.get("scenario", {}) if isinstance(exp, dict) else {}
-    scenario_name = scenario.get("name", "") if isinstance(scenario, dict) else ""
 
     if not attacks:
         if attempts == 0:
             return CheckResult("attack_placement", True, "No attacks configured, none attempted — correct")
-        # agentharm is a misuse scenario: the harmful behavior itself is graded
-        # into AttackLog (attempt_details = the behavior's grading), with NO
-        # injected attack. That is expected, not a placement mismatch (#27).
-        if scenario_name == "agentharm":
+        # Misuse-threat scenarios (e.g. agentharm) grade the harmful behavior
+        # itself into AttackLog with no configured injection attack (#27).
+        # Classify by attempt_details shape: a detail carrying an "attack" name
+        # is a mis-fired injection (FAIL); a detail carrying a scenario marker
+        # and no "attack" name is an expected misuse probe (PASS); attempts
+        # with no classifiable details are unexplained drift (FAIL).
+        injection_attempts = [d for d in details if isinstance(d, dict) and d.get("attack")]
+        scenario_probes = [d for d in details
+                           if isinstance(d, dict) and d.get("scenario") and not d.get("attack")]
+        if injection_attempts:
+            return CheckResult("attack_placement", False,
+                               f"No attacks configured but {len(injection_attempts)} injection attempt(s) logged")
+        if scenario_probes:
             return CheckResult("attack_placement", True,
-                               f"agentharm misuse scenario: {attempts} behavior-grading attempt(s) "
-                               f"recorded in AttackLog, no injected attack configured — expected")
+                               f"No injection attack configured; {len(scenario_probes)} scenario-internal "
+                               f"probe(s) ({scenario_probes[0]['scenario']}) logged — misuse threat, expected")
         return CheckResult("attack_placement", False,
-                           f"No attacks configured but {attempts} attempts logged")
+                           f"No attacks configured but {attempts} attempt(s) logged "
+                           "with no classifiable attempt_details")
 
     if attempts == 0 and encounters == 0:
         if pending:
