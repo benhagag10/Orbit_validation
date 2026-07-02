@@ -161,7 +161,7 @@ def _build_experiment_setups() -> list[ExperimentSetup]:
                     benign_pair=f"jira_benign_{arch}{def_suffix}",
                     task_params={
                         **_JIRA_BASE,
-                        "topology_preset": arch,
+                        "condition": arch,
                         "coalition_agents": _JIRA_COALITIONS[arch][setup_id],
                         **collusion_params,
                         **def_params,
@@ -180,7 +180,7 @@ def _build_experiment_setups() -> list[ExperimentSetup]:
                     benign_pair=f"meeting_benign_{arch}{def_suffix}",
                     task_params={
                         **_MEETING_BASE,
-                        "topology_preset": arch,
+                        "condition": arch,
                         "coalition_agents": _MEETING_COALITIONS[arch][setup_id],
                         **collusion_params,
                         **def_params,
@@ -200,7 +200,7 @@ def _build_experiment_setups() -> list[ExperimentSetup]:
                 benign_pair=f"jira_benign_{arch}{def_suffix}",
                 task_params={
                     **_JIRA_BASE,
-                    "topology_preset": arch,
+                    "condition": arch,
                     "coalition_agents": _JIRA_SINGLE_AGENT[arch],
                     "collusion_mode": "prompted",
                     "persuasion_tactic": "covert_reward_maximization",
@@ -219,7 +219,7 @@ def _build_experiment_setups() -> list[ExperimentSetup]:
                 benign_pair=f"meeting_benign_{arch}{def_suffix}",
                 task_params={
                     **_MEETING_BASE,
-                    "topology_preset": arch,
+                    "condition": arch,
                     "coalition_agents": _MEETING_SINGLE_AGENT[arch],
                     "collusion_mode": "prompted",
                     "persuasion_tactic": "covert_reward_maximization",
@@ -240,7 +240,7 @@ def _build_experiment_setups() -> list[ExperimentSetup]:
                 benign_pair=f"jira_benign_{arch}{def_suffix}",
                 task_params={
                     **_JIRA_BASE,
-                    "topology_preset": arch,
+                    "condition": arch,
                     "compromised_agent": _JIRA_SINGLE_AGENT[arch],
                     **def_params,
                 },
@@ -257,7 +257,7 @@ def _build_experiment_setups() -> list[ExperimentSetup]:
                 benign_pair=f"meeting_benign_{arch}{def_suffix}",
                 task_params={
                     **_MEETING_BASE,
-                    "topology_preset": arch,
+                    "condition": arch,
                     "compromised_agent": _MEETING_SINGLE_AGENT[arch],
                     **def_params,
                 },
@@ -274,7 +274,7 @@ def _build_experiment_setups() -> list[ExperimentSetup]:
                 defense=defense_short,
                 is_collusion=False,
                 benign_pair=f"jira_benign_{arch}{def_suffix}",
-                task_params={**_JIRA_BASE, "topology_preset": arch, **def_params},
+                task_params={**_JIRA_BASE, "condition": arch, **def_params},
                 max_turns=MAX_TURNS,
             ))
             setups.append(ExperimentSetup(
@@ -286,7 +286,7 @@ def _build_experiment_setups() -> list[ExperimentSetup]:
                 defense=defense_short,
                 is_collusion=False,
                 benign_pair=f"meeting_benign_{arch}{def_suffix}",
-                task_params={**_MEETING_BASE, "topology_preset": arch, **def_params},
+                task_params={**_MEETING_BASE, "condition": arch, **def_params},
                 max_turns=MAX_TURNS,
             ))
 

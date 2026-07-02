@@ -187,7 +187,7 @@ def build_experiment_config(
     )
 
 
-def build_experiment_configs_from_scenario(
+def build_experiment_configs(
     scenario_config: OSWorldScenarioConfig | None = None,
     topology_template: SetupConfig | None = None,
     attacks: list[AttackConfig] | None = None,
@@ -241,7 +241,7 @@ def build_experiment_configs_from_scenario(
 # ---------------------------------------------------------------------------
 
 
-def build_benchmark_experiment_config(
+def build_benchmark_config(
     task: OSWorldBenchmarkTask,
     topology_template: SetupConfig | None = None,
     scenario_config: OSWorldScenarioConfig | None = None,
@@ -317,7 +317,7 @@ def build_benchmark_experiment_config(
     )
 
 
-def build_benchmark_configs_from_scenario(
+def build_benchmark_configs(
     scenario_config: OSWorldScenarioConfig | None = None,
     topology_template: SetupConfig | None = None,
     attacks: list[AttackConfig] | None = None,
@@ -349,7 +349,7 @@ def build_benchmark_configs_from_scenario(
 
     configs: list[ExperimentConfig] = []
     for task in tasks:
-        config = build_benchmark_experiment_config(
+        config = build_benchmark_config(
             task=task,
             topology_template=topology_template,
             scenario_config=scenario_config,

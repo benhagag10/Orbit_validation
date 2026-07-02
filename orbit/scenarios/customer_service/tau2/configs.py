@@ -188,12 +188,6 @@ class Tau2ScenarioConfig(BaseModel, frozen=True):
     task_ids: list[str] | None = None
     """Filter to specific task IDs. ``None`` → all tasks."""
 
-    max_tasks: int | None = None
-    """Limit number of tasks to evaluate."""
-
-    seed: int | None = None
-    """Random seed for deterministic task sampling when ``max_tasks`` is set."""
-
     mode: Literal["solo", "dual_control"] = "dual_control"
     """Execution mode. ``'dual_control'`` is the upstream-faithful
     default; ``'solo'`` is the PR 1 Orbit-specific baseline (only

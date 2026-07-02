@@ -22,7 +22,7 @@ from orbit.scenarios.desktop.osworld.condition_presets import (
 )
 from orbit.scenarios.desktop.osworld.config_builder import (
     build_experiment_config,
-    build_experiment_configs_from_scenario,
+    build_experiment_configs,
     default_topology_template,
 )
 from orbit.scenarios.desktop.osworld.configs import (
@@ -195,8 +195,6 @@ class TestOSWorldScenarioConfig:
         assert cfg.apps is None
         assert cfg.threat_categories is None
         assert cfg.violation_types is None
-        assert cfg.max_tasks is None
-        assert cfg.seed is None
         assert cfg.judge_model == "openai/gpt-4.1"
         assert cfg.max_turns == 100
         assert cfg.max_time_seconds == 600.0
@@ -213,17 +211,13 @@ class TestOSWorldScenarioConfig:
         cfg = OSWorldScenarioConfig(
             apps=["chrome", "thunderbird"],
             threat_categories=["misuse"],
-            max_tasks=10,
-            seed=42,
             judge_model="openai/gpt-4o-mini",
         )
         assert cfg.apps == ["chrome", "thunderbird"]
         assert cfg.threat_categories == ["misuse"]
-        assert cfg.max_tasks == 10
-        assert cfg.seed == 42
 
     def test_roundtrip_json(self) -> None:
-        cfg = OSWorldScenarioConfig(apps=["chrome"], seed=7)
+        cfg = OSWorldScenarioConfig(apps=["chrome"])
         data = json.loads(cfg.model_dump_json())
         restored = OSWorldScenarioConfig(**data)
         assert restored == cfg
@@ -652,28 +646,6 @@ class TestFilterTasks:
         # thunderbird + misuse: t01, t02, t09
         assert len(result) == 3
 
-    def test_max_tasks_truncation(self) -> None:
-        tasks = _sample_tasks()
-        cfg = OSWorldScenarioConfig(max_tasks=3)
-        result = filter_tasks(tasks, cfg)
-        assert len(result) == 3
-
-    def test_max_tasks_with_seed(self) -> None:
-        tasks = _sample_tasks()
-        cfg = OSWorldScenarioConfig(max_tasks=3, seed=42)
-        r1 = filter_tasks(tasks, cfg)
-        r2 = filter_tasks(tasks, cfg)
-        assert len(r1) == 3
-        assert [t.task_id for t in r1] == [t.task_id for t in r2]
-
-    def test_different_seeds_different_results(self) -> None:
-        tasks = _sample_tasks()
-        cfg1 = OSWorldScenarioConfig(max_tasks=3, seed=42)
-        cfg2 = OSWorldScenarioConfig(max_tasks=3, seed=99)
-        r1 = filter_tasks(tasks, cfg1)
-        r2 = filter_tasks(tasks, cfg2)
-        assert [t.task_id for t in r1] != [t.task_id for t in r2]
-
     def test_no_filters_returns_all(self) -> None:
         tasks = _sample_tasks()
         cfg = OSWorldScenarioConfig()
@@ -763,7 +735,7 @@ class TestBuildExperimentConfig:
 class TestBuildExperimentConfigsFromScenario:
     def test_builds_from_tasks(self) -> None:
         tasks = [_make_task("t1"), _make_task("t2"), _make_task("t3")]
-        configs = build_experiment_configs_from_scenario(tasks=tasks)
+        configs = build_experiment_configs(tasks=tasks)
         assert len(configs) == 3
         assert configs[0].name == "osworld_t1"
         assert configs[2].name == "osworld_t3"
@@ -1060,7 +1032,7 @@ class TestModuleExports:
             OSHarmTask,
             OSWorldScenarioConfig,
             build_experiment_config,
-            build_experiment_configs_from_scenario,
+            build_experiment_configs,
             default_topology_template,
             get_condition_setup,
             list_conditions,
@@ -1188,16 +1160,6 @@ class TestTaskIdsFilter:
         result = filter_tasks(tasks, cfg)
         assert len(result) == 1
         assert result[0].task_id == "t01"
-
-    def test_task_ids_with_max_tasks(self) -> None:
-        tasks = _sample_tasks()
-        cfg = OSWorldScenarioConfig(
-            task_ids=["t01", "t02", "t03", "t04"],
-            max_tasks=2,
-        )
-        result = filter_tasks(tasks, cfg)
-        assert len(result) == 2
-
 
 # ===========================================================================
 # Condition-aware attack targeting tests

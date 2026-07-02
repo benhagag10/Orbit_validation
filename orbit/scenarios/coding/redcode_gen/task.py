@@ -4,32 +4,88 @@ RedCode-Gen task entry point.
 Registered with Inspect via ``_registry.py``. Creates a Task from RedCode-Gen
 malware code generation prompts with configurable topology, attacks, and
 defenses.
+
+Construction is unified through the scenario-agnostic builder
+(``orbit.tasks.builder.build_scenario_task``): the ``redcode_gen`` plugin's
+``expand`` hook reads the task-selection config from ``config.metadata`` and
+threads ``config.setup`` (topology), ``config.attacks`` and ``config.defenses``
+through. ``inspect eval -T ...`` and ``orbit run <yaml>`` build identical Tasks.
 """
 
 from __future__ import annotations
 
 import logging
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 from inspect_ai import Task, task
-from inspect_ai.dataset import MemoryDataset
 
-from orbit.dataset.sample_factory import build_sample
 from orbit.scenarios.coding.redcode_gen.config_builder import (
-    build_experiment_configs_from_scenario,
-    default_topology_template,
+    build_experiment_configs,
 )
 from orbit.scenarios.coding.redcode_gen.configs import RedCodeGenScenarioConfig
-from orbit.scenarios.coding.redcode_gen.scorer import redcode_gen_scorer
+from orbit.scenarios.registry import ScenarioPlugin, register_scenario
+from orbit.tasks.builder import build_scenario_task, split_csv
+
+if TYPE_CHECKING:
+    from inspect_ai.scorer import Scorer
+
+    from orbit.configs.experiment import ExperimentConfig
 
 logger = logging.getLogger(__name__)
+
+_SANDBOX_COMPOSE = str(Path(__file__).parent / "sandbox" / "compose.yaml")
+
+
+def _scenario_config(config: ExperimentConfig) -> RedCodeGenScenarioConfig:
+    meta = config.metadata or {}
+    if "redcode_gen_scenario_config" in meta:
+        return RedCodeGenScenarioConfig(**meta["redcode_gen_scenario_config"])
+    return RedCodeGenScenarioConfig(
+        data_path=meta.get("redcode_gen_data_path"),
+        categories=split_csv(meta.get("redcode_gen_categories")),
+        task_ids=split_csv(meta.get("redcode_gen_task_ids")),
+        judge_model=meta.get("redcode_gen_judge_model", "openai/gpt-4.1"),
+        max_turns=config.scheduler.max_turns,
+        max_time_seconds=config.scheduler.max_time_seconds,
+    )
+
+
+def _redcode_gen_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
+    configs = build_experiment_configs(
+        scenario_config=_scenario_config(config),
+        topology_template=config.setup if config.setup.agents else None,
+        attacks=list(config.attacks) or None,
+        defenses=list(config.defenses) or None,
+    )
+    if not configs:
+        logger.warning("No samples built — check scenario config and filters")
+    return configs
+
+
+def _redcode_scorers(config: ExperimentConfig) -> list[Scorer]:
+    from orbit.scenarios.coding.redcode_gen.scorer import redcode_gen_scorer
+    from orbit.scorers.security_scorer import security_scorer
+
+    return [redcode_gen_scorer(_scenario_config(config).judge_model), security_scorer()]
+
+
+REDCODE_GEN_PLUGIN = register_scenario(
+    ScenarioPlugin(
+        name="redcode_gen",
+        expand=_redcode_gen_expand,
+        build_setup=lambda config: None,
+        build_solver=None,  # default mas_orchestrator (v1/v2)
+        build_scorers=_redcode_scorers,
+        build_sandbox=lambda config: ("docker", _SANDBOX_COMPOSE),
+    )
+)
 
 
 @task
 def redcode_gen(
     categories: str | None = None,
     task_ids: str | None = None,
-    max_tasks: int | None = None,
-    seed: int | None = None,
     judge_model: str = "openai/gpt-4.1",
     max_turns: int = 5,
     max_time_seconds: float = 120.0,
@@ -48,10 +104,7 @@ def redcode_gen(
     Args:
         categories: Comma-separated malware categories to include
             (e.g. ``"spyware,ransomware"``). Default: all 8 categories.
-        task_ids: Comma-separated task IDs to include
-            (e.g. ``"spyware_1_keylogger,ddos_5_syn_flood"``).
-        max_tasks: Maximum number of tasks to evaluate.
-        seed: Random seed for deterministic sampling when ``max_tasks`` is set.
+        task_ids: Comma-separated task IDs to include.
         judge_model: Model for the LLM judge scorer.
         max_turns: Maximum turns per task.
         max_time_seconds: Maximum wall-clock time per task.
@@ -62,25 +115,16 @@ def redcode_gen(
         defense_preset: Defense preset name (e.g. ``"prompt_vaccination"``).
         data_path: Path to RedCode-Gen dataset directory. Default: bundled data.
     """
-    # Parse comma-separated params
-    category_list = (
-        [c.strip() for c in categories.split(",")]
-        if categories
-        else None
-    )
-    task_id_list = (
-        [t.strip() for t in task_ids.split(",")]
-        if task_ids
-        else None
-    )
+    from orbit.configs.experiment import ExperimentConfig
+    from orbit.configs.metrics import MetricsConfig
+    from orbit.configs.scenario import ScenarioConfig
+    from orbit.configs.scheduler import SchedulerConfig
+    from orbit.scenarios.coding.redcode_gen.config_builder import default_topology_template
 
-    # Build scenario config
     scenario_config = RedCodeGenScenarioConfig(
         data_path=data_path,
-        categories=category_list,
-        task_ids=task_id_list,
-        max_tasks=max_tasks,
-        seed=seed,
+        categories=split_csv(categories),
+        task_ids=split_csv(task_ids),
         judge_model=judge_model,
         max_turns=max_turns,
         max_time_seconds=max_time_seconds,
@@ -102,7 +146,6 @@ def redcode_gen(
             topo_data = yaml.safe_load(f)
         topology_template = SetupConfig(**topo_data)
 
-    # Build attack/defense configs from presets
     attacks = None
     defenses = None
     if attack_preset:
@@ -112,37 +155,21 @@ def redcode_gen(
         from orbit.scenarios.coding.redcode_gen.presets import get_defense_preset
         defenses = get_defense_preset(defense_preset)
 
-    # Build experiment configs
-    configs = build_experiment_configs_from_scenario(
-        scenario_config=scenario_config,
-        topology_template=topology_template,
-        attacks=attacks,
-        defenses=defenses,
+    config = ExperimentConfig(
+        name="redcode_gen",
+        description="RedCode-Gen malware code generation safety benchmark",
+        setup=topology_template,
+        scenario=ScenarioConfig(name="redcode_gen", description="RedCode-Gen coding safety"),
+        attacks=attacks or [],
+        defenses=defenses or [],
+        scheduler=SchedulerConfig(
+            max_turns=max_turns,
+            max_time_seconds=max_time_seconds,
+            halt_on_convergence=False,
+        ),
+        metrics=MetricsConfig(),
+        metadata={
+            "redcode_gen_scenario_config": scenario_config.model_dump(),
+        },
     )
-
-    # Build samples
-    samples = []
-    for config in configs:
-        sample = build_sample(config, sample_id=config.name)
-        samples.append(sample)
-
-    if not samples:
-        logger.warning("No samples built — check scenario config and filters")
-
-    # Build task
-    from pathlib import Path
-
-    from orbit.scorers.security_scorer import security_scorer
-    from orbit.solvers.orchestrator import mas_orchestrator
-    from orbit.solvers.orchestrator_v2 import mas_orchestrator_v2
-
-    sandbox_compose = str(
-        Path(__file__).parent / "sandbox" / "compose.yaml"
-    )
-
-    return Task(
-        dataset=MemoryDataset(samples) if samples else MemoryDataset([]),
-        solver=mas_orchestrator_v2() if orchestrator == "v2" else mas_orchestrator(),
-        scorer=[redcode_gen_scorer(judge_model), security_scorer()],
-        sandbox=("docker", sandbox_compose),
-    )
+    return build_scenario_task(config, REDCODE_GEN_PLUGIN, orchestrator=orchestrator)

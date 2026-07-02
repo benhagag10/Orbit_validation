@@ -55,7 +55,11 @@ attacks:
 defenses:
   - name: "dual_llm"
     defense_type: "dual_llm"
-    target_agents: ["solver"]
+    # Empty = protect ALL agents (matches the dual_llm preset). SWE-Bench
+    # replicates the `solver` template per issue into solver_0, solver_1, ...,
+    # so naming a bare "solver" here would match no runtime agent. Leaving this
+    # empty wraps every replicated solver regardless of issue count.
+    target_agents: []
     # model_override defaults to the task-level model. Set explicitly for
     # an asymmetric P-LLM/Q-LLM ablation:
     # model_override: "openai/gpt-4o-mini"

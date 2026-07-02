@@ -205,10 +205,10 @@ class TestBuildSamples:
             for s in samples
         )
 
-    def test_max_samples_deterministic(self):
-        cfg = ConverseScenarioConfig(
-            attack_modes=("privacy",), max_samples=5, seed=42
-        )
+    def test_build_samples_is_deterministic(self):
+        # Sample-count limiting now lives in Inspect's --limit; build_samples
+        # always materializes the full matching set, deterministically.
+        cfg = ConverseScenarioConfig(attack_modes=("privacy",))
         run1 = build_samples(cfg)
         run2 = build_samples(cfg)
         assert [s.sample_id for s in run1] == [s.sample_id for s in run2]
@@ -828,6 +828,49 @@ class TestRegistry:
 
 
 # ---------------------------------------------------------------------------
+# Regression: multi-value -T parsing tolerates Inspect's list coercion
+# ---------------------------------------------------------------------------
+
+
+class TestAttackModeParsing:
+    """Inspect coerces a comma-separated ``-T`` value into a Python list, so
+    ``-T attack_modes=privacy,security`` arrives at the factory as
+    ``["privacy", "security"]``. The parser used to call ``.split(",")`` on it
+    and crash with ``'list' object has no attribute 'split'``. These pin the
+    tolerant parser (str | list | int | None)."""
+
+    def test_parse_csv_tolerates_list_str_int_none(self):
+        from orbit.scenarios.customer_service.converse.task import _parse_csv
+
+        assert _parse_csv(None) is None
+        assert _parse_csv("") is None
+        assert _parse_csv("privacy,security") == ("privacy", "security")
+        # The crash repro: Inspect hands the factory a list.
+        assert _parse_csv(["privacy", "security"]) == ("privacy", "security")
+        assert _parse_csv(["privacy", " security ", ""]) == ("privacy", "security")
+        assert _parse_csv("privacy") == ("privacy",)
+        assert _parse_csv(1) == ("1",)
+        assert _parse_csv([]) is None
+
+    def test_factory_accepts_list_attack_modes(self):
+        # Full repro through the task factory: a list of modes plus a list of
+        # domains must not raise and must materialize the requested modes.
+        from orbit.scenarios.customer_service.converse.task import converse_safety
+
+        task = converse_safety(
+            attack_modes=["privacy", "security"],
+            domains=["insurance"],
+        )
+        assert len(task.dataset) > 0
+        modes = {
+            sample.metadata["experiment"]["metadata"]["converse_attack_mode"]
+            for sample in task.dataset
+        }
+        assert modes <= {"privacy", "security"}
+        assert modes  # at least one mode materialized
+
+
+# ---------------------------------------------------------------------------
 # End-to-end: full task → sample → setup solver → scorer chain
 # ---------------------------------------------------------------------------
 
@@ -862,14 +905,13 @@ class TestEndToEnd:
         from orbit.scenarios.customer_service.converse.task import converse_setup
 
         # Build one benign paper_star sample via the real task pipeline.
+        # (--limit handles count capping now; take the first built sample.)
         scenario_config = ConverseScenarioConfig(
             attack_modes=("benign",),
-            max_samples=1,
-            seed=0,
             max_turns=2,
             max_time_seconds=60.0,
         )
-        samples = build_samples(scenario_config)
+        samples = build_samples(scenario_config)[:1]
         assert samples, "dataset builder produced no samples"
         setup = get_condition_setup("paper_star")
         configs = build_experiment_configs(
@@ -981,12 +1023,16 @@ class TestEndToEnd:
         # catches MemoryConfig / AgentMemoryAccess shape regressions.
         scenario_config = ConverseScenarioConfig(
             attack_modes=("privacy",),
-            max_samples=1,
-            seed=0,
             max_turns=4,
             max_time_seconds=60.0,
         )
-        samples = build_samples(scenario_config)
+        # --limit handles count capping now; take the first privacy sample that
+        # actually carries extraction snippets (the test needs a real needle).
+        samples = [
+            s
+            for s in build_samples(scenario_config)
+            if s.privacy_attack and s.privacy_attack.extraction_snippets
+        ][:1]
         assert samples, "dataset builder produced no privacy samples"
         setup = apply_memory_preset(
             get_condition_setup("paper_star"), "assistant_environment_shared"

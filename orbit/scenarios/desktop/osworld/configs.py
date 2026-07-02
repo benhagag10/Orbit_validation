@@ -152,12 +152,6 @@ class OSWorldScenarioConfig(BaseModel, frozen=True):
     """Filter by violation type (e.g. ['data_exfiltration']).
     None means all violation types."""
 
-    max_tasks: int | None = None
-    """Limit number of tasks to evaluate. None means all."""
-
-    seed: int | None = None
-    """Random seed for deterministic task sampling."""
-
     judge_model: str = "openai/gpt-4.1"
     """Model to use for the safety judge scorer."""
 

@@ -20,17 +20,17 @@ uv sync --extra dev
 ```bash
 # Single-agent BrowserART (1 behavior, BrowserGym mode, no Docker)
 inspect eval orbit/browserart_safety \
-  -T max_behaviors=1 -T max_turns=5 \
+  -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
-# Multi-agent with ICML condition preset (star + 4 specialists)
+# Multi-agent with condition preset (star + specialists)
 inspect eval orbit/browserart_safety \
-  -T condition=m1_2 -T max_behaviors=1 -T max_turns=5 \
+  -T condition=star_specialist -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # Mesh delegation topology
 inspect eval orbit/browserart_safety \
-  -T condition=m2_3 -T max_behaviors=1 -T max_turns=5 \
+  -T condition=mesh_delegation -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # View results in browser
@@ -76,25 +76,20 @@ scheduler:
   max_turns: 5
   max_time_seconds: 120.0
 
-metadata:
-  browserart_max_behaviors: 5
+metadata: {}
 ```
 
 ### Multi-agent config (with condition preset)
 
-When using `browserart_condition` in metadata, the condition preset injects agents
-and topology at task-build time. You still need a minimal `setup` section for
-config validation.
+When using `browserart_condition` in metadata, the condition preset supplies the
+agents and topology at task-build time — **omit the `setup` block entirely**. Do
+not add a placeholder `setup.agents`: if both an inline `setup` and a condition
+are declared, the inline setup wins and the condition is silently ignored (with a
+warning), collapsing the run to that placeholder agent.
 
 ```yaml
 name: "browserart_multi_agent"
 description: "Star topology with 4 specialists"
-
-setup:
-  agents:
-    - name: "placeholder"
-      role: "executor"
-  edges: []
 
 scenario:
   name: "browserart"
@@ -104,8 +99,7 @@ scheduler:
   max_time_seconds: 120.0
 
 metadata:
-  browserart_condition: "m1_2"
-  browserart_max_behaviors: 5
+  browserart_condition: "star_specialist"
 ```
 
 Run it:
@@ -118,12 +112,10 @@ orbit run my_config.yaml --model openai/gpt-4o
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `browserart_max_behaviors` | int | Max number of behaviors to test |
 | `browserart_categories` | list[str] | Filter by category (e.g. `["content/phishing"]`) |
-| `browserart_condition` | str | ICML condition preset (see below) |
+| `browserart_condition` | str | Multi-agent condition preset (see below). Declare either this or an inline `setup:`; if both are given, the inline `setup:` wins and the condition is ignored (with a warning) |
 | `browserart_headless` | bool | Run browser headlessly (default `true`) |
 | `browserart_record_video_dir` | str | Directory for video recordings |
-| `browserart_seed` | int | Random seed for behavior sampling |
 | `browserart_data_path` | str | Override path to hbb.json dataset |
 
 ### SWE-Bench metadata fields
@@ -133,11 +125,9 @@ orbit run my_config.yaml --model openai/gpt-4o
 | `swe_bench_num_issues` | int | Number of issues per group (default: 2) |
 | `swe_bench_repos` | list[str] | Repository filter (e.g. `["django/django"]`) |
 | `swe_bench_seed` | int | Random seed for group sampling |
-| `swe_bench_mode` | str | Execution mode: `"round_robin"` or `"superstep"` |
-| `swe_bench_topology` | str | Topology template: `"default"` or path to YAML |
+| `swe_bench_scheduling_mode` | str | Execution mode: `"round_robin"` or `"superstep"` |
 | `swe_bench_attack_preset` | str | Attack preset: `"self_replication"`, `"sabotage"` |
 | `swe_bench_defense_preset` | str | Defense preset: `"file_monitor"`, `"diff_monitor"`, `"full"` |
-| `swe_bench_max_groups` | int | Cap groups per pool (limits Docker images built) |
 
 ### SWE-Bench YAML config example
 
@@ -164,8 +154,7 @@ metadata:
   swe_bench_num_issues: 2
   swe_bench_repos: ["django/django"]
   swe_bench_seed: 42
-  swe_bench_mode: "round_robin"
-  swe_bench_max_groups: 1
+  swe_bench_scheduling_mode: "round_robin"
 ```
 
 ## Multi-Agent Condition Presets
@@ -175,33 +164,34 @@ prompts, and execution style automatically.
 
 | Condition | Description |
 |-----------|-------------|
-| `m1_0` | Single agent (baseline) |
-| `m1_1` | Star: orchestrator + 1 batch executor (detailed prompts) |
-| `m1_1b` | Star: orchestrator + 1 batch executor (relaxed prompts) |
-| `m1_2` | Star: orchestrator + 4 specialists (detailed dispatch) |
-| `m1_2b` | Star: orchestrator + 4 specialists (relaxed dispatch) |
-| `m1_3` | Star: orchestrator + 1 step executor |
-| `m2_0` | Single agent (same as m1_0) |
-| `m2_2` | Mesh: 4 peers, round-robin turns |
-| `m2_3` | Mesh: 4 peers, dynamic delegation |
-| `m3_0`..`m3_4` | Star + 4 specialists with increasing memory visibility |
+| `single_agent` | Single agent (baseline) |
+| `star_batch` | Star: orchestrator + 1 batch executor (detailed prompts) |
+| `star_batch_relaxed` | Star: orchestrator + 1 batch executor (relaxed prompts) |
+| `star_specialist` | Star: orchestrator + specialists (detailed dispatch) |
+| `star_specialist_relaxed` | Star: orchestrator + specialists (relaxed dispatch) |
+| `star_2_specialist` / `star_3_specialist` | Star: orchestrator + 2 or 3 specialists |
+| `star_step` | Star: orchestrator + 1 step executor |
+| `mesh_round_robin` | Mesh: peers, round-robin turns |
+| `mesh_delegation` | Mesh: peers, dynamic delegation |
+| `mesh_delegation_cot` / `mesh_delegation_full` | Mesh delegation with more memory visibility |
+| `memory_none`, `memory_own_reasoning`, `memory_own_actions`, `memory_shared_actions`, `memory_full` | Star + specialists with increasing memory visibility |
 
 ### Example: Compare single vs multi-agent
 
 ```bash
 # Single agent baseline
 inspect eval orbit/browserart_safety \
-  -T condition=m1_0 -T max_behaviors=1 -T max_turns=5 \
+  -T condition=single_agent -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
-# 4-specialist star topology
+# Specialist star topology
 inspect eval orbit/browserart_safety \
-  -T condition=m1_2 -T max_behaviors=1 -T max_turns=5 \
+  -T condition=star_specialist -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # Mesh delegation
 inspect eval orbit/browserart_safety \
-  -T condition=m2_3 -T max_behaviors=1 -T max_turns=5 \
+  -T condition=mesh_delegation -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # View all results
@@ -242,7 +232,7 @@ orbit suite examples/*.yaml --model openai/gpt-4o --baselines
 Run BrowserART directly (no YAML config needed):
 
 ```bash
-orbit browserart --model openai/gpt-4o --max-behaviors 5 --max-turns 10
+orbit browserart --model openai/gpt-4o --limit 5 --max-turns 10
 ```
 
 ### `orbit swe-bench`

@@ -140,17 +140,18 @@ def build_experiment_config(
         _find_agent_for_role(wired, ROLE_PLANNER) or ""
     )
 
-    per_sample_attacks: list[AttackConfig] = []
+    # Caller-supplied (global/preset) attacks first, then any per-sample
+    # attacks built for this sample — one merged list.
+    sample_attacks: list[AttackConfig] = list(attacks or [])
     if attack_factory is not None:
-        per_sample_attacks.extend(attack_factory(sample, target_external))
+        sample_attacks.extend(attack_factory(sample, target_external))
     elif sample.attack_mode != "benign":
         from orbit.scenarios.customer_service.converse.presets import build_attacks_for_sample
 
-        per_sample_attacks.extend(
+        sample_attacks.extend(
             build_attacks_for_sample(sample, target_agent=target_external)
         )
 
-    final_attacks: list[AttackConfig] = list(attacks or []) + per_sample_attacks
     final_defenses: list[DefenseConfig] = list(defenses or [])
 
     # Agent group covers everyone in the setup — Path C round-robin by default.
@@ -190,7 +191,7 @@ def build_experiment_config(
                 f"{sample.persona.domain}/{sample.persona.persona_id}"
             ),
         ),
-        attacks=final_attacks,
+        attacks=sample_attacks,
         defenses=final_defenses,
         execution=execution,
         scheduler=SchedulerConfig(

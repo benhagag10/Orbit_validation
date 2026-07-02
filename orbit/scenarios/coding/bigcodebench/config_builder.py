@@ -134,7 +134,7 @@ def build_experiment_config(
     )
 
 
-def build_experiment_configs_from_scenario(
+def build_experiment_configs(
     scenario_config: BigCodeBenchScenarioConfig | None = None,
     topology_template: SetupConfig | None = None,
     attacks: list[AttackConfig] | None = None,

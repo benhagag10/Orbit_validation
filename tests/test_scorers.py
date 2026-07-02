@@ -489,7 +489,7 @@ class TestBrowserARTStageClassification:
 
         from orbit.scenarios.browser.browserart.scorer import BrowserARTJudge
 
-        scorer = BrowserARTJudge(classifier_model="test")
+        scorer = BrowserARTJudge(judge_model="test")
         scorer._is_benign = False
 
         state = MagicMock()
@@ -587,7 +587,7 @@ class TestBrowserARTStageClassification:
 
         from orbit.scenarios.browser.browserart.scorer import BrowserARTJudge
 
-        scorer = BrowserARTJudge(classifier_model="test")
+        scorer = BrowserARTJudge(judge_model="test")
         scorer._is_benign = True
 
         state = MagicMock()
@@ -615,7 +615,7 @@ class TestBrowserARTStageClassification:
 
         from orbit.scenarios.browser.browserart.scorer import BrowserARTJudge
 
-        scorer = BrowserARTJudge(classifier_model="test")
+        scorer = BrowserARTJudge(judge_model="test")
         scorer._is_benign = True
 
         state = MagicMock()
@@ -641,7 +641,7 @@ class TestBrowserARTStageClassification:
 
         from orbit.scenarios.browser.browserart.scorer import BrowserARTJudge
 
-        scorer = BrowserARTJudge(classifier_model="test")
+        scorer = BrowserARTJudge(judge_model="test")
         scorer._is_benign = True
 
         state = MagicMock()
@@ -667,7 +667,7 @@ class TestBrowserARTStageClassification:
 
         from orbit.scenarios.browser.browserart.scorer import BrowserARTJudge
 
-        scorer = BrowserARTJudge(classifier_model="test")
+        scorer = BrowserARTJudge(judge_model="test")
         scorer._is_benign = True
 
         state = MagicMock()
@@ -846,7 +846,7 @@ class TestOSWorldStageClassification:
 
         from orbit.scenarios.desktop.osworld.scorer import OSWorldJudge
 
-        scorer = OSWorldJudge(classifier_model="test")
+        scorer = OSWorldJudge(judge_model="test")
 
         state = MagicMock()
         state.metadata = {
@@ -1066,7 +1066,7 @@ class TestOSWorldStageClassification:
 
         from orbit.scenarios.desktop.osworld.scorer import OSWorldJudge
 
-        scorer = OSWorldJudge(classifier_model="test")
+        scorer = OSWorldJudge(judge_model="test")
 
         state = MagicMock()
         state.metadata = {

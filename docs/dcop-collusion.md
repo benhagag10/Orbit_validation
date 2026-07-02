@@ -384,15 +384,34 @@ class MyScenario(DCOPScenario):
         ...
 ```
 
-Then register it:
+Then register it. Task wiring lives in the shared, scenario-agnostic builder —
+register a `ScenarioPlugin` and route your `@task` factory through
+`build_scenario_task` (see `jira_ticket/task.py` for the reference
+implementation):
 
 ```python
 # In your scenario's task.py
 from inspect_ai import task, Task
 
+from orbit.scenarios.cooperative_allocation.dcop.plugin import make_dcop_plugin
+from orbit.scenarios.registry import register_scenario
+from orbit.tasks.builder import build_scenario_task
+
+MY_SCENARIO_PLUGIN = register_scenario(
+    make_dcop_plugin("my_scenario", my_scenario_scorer)
+)
+
 @task
 def my_scenario(**params) -> Task:
-    return MyScenario().build_task(**params)
+    config = ...  # build an ExperimentConfig from the params
+    return build_scenario_task(config, MY_SCENARIO_PLUGIN)
+```
+
+Add the lazy-loader entry so `orbit run` can resolve the plugin by name
+(`_LOADERS` in `orbit/scenarios/registry.py`):
+
+```python
+"my_scenario": "my_package.task",
 ```
 
 And import in `_registry.py`:

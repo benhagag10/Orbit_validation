@@ -14,7 +14,7 @@ from orbit.scenarios.agentharm.condition_presets import (
 )
 from orbit.scenarios.agentharm.config_builder import (
     build_experiment_config,
-    build_experiment_configs_from_scenario,
+    build_experiment_configs,
 )
 from orbit.scenarios.agentharm.configs import (
     AGENTHARM_CATEGORIES,
@@ -123,15 +123,6 @@ class TestDatasetLoading:
         )
         assert {b.category for b in bs} == {"Fraud", "Hate"}
 
-    def test_max_samples_is_deterministic(self):
-        a = load_behaviors(
-            AgentHarmScenarioConfig(split="harmful", max_samples=5, seed=7)
-        )
-        b = load_behaviors(
-            AgentHarmScenarioConfig(split="harmful", max_samples=5, seed=7)
-        )
-        assert [x.id for x in a] == [x.id for x in b]
-
     def test_statistics_sum(self):
         bs = load_behaviors(AgentHarmScenarioConfig(split="harmful"))
         stats = get_dataset_statistics(bs)
@@ -190,7 +181,7 @@ class TestConditionPresets:
         assert "mesh_delegation_full" in conditions
 
     def test_unknown_condition_raises(self):
-        bs = load_behaviors(AgentHarmScenarioConfig(max_samples=1))
+        bs = load_behaviors(AgentHarmScenarioConfig())
         with pytest.raises(ValueError, match="Unknown condition"):
             get_condition_setup("not_a_condition", bs[0], split="harmful")
 
@@ -209,20 +200,20 @@ class TestConditionPresets:
         "mesh_delegation_full",
     ])
     def test_each_condition_builds(self, condition):
-        bs = load_behaviors(AgentHarmScenarioConfig(max_samples=1))
+        bs = load_behaviors(AgentHarmScenarioConfig())
         setup = get_condition_setup(condition, bs[0], split="harmful")
         assert setup.agents, f"{condition} has no agents"
         if condition != "single_agent":
             assert len(setup.agents) >= 2
 
     def test_single_agent_sees_all_target_tools(self):
-        bs = load_behaviors(AgentHarmScenarioConfig(split="harmful", max_samples=1))
+        bs = load_behaviors(AgentHarmScenarioConfig(split="harmful"))
         setup = get_condition_setup("single_agent", bs[0], split="harmful")
         expected = {f"agentharm_harmful_{fn}" for fn in bs[0].target_functions}
         assert set(setup.agents[0].tools) == expected
 
     def test_full_domain_specialists_see_all_domain_tools(self):
-        bs = load_behaviors(AgentHarmScenarioConfig(split="harmful", max_samples=1))
+        bs = load_behaviors(AgentHarmScenarioConfig(split="harmful"))
         setup = get_condition_setup(
             "star_specialist", bs[0], split="harmful", tool_mode="full_domain",
         )
@@ -231,13 +222,13 @@ class TestConditionPresets:
         assert total_tools == 80
 
     def test_memory_conditions_wire_shared_memory(self):
-        bs = load_behaviors(AgentHarmScenarioConfig(max_samples=1))
+        bs = load_behaviors(AgentHarmScenarioConfig())
         setup = get_condition_setup("memory_full", bs[0], split="harmful")
         assert setup.memory.shared is True
         assert setup.memory.shared_groups
 
     def test_chat_split_has_no_tools(self):
-        bs = load_behaviors(AgentHarmScenarioConfig(split="chat", max_samples=1))
+        bs = load_behaviors(AgentHarmScenarioConfig(split="chat"))
         setup = get_condition_setup("single_agent", bs[0], split="chat")
         assert setup.agents[0].tools == []
 
@@ -255,7 +246,7 @@ class TestConditionPresets:
     def test_specialist_conditions_with_irrelevant_tool_padding(self, condition):
         # Regression: `random.Random((seed, behavior.id, domain))` used to
         # raise TypeError for any specialist preset when n_irrelevant > 0.
-        bs = load_behaviors(AgentHarmScenarioConfig(split="harmful", max_samples=1))
+        bs = load_behaviors(AgentHarmScenarioConfig(split="harmful"))
         setup = get_condition_setup(
             condition, bs[0], split="harmful", n_irrelevant=3, seed=42,
         )
@@ -269,7 +260,7 @@ class TestConditionPresets:
 
 class TestConfigBuilder:
     def test_build_single_experiment_config(self):
-        bs = load_behaviors(AgentHarmScenarioConfig(split="harmful", max_samples=1))
+        bs = load_behaviors(AgentHarmScenarioConfig(split="harmful"))
         cfg = build_experiment_config(
             behavior=bs[0],
             scenario_config=AgentHarmScenarioConfig(split="harmful"),
@@ -283,9 +274,12 @@ class TestConfigBuilder:
         )
 
     def test_build_from_scenario_produces_one_per_sample(self):
-        cfgs = build_experiment_configs_from_scenario(
-            AgentHarmScenarioConfig(split="harmful", max_samples=4),
+        cfg = AgentHarmScenarioConfig(split="harmful")
+        behaviors = load_behaviors(cfg)[:4]
+        cfgs = build_experiment_configs(
+            cfg,
             condition="star_specialist",
+            behaviors=behaviors,
         )
         assert len(cfgs) == 4
         for cfg in cfgs:
@@ -294,9 +288,12 @@ class TestConfigBuilder:
             assert "comms_specialist" in agent_names
 
     def test_mesh_condition_wires_execution_path_c(self):
-        cfgs = build_experiment_configs_from_scenario(
-            AgentHarmScenarioConfig(split="harmful", max_samples=1),
+        cfg = AgentHarmScenarioConfig(split="harmful")
+        behaviors = load_behaviors(cfg)[:1]
+        cfgs = build_experiment_configs(
+            cfg,
             condition="mesh_round_robin",
+            behaviors=behaviors,
         )
         exec_config = cfgs[0].execution
         assert exec_config.scheduling_mode == "round_robin"
@@ -323,11 +320,16 @@ class TestScorerBridge:
 
     def test_task_entry_point_builds_without_api_key(self):
         from orbit.scenarios.agentharm.task import agentharm
-        t = agentharm(max_samples=2, split="harmful")
+        ids = [
+            b.id
+            for b in load_behaviors(AgentHarmScenarioConfig(split="harmful"))[:2]
+        ]
+        t = agentharm(task_ids=",".join(ids), split="harmful")
         assert len(t.dataset) == 2
 
     def test_task_supports_all_conditions_smoke(self):
         from orbit.scenarios.agentharm.task import agentharm
+        one_id = load_behaviors(AgentHarmScenarioConfig(split="harmful"))[0].id
         for cond in list_conditions():
-            t = agentharm(max_samples=1, condition=cond)
+            t = agentharm(task_ids=one_id, condition=cond)
             assert len(t.dataset) == 1, f"condition {cond} built 0 samples"

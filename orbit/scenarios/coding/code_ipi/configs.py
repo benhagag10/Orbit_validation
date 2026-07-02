@@ -73,16 +73,10 @@ class CodeIPIScenarioConfig(BaseModel, frozen=True):
     severities: list[str] | None = None
     """Filter to specific severity tiers. None = all."""
 
-    max_tasks: int | None = None
-    """Maximum number of samples to include."""
-
-    seed: int | None = None
-    """Random seed for reproducible sampling when max_tasks is set."""
-
     include_benign: bool = True
     """Whether to include benign (no-injection) control samples."""
 
-    defense_prompt: bool = True
+    inline_defense_warning: bool = True
     """Whether the agent system prompt includes anti-injection warning."""
 
     max_turns: int = 30

@@ -2,7 +2,7 @@
 BrowserART dataset loading and filtering.
 
 Loads BrowserART behaviors from bundled JSON data and applies
-category/count/seed filters.
+category and source filters.
 """
 
 from __future__ import annotations
@@ -10,7 +10,6 @@ from __future__ import annotations
 import importlib.resources
 import json
 import logging
-import random
 from collections import defaultdict
 from pathlib import Path
 
@@ -164,7 +163,7 @@ def filter_behaviors(
     behaviors: list[BrowserARTBehavior],
     config: BrowserARTScenarioConfig,
 ) -> list[BrowserARTBehavior]:
-    """Apply category, source, count, and seed filters.
+    """Apply category and source filters.
 
     Args:
         behaviors: Full list of loaded behaviors.
@@ -221,19 +220,11 @@ def filter_behaviors(
             if any(s.lower() in b.source.lower() for s in config.sources)
         ]
 
-    if config.max_behaviors and len(result) > config.max_behaviors:
-        if config.seed is not None:
-            rng = random.Random(config.seed)
-            result = rng.sample(result, config.max_behaviors)
-        else:
-            result = result[: config.max_behaviors]
-
     logger.info(
-        "Filtered to %d behaviors (categories=%s, sources=%s, max=%s)",
+        "Filtered to %d behaviors (categories=%s, sources=%s)",
         len(result),
         config.categories,
         config.sources,
-        config.max_behaviors,
     )
     return result
 

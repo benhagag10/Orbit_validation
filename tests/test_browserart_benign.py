@@ -275,22 +275,6 @@ class TestBenignFiltering:
         assert len(filtered) == 3
         assert {b.behavior_id for b in filtered} == {300, 310, 320}
 
-    def test_max_behaviors_with_seed(self):
-        """Deterministic sampling with seed."""
-        if not (DATA_DIR / "hbb_benign.json").exists():
-            pytest.skip("hbb_benign.json not bundled")
-        config = BrowserARTScenarioConfig(
-            dataset="hbb_benign",
-            max_behaviors=5,
-            seed=42,
-        )
-        behaviors = load_browserart_behaviors(config)
-        filtered1 = filter_behaviors(behaviors, config)
-        filtered2 = filter_behaviors(behaviors, config)
-        assert len(filtered1) == 5
-        assert [b.behavior_id for b in filtered1] == [b.behavior_id for b in filtered2]
-
-
 # ---------------------------------------------------------------------------
 # Scorer: benign tasks
 # ---------------------------------------------------------------------------

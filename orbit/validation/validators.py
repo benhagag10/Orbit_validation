@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from orbit.configs.baseline import BaselineMode
 from orbit.configs.experiment import ExperimentConfig
+from orbit.configs.setup import SetupConfig
 
 
 class ConfigValidator:
@@ -23,29 +24,32 @@ class ConfigValidator:
     """
 
     @staticmethod
-    def validate(config: ExperimentConfig) -> list[str]:
-        """Run all validation checks on the config.
+    def validate_setup(setup: SetupConfig) -> list[str]:
+        """Validate a topology (``SetupConfig``) in isolation.
 
-        Returns a list of error messages. Empty list means valid.
+        These are the checks that apply equally to a standalone SetupConfig YAML
+        (a ``-T topology_file=…`` override) and to the ``setup`` inside a full
+        ``ExperimentConfig``: at least one agent, unique agent names, and edges
+        that reference real agents with no self-loops. Returns a list of error
+        messages (empty = valid).
         """
         errors: list[str] = []
-
-        agent_names = {agent.name for agent in config.setup.agents}
+        agent_names = {agent.name for agent in setup.agents}
 
         # 1. At least one agent is defined
-        if not config.setup.agents:
+        if not setup.agents:
             errors.append("At least one agent must be defined in setup.agents")
 
         # 2. No duplicate agent names
-        if len(agent_names) != len(config.setup.agents):
+        if len(agent_names) != len(setup.agents):
             seen: set[str] = set()
-            for agent in config.setup.agents:
+            for agent in setup.agents:
                 if agent.name in seen:
                     errors.append(f"Duplicate agent name: '{agent.name}'")
                 seen.add(agent.name)
 
         # 3. All agents referenced in edges exist
-        for edge in config.setup.edges:
+        for edge in setup.edges:
             if edge.from_agent not in agent_names:
                 errors.append(
                     f"Edge references unknown from_agent: '{edge.from_agent}'"
@@ -56,24 +60,78 @@ class ConfigValidator:
                 )
 
         # 4. No self-loops in edges
-        for edge in config.setup.edges:
+        for edge in setup.edges:
             if edge.from_agent == edge.to_agent:
                 errors.append(
                     f"Self-loop edge not allowed: '{edge.from_agent}' -> '{edge.to_agent}'"
                 )
 
-        # 5. All agents referenced in attack.target_agent exist
+        return errors
+
+    @staticmethod
+    def validate(
+        config: ExperimentConfig, *, expand_templates: bool = False
+    ) -> list[str]:
+        """Run all validation checks on the config.
+
+        Args:
+            config: The experiment configuration to validate.
+            expand_templates: When True, treat ``config.setup.agents`` as a
+                pre-expansion topology *template* and validate attack/defense
+                targets against the names that will exist at runtime (e.g.
+                SWE-Bench replicates ``solver`` into ``solver_0, solver_1``).
+                Offline callers (``orbit validate`` / ``--dry-run``) validate
+                the raw YAML template and pass True. Callers that validate an
+                already-expanded per-sample config — the runtime setup solver
+                and the shared task builder — keep the default (False) to
+                avoid double-expansion (``solver_0`` -> ``solver_0_0``).
+
+        Returns a list of error messages. Empty list means valid.
+        """
+        errors: list[str] = []
+
+        # Names as authored in the config. Edges, agent groups, and duplicate
+        # checks operate at this "template" level — that is how those fields
+        # are written, even for scenarios that replicate the template.
+        agent_names = {agent.name for agent in config.setup.agents}
+
+        # Names that exist at runtime. Attack/defense targets reference these.
+        # With expand_templates, a scenario plugin that replicates its template
+        # (only swe_bench today) expands here; every other scenario — and the
+        # already-expanded config seen at run time — maps to identity. A known
+        # scenario whose module fails to import raises (ScenarioImportError)
+        # rather than silently falling back to the template names.
+        if expand_templates:
+            from orbit.scenarios.registry import runtime_agent_names
+
+            runtime_names = runtime_agent_names(config)
+        else:
+            runtime_names = agent_names
+
+        # 1-4. Topology-level checks (shared with standalone SetupConfig YAMLs).
+        errors.extend(ConfigValidator.validate_setup(config.setup))
+
+        # 5. All agents referenced in attack.target_agent / collusion
+        #    coalition_agents exist at runtime (post-expansion names).
         for attack in config.attacks:
-            if attack.target_agent and attack.target_agent not in agent_names:
+            if attack.target_agent and attack.target_agent not in runtime_names:
                 errors.append(
                     f"Attack '{attack.name}' references unknown target_agent: "
                     f"'{attack.target_agent}'"
                 )
+            members, malformed = _coalition_members(attack)
+            errors.extend(malformed)
+            for member in members:
+                if member not in runtime_names:
+                    errors.append(
+                        f"Attack '{attack.name}' references unknown coalition "
+                        f"agent: '{member}'"
+                    )
 
-        # 6. All agents referenced in defense.target_agents exist
+        # 6. All agents referenced in defense.target_agents exist at runtime
         for defense in config.defenses:
             for target in defense.target_agents:
-                if target not in agent_names:
+                if target not in runtime_names:
                     errors.append(
                         f"Defense '{defense.name}' references unknown target_agent: "
                         f"'{target}'"
@@ -136,6 +194,36 @@ class ConfigValidator:
         errors.extend(_validate_dcop_roster(config, agent_names))
 
         return errors
+
+
+def _coalition_members(attack: object) -> tuple[list[str], list[str]]:
+    """Extract collusion coalition member names from an attack config.
+
+    Collusion attacks list their coalition in
+    ``attack.properties["coalition_agents"]`` (post-expansion names, e.g.
+    ``["solver_0", "solver_1"]``). Returns ``(members, errors)``: the string
+    member names, plus one error per malformed shape. A non-list value or a
+    non-string member is reported rather than skipped — at runtime the attack
+    iterates the value and drops anything that is not a known agent name (a
+    bare string is iterated character-by-character), so a shape mistake is
+    exactly the silent no-op (issue #4) this validation exists to catch.
+    """
+    properties = getattr(attack, "properties", None) or {}
+    members = properties.get("coalition_agents")
+    if members is None:
+        return [], []
+    name = getattr(attack, "name", "<unnamed>")
+    if not isinstance(members, (list, tuple)):
+        return [], [
+            f"Attack '{name}' coalition_agents must be a list of agent "
+            f"names, got {type(members).__name__}: {members!r}"
+        ]
+    malformed = [
+        f"Attack '{name}' coalition_agents contains a non-string member: {m!r}"
+        for m in members
+        if not isinstance(m, str)
+    ]
+    return [m for m in members if isinstance(m, str)], malformed
 
 
 def _validate_dcop_roster(

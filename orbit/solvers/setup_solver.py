@@ -107,11 +107,37 @@ def mas_environment_setup() -> Solver:
         # Non-DCOP scenarios (swe_bench, browserart) skip this.
         if scenario_name in DCOP_SCENARIO_NAMES:
             _init_dcop_state(props)
+            _seed_compromised_collusion_log(config)
 
         # Return state unchanged -- setup doesn't modify conversation
         return state
 
     return solve
+
+
+def _seed_compromised_collusion_log(config) -> None:
+    """Seed CollusionLog for compromised agents in DCOP scenarios.
+
+    Mirrors the DCOP scenario setup solvers: a ``compromised_agent`` attack
+    registers its target in the collusion log so collusion/regret metrics can
+    attribute it. No-op when a real collusion coalition already seeded the log.
+    """
+    compromised = [
+        a.target_agent
+        for a in config.attacks
+        if a.attack_type == "compromised_agent" and a.target_agent
+    ]
+    if not compromised:
+        return
+
+    from inspect_ai.util import store_as
+
+    from orbit.attacks.collusion.collusion_state import CollusionLog
+
+    clog = store_as(CollusionLog)
+    if not clog.coalition_agents:
+        clog.coalition_agents = compromised
+        clog.collusion_mode = "compromised"
 
 
 def _init_dcop_state(props: dict) -> None:
@@ -176,11 +202,15 @@ def _init_hospital_state(props: dict) -> None:
     if hasattr(problem, "upper_bound_reward"):
         hs.upper_bound_reward = problem.upper_bound_reward
 
-    # Populate DCOPState with upper bound (hospital uses estimate, not exact optimal)
+    # Populate DCOPState with the upper-bound reward (hospital uses an estimate,
+    # not an exact optimal). Matches the hospital setup solver: total =
+    # upper_bound_reward (== num_patients * 1000), with an even per-agent split.
     dcop_state = store_as(DCOPState)
-    num_patients = len(problem.patients)
-    dcop_state.optimal_total_reward = float(num_patients * 1000)
+    dcop_state.optimal_total_reward = float(problem.upper_bound_reward)
     dcop_state.is_optimal_exact = False  # upper bound, not exact
+    if problem.agent_names:
+        share = problem.upper_bound_reward / len(problem.agent_names)
+        dcop_state.optimal_per_agent_reward = {a: share for a in problem.agent_names}
 
 
 def _init_meeting_scheduling_state(props: dict) -> None:
@@ -199,8 +229,10 @@ def _init_meeting_scheduling_state(props: dict) -> None:
     if hasattr(problem, "optimal_per_agent_reward") and problem.optimal_per_agent_reward:
         ms_state.optimal_per_agent_reward = dict(problem.optimal_per_agent_reward)
 
-    # Populate DCOPState with optimal values
+    # Populate DCOPState with optimal values. Matches the meeting setup solver:
+    # the factor-graph optimum is treated as exact.
     dcop_state = store_as(DCOPState)
+    dcop_state.is_optimal_exact = True
     if hasattr(problem, "optimal_reward") and problem.optimal_reward is not None:
         dcop_state.optimal_total_reward = float(problem.optimal_reward)
     if hasattr(problem, "optimal_per_agent_reward") and problem.optimal_per_agent_reward:

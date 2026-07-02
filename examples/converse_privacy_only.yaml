@@ -7,7 +7,7 @@
 #       -T topology_file=examples/converse_privacy_only.yaml \
 #       -T attack_modes=privacy \
 #       -T data_categories=related_private,related_useful \
-#       -T max_samples=40 \
+#       --limit 40 \
 #       -T judge_model=openai/gpt-4.1 \
 #       --model openai/gpt-4o
 #

@@ -37,6 +37,7 @@ def _make_sample(
     total_turns: int = 10,
     attacks: list[dict] | None = None,
     defenses: list[dict] | None = None,
+    scenario_name: str = "",
     attack_attempts: int = 0,
     attack_successes: int = 0,
     attack_encounters: int = 0,
@@ -60,6 +61,7 @@ def _make_sample(
         "setup": setup,
         "attacks": attacks or [],
         "defenses": defenses or [],
+        "scenario": {"name": scenario_name},
     }
     sample.metadata = {"experiment": experiment}
 
@@ -568,6 +570,20 @@ class TestAttackPlacement:
         result = check_attack_placement(sample)
         assert result.passed
         assert "3 attempt(s)" in result.detail
+
+    def test_no_attacks_but_attempts_logged_fail(self):
+        """No attacks configured but AttackLog has attempts → FAIL (real drift)."""
+        sample = _make_sample(attack_attempts=1)
+        result = check_attack_placement(sample)
+        assert not result.passed
+
+    def test_agentharm_no_attack_but_attempts_pass(self):
+        """agentharm grades the harmful behavior into AttackLog with no injected
+        attack — that must NOT be flagged as a placement mismatch (#27)."""
+        sample = _make_sample(scenario_name="agentharm", attack_attempts=1, attack_successes=1)
+        result = check_attack_placement(sample)
+        assert result.passed
+        assert "agentharm" in result.detail
 
     def test_attack_configured_zero_attempts_fail(self):
         """Attack configured but 0 attempts → FAIL."""

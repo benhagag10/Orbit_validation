@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import logging
-import random
 from collections import defaultdict
 from pathlib import Path
 
@@ -53,8 +52,8 @@ def load_behaviors(
 ) -> list[AgentHarmBehavior]:
     """Load AgentHarm behaviors from the pinned JSON files.
 
-    Applies ``categories`` / ``behavior_ids`` / ``detailed_prompt`` /
-    ``hint_included`` / ``max_samples`` filters from the config.
+    Applies ``categories`` / ``task_ids`` / ``detailed_prompt`` /
+    ``hint_included`` filters from the config.
     """
     if config is None:
         config = AgentHarmScenarioConfig()
@@ -105,13 +104,13 @@ def _apply_filters(
 ) -> list[AgentHarmBehavior]:
     out = list(behaviors)
 
-    if config.behavior_ids:
-        wanted = set(config.behavior_ids)
+    if config.task_ids:
+        wanted = set(config.task_ids)
         available = {b.id for b in out}
         missing = wanted - available
         if missing:
             raise ValueError(
-                f"Unknown AgentHarm behavior_ids: {sorted(missing)}"
+                f"Unknown AgentHarm task_ids: {sorted(missing)}"
             )
         out = [b for b in out if b.id in wanted]
 
@@ -130,11 +129,6 @@ def _apply_filters(
             b for b in out
             if b.hint_included is config.hint_included
         ]
-
-    if config.max_samples is not None and len(out) > config.max_samples:
-        rng = random.Random(config.seed)
-        out = rng.sample(out, config.max_samples)
-        out.sort(key=lambda b: b.id)
 
     return out
 

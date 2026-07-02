@@ -108,9 +108,9 @@ The full mapping from `--agents` / `--topology` / `--memory` to conditions:
 | `--agents` | `--topology` | `--memory` | Condition |
 |------------|-------------|-----------|-----------|
 | `single` | `star` | `none` | `single_agent` |
-| `batch` | `star` | `none` | `star_batch_detailed` |
-| `specialist` | `star` | `none` | `star_4_specialists` |
-| `step` | `star` | `none` | `star_step_executor` |
+| `batch` | `star` | `none` | `star_batch` |
+| `specialist` | `star` | `none` | `star_specialist` |
+| `step` | `star` | `none` | `star_step` |
 | `specialist` | `round_robin` | `none` | `mesh_round_robin` |
 | `specialist` | `delegation` | `none` | `mesh_delegation` |
 | `specialist` | `star` | `own_actions` | `memory_own_actions` |

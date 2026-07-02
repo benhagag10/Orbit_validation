@@ -9,8 +9,10 @@ Provides the `orbit` command with subcommands:
     - orbit verify-setup <scenario>
     - orbit browserart --model <model>  (standalone BrowserART)
     - orbit swe-bench --model <model>   (standalone SWE-Bench)
-    - orbit osworld --model <model>     (standalone OSWorld/OS-Harm)
-    - orbit osworld-benchmark --model <model>  (standalone OSWorld benchmark)
+    - orbit osworld --model <model>     (OS-Harm safety, or benign benchmark
+                                         via --dataset osworld/osworld_small)
+    - orbit redcode-gen --model <model> (standalone RedCode-Gen)
+    - orbit tau2 --model <model>        (standalone τ²-Bench)
 
 Uses Click for argument parsing. Delegates to runner.py for execution.
 
@@ -214,13 +216,11 @@ def scenario_options(fn):  # noqa: ANN001, ANN201
         click.option("--instructions", type=click.Choice(["detailed", "relaxed"]),
                       default="detailed", help="Instruction detail level."),
         click.option("--condition", default=None, help="Condition preset name."),
-        click.option("--seed", type=int, default=None,
-                      callback=_validate_non_negative_int, help="Random seed."),
         click.option("--max-turns", type=int, default=None,
                       callback=_validate_positive_int, help="Max agent turns."),
-        click.option("--max-time", type=float, default=None,
+        click.option("--max-time-seconds", type=float, default=None,
                       callback=_validate_positive_float,
-                      help="Max time in seconds."),
+                      help="Max wall-clock seconds per sample."),
     ]
     for option in reversed(options):
         fn = option(fn)
@@ -487,10 +487,10 @@ def suite_cmd(
 @click.option("--task-id", type=int, default=None, help="Single task ID to run.")
 @click.option("--dataset", type=click.Choice(["hbb", "hbb_benign", "hbb_extension"]),
               default="hbb", help="Dataset to use.")
-@click.option("--category", default=None, help="Filter by category (comma-separated).")
+@click.option("--categories", default=None, help="Filter by categories (comma-separated).")
 @click.option("--headless/--no-headless", default=True, help="Run browser headless.")
 @click.option("--record-video-dir", default=None, help="Directory to save video recordings.")
-@click.option("--classifier-model", default="openai/gpt-4.1", help="Model for scoring classifier.")
+@click.option("--judge-model", default="openai/gpt-4.1", help="Model for the LLM judge scorer.")
 @click.option("--data-path", default=None, help="Custom data file path.")
 @scenario_options
 @inspect_eval_options
@@ -500,10 +500,10 @@ def browserart_cmd(
     # Scenario-specific options
     task_id: int | None,
     dataset: str,
-    category: str | None,
+    categories: str | None,
     headless: bool,
     record_video_dir: str | None,
-    classifier_model: str,
+    judge_model: str,
     data_path: str | None,
     # Shared scenario options
     model: str,
@@ -513,9 +513,8 @@ def browserart_cmd(
     memory: str,
     instructions: str,
     condition: str | None,
-    seed: int | None,
     max_turns: int | None,
-    max_time: float | None,
+    max_time_seconds: float | None,
     # Shared eval options
     log_dir: str | None,
     log_format: str | None,
@@ -542,28 +541,27 @@ def browserart_cmd(
 
         orbit browserart --model openai/gpt-4o --task-id 236 --dataset hbb_extension
 
-        orbit browserart --model openai/gpt-4o --category harassment --limit 5
+        orbit browserart --model openai/gpt-4o --categories harassment --limit 5
     """
     from inspect_ai import eval as inspect_eval
     from orbit.scenarios.browser.browserart.task import browserart_safety
 
-    # Apply command-specific defaults for max_turns / max_time
+    # Apply command-specific defaults for max_turns / max_time_seconds
     if max_turns is None:
         max_turns = 15
-    if max_time is None:
-        max_time = 300.0
+    if max_time_seconds is None:
+        max_time_seconds = 300.0
 
     task_ids_str = str(task_id) if task_id is not None else None
 
-    # Build task kwargs and apply -T overrides
+    # Build task kwargs and apply -T overrides (sample count is controlled by
+    # Inspect's --limit, not a scenario param).
     task_kwargs: dict[str, Any] = dict(
-        category=category,
-        max_behaviors=limit,
-        seed=seed,
-        classifier_model=classifier_model,
+        categories=categories,
+        judge_model=judge_model,
         data_path=data_path,
         max_turns=max_turns,
-        max_time=max_time,
+        max_time_seconds=max_time_seconds,
         topology_file=topology_file,
         headless=headless,
         record_video_dir=record_video_dir,
@@ -604,16 +602,17 @@ def browserart_cmd(
 @cli.command("swe-bench")
 @click.option("--repos", default=None, help="Comma-separated repo filter (e.g. django/django).")
 @click.option("--num-issues", type=int, default=2, help="Number of issues per group.")
-@click.option("--mode", type=click.Choice(["round_robin", "superstep"]),
-              default="round_robin", help="Execution mode.")
+@click.option("--seed", type=int, default=None,
+              callback=_validate_non_negative_int,
+              help="Random seed for reproducible issue-group sampling.")
+@click.option("--scheduling-mode", type=click.Choice(["round_robin", "superstep"]),
+              default="round_robin", help="Execution scheduling mode.")
 @click.option("--attack-preset", default=None,
               help="Attack preset: self_replication, sabotage, "
                    "codebase_injection, codebase_injection_targeted, "
                    "codebase_injection_behavioral.")
 @click.option("--defense-preset", default=None,
               help="Defense preset: file_monitor, diff_monitor, full.")
-@click.option("--max-groups", type=int, default=None,
-              help="Max groups to generate per pool (limits dataset size).")
 @scenario_options
 @inspect_eval_options
 @config_override_options
@@ -622,10 +621,9 @@ def swe_bench_cmd(
     # Scenario-specific options
     repos: str | None,
     num_issues: int,
-    mode: str,
+    scheduling_mode: str,
     attack_preset: str | None,
     defense_preset: str | None,
-    max_groups: int | None,
     # Shared scenario options
     model: str,
     agents_param: str | None,
@@ -636,7 +634,7 @@ def swe_bench_cmd(
     condition: str | None,
     seed: int | None,
     max_turns: int | None,
-    max_time: float | None,
+    max_time_seconds: float | None,
     # Shared eval options
     log_dir: str | None,
     log_format: str | None,
@@ -674,25 +672,25 @@ def swe_bench_cmd(
     from inspect_ai import eval as inspect_eval
     from orbit.scenarios.coding.swe_bench.task import swe_bench_multi_issue
 
-    # Apply command-specific defaults for max_turns / max_time
+    # Apply command-specific defaults for max_turns / max_time_seconds
     if max_turns is None:
         max_turns = 30
-    if max_time is None:
-        max_time = 900.0
+    if max_time_seconds is None:
+        max_time_seconds = 900.0
 
-    # Build task kwargs and apply -T overrides
+    # Build task kwargs and apply -T overrides (sample count is controlled by
+    # Inspect's --limit, not a scenario param).
     task_kwargs: dict[str, Any] = dict(
         num_issues=num_issues,
         seed=seed,
         repos=repos,
-        mode=mode,
+        scheduling_mode=scheduling_mode,
         topology=topology_param,
         topology_file=topology_file,
         attack_preset=attack_preset,
         defense_preset=defense_preset,
         max_turns=max_turns,
-        max_time=max_time,
-        max_groups=max_groups,
+        max_time_seconds=max_time_seconds,
         condition=condition,
         agents=agents_param,
         memory=memory,
@@ -738,12 +736,8 @@ def swe_bench_cmd(
               help="Filter by violation type (comma-separated).")
 @click.option("--task-ids", default=None,
               help="Comma-separated task IDs to include (applied before other filters).")
-@click.option("--max-eval-tasks", "osworld_max_tasks", type=int, default=None,
-              help="Max OS-Harm tasks to evaluate (dataset limit).")
-@click.option("--seed", type=int, default=None,
-              help="Random seed for task sampling.")
 @click.option("--max-turns", type=int, default=100, help="Max agent turns per task.")
-@click.option("--max-time", type=float, default=600.0,
+@click.option("--max-time-seconds", type=float, default=600.0,
               callback=_validate_positive_float,
               help="Max wall-clock seconds per task.")
 @click.option("--max-screenshots", type=int, default=1,
@@ -783,10 +777,8 @@ def osworld_cmd(
     threat_category: str | None,
     violation_type: str | None,
     task_ids: str | None,
-    osworld_max_tasks: int | None,
-    seed: int | None,
     max_turns: int,
-    max_time: float,
+    max_time_seconds: float,
     max_screenshots: int,
     computer_timeout: int,
     topology_file: str,
@@ -825,11 +817,11 @@ def osworld_cmd(
 
     Examples:
 
-        orbit osworld --model openai/gpt-4o --dataset osharm_misuse --max-eval-tasks 10
+        orbit osworld --model openai/gpt-4o --dataset osharm_misuse --limit 10
 
         orbit osworld --model openai/gpt-4o --app thunderbird --threat-category misuse
 
-        orbit osworld --model openai/gpt-4o --dataset osworld_small --max-eval-tasks 1
+        orbit osworld --model openai/gpt-4o --dataset osworld_small --limit 1
 
         orbit osworld --model openai/gpt-4o --condition star_specialist --defense-preset full_guard
 
@@ -843,15 +835,12 @@ def osworld_cmd(
     if is_benchmark:
         from orbit.scenarios.desktop.osworld.task import osworld_benchmark
 
-        corpus = "small" if dataset == "osworld_small" else "all"
         task = osworld_benchmark(
-            corpus=corpus,
+            dataset=dataset,
             app=app,
             task_ids=task_ids,
-            max_tasks=osworld_max_tasks,
-            seed=seed,
             max_turns=max_turns,
-            max_time_seconds=max_time,
+            max_time_seconds=max_time_seconds,
             max_screenshots=max_screenshots,
             computer_timeout=computer_timeout,
             topology_file=topology_file,
@@ -873,10 +862,8 @@ def osworld_cmd(
             threat_category=threat_category,
             violation_type=violation_type,
             task_ids=task_ids,
-            max_tasks=osworld_max_tasks,
-            seed=seed,
             max_turns=max_turns,
-            max_time_seconds=max_time,
+            max_time_seconds=max_time_seconds,
             max_screenshots=max_screenshots,
             computer_timeout=computer_timeout,
             topology_file=topology_file,
@@ -917,12 +904,8 @@ def osworld_cmd(
               help="Comma-separated malware categories (e.g. spyware,ransomware).")
 @click.option("--task-ids", default=None,
               help="Comma-separated task IDs to include.")
-@click.option("--max-eval-tasks", "redcode_max_tasks", type=int, default=None,
-              help="Max tasks to evaluate (dataset limit).")
-@click.option("--seed", type=int, default=None,
-              help="Random seed for task sampling.")
 @click.option("--max-turns", type=int, default=5, help="Max agent turns per task.")
-@click.option("--max-time", type=float, default=120.0,
+@click.option("--max-time-seconds", type=float, default=120.0,
               callback=_validate_positive_float,
               help="Max wall-clock seconds per task.")
 @click.option("--topology-file", default="default",
@@ -944,10 +927,8 @@ def redcode_gen_cmd(
     model: str,
     categories: str | None,
     task_ids: str | None,
-    redcode_max_tasks: int | None,
-    seed: int | None,
     max_turns: int,
-    max_time: float,
+    max_time_seconds: float,
     topology_file: str,
     condition: str | None,
     attack_preset: str | None,
@@ -980,7 +961,7 @@ def redcode_gen_cmd(
 
         orbit redcode-gen --model openai/gpt-4o
 
-        orbit redcode-gen --model openai/gpt-4o --categories spyware,ransomware --max-eval-tasks 10
+        orbit redcode-gen --model openai/gpt-4o --categories spyware,ransomware --limit 10
 
         orbit redcode-gen --model openai/gpt-4o --condition star_specialist
 
@@ -993,11 +974,9 @@ def redcode_gen_cmd(
     task = redcode_gen(
         categories=categories,
         task_ids=task_ids,
-        max_tasks=redcode_max_tasks,
-        seed=seed,
         judge_model=judge_model,
         max_turns=max_turns,
-        max_time_seconds=max_time,
+        max_time_seconds=max_time_seconds,
         topology_file=topology_file,
         condition=condition,
         attack_preset=attack_preset,
@@ -1031,11 +1010,8 @@ def redcode_gen_cmd(
 @click.option("--domain", type=click.Choice(["airline", "retail", "telecom"]),
               default="airline",
               help="Tau2 domain: airline, retail, or telecom (small set).")
-@click.option("--mode", type=click.Choice(["solo", "dual_control"]),
-              default="dual_control",
-              help="Execution mode. Default is dual_control (upstream-faithful).")
 @click.option(
-    "--topology",
+    "--condition",
     type=click.Choice([
         "solo",
         "dual_control",
@@ -1047,20 +1023,16 @@ def redcode_gen_cmd(
     ]),
     default="dual_control",
     help=(
-        "Multi-agent topology preset (PR 4). 'solo'/'dual_control' "
-        "reproduce upstream baselines; the rest are Orbit-specific "
-        "multi-agent shapes for extension E1 of issue #116."
+        "Named topology condition. 'solo'/'dual_control' reproduce upstream "
+        "baselines; the rest are Orbit-specific multi-agent shapes (PR 4, "
+        "extension E1 of issue #116). 'solo' requires --domain airline."
     ),
 )
 @click.option("--task-ids", default=None,
               help="Comma-separated tau2 task IDs to include (e.g. '1,3,7').")
-@click.option("--max-eval-tasks", "tau2_max_tasks", type=int, default=None,
-              help="Max tasks to evaluate (dataset limit).")
-@click.option("--seed", type=int, default=None,
-              help="Random seed for task sampling.")
 @click.option("--max-turns", type=int, default=100,
               help="Max orchestrator turns per task.")
-@click.option("--max-time", type=float, default=600.0,
+@click.option("--max-time-seconds", type=float, default=600.0,
               callback=_validate_positive_float,
               help="Max wall-clock seconds per task.")
 @click.option("--judge-model", default="openai/gpt-4.1",
@@ -1073,13 +1045,10 @@ def redcode_gen_cmd(
 def tau2_cmd(
     model: str,
     domain: str,
-    mode: str,
-    topology: str,
+    condition: str,
     task_ids: str | None,
-    tau2_max_tasks: int | None,
-    seed: int | None,
     max_turns: int,
-    max_time: float,
+    max_time_seconds: float,
     judge_model: str,
     data_path: str | None,
     # Shared options
@@ -1108,7 +1077,7 @@ def tau2_cmd(
 
         orbit tau2 --model openai/gpt-4o
 
-        orbit tau2 --model openai/gpt-4o --domain airline --mode dual_control --max-eval-tasks 5
+        orbit tau2 --model openai/gpt-4o --domain airline --condition dual_control --limit 5
 
         orbit tau2 --model openai/gpt-4o --task-ids 1,3,7 --judge-model openai/gpt-4.1
     """
@@ -1119,13 +1088,10 @@ def tau2_cmd(
     task = tau2(
         domain=domain,
         task_ids=task_ids,
-        max_tasks=tau2_max_tasks,
-        seed=seed,
-        mode=mode,
-        topology=topology,
+        condition=condition,
         judge_model=judge_model,
         max_turns=max_turns,
-        max_time_seconds=max_time,
+        max_time_seconds=max_time_seconds,
         data_path=data_path,
     )
 
@@ -1206,17 +1172,48 @@ def validate_cmd(
     config_path: str,
     config_overrides_raw: tuple[str, ...],
 ) -> None:
-    """Validate a config file without running an experiment."""
+    """Validate a config file without running an experiment.
+
+    Handles both a full ExperimentConfig YAML and a standalone SetupConfig
+    (topology-only) YAML — the ``-T topology_file=…`` overrides that declare
+    ``agents:``/``edges:`` but no ``name``/``scenario`` — validating each against
+    the right schema instead of failing the latter on a "missing name".
+    """
+    import yaml
+
+    from orbit.tasks.builder import resolve_scenario_shorthand
     from orbit.validation.validators import ConfigValidator
     from orbit.wrapper.yaml_loader import apply_config_overrides, load_experiment_config
 
     config_overrides = _parse_config_overrides(config_overrides_raw)
 
     try:
-        config = load_experiment_config(config_path)
-        if config_overrides:
-            config = apply_config_overrides(config, config_overrides)
-        errors = ConfigValidator.validate(config)
+        with open(config_path) as f:
+            raw = yaml.safe_load(f) or {}
+        is_setup_only = (
+            isinstance(raw, dict)
+            and "agents" in raw
+            and "name" not in raw
+            and "scenario" not in raw
+        )
+        if is_setup_only:
+            from orbit.configs.setup import SetupConfig
+
+            errors = ConfigValidator.validate_setup(SetupConfig(**raw))
+            kind = "SetupConfig topology file"
+        else:
+            config = load_experiment_config(config_path)
+            if config_overrides:
+                config = apply_config_overrides(config, config_overrides)
+            # Resolve scenario shorthand (e.g. a condition preset supplying the
+            # topology) so a condition-only config validates against its real
+            # topology, not an empty one — the same resolution the builder does.
+            config = resolve_scenario_shorthand(config)
+            # expand_templates: validate attack/defense targets against the
+            # runtime agent names (swe_bench replicates solver -> solver_0…),
+            # not the raw template — issues #7/#4.
+            errors = ConfigValidator.validate(config, expand_templates=True)
+            kind = "config"
     except Exception as e:
         click.echo(f"Error loading config: {e}", err=True)
         sys.exit(1)
@@ -1227,7 +1224,7 @@ def validate_cmd(
             click.echo(f"  - {err}", err=True)
         sys.exit(1)
     else:
-        click.echo(f"Config '{config_path}' is valid.")
+        click.echo(f"Config '{config_path}' is valid ({kind}).")
 
 
 @cli.command("verify-setup")
@@ -1916,9 +1913,12 @@ def _print_dry_run(info: dict[str, Any]) -> None:
     click.echo(f"  Epochs:       {info['epochs']}")
     click.echo(f"  Max turns:    {info['max_turns']}")
 
+    # Label this explicitly as *config* validation so it is not mistaken for a
+    # preflight pass — a dry-run reached here even if preflight FAILED and the
+    # user chose to continue (missing extra, no Docker, ...).
     if info["valid"]:
-        click.echo("  Validation:   PASSED")
+        click.echo("  Config validation: PASSED (config schema only — not preflight/environment)")
     else:
-        click.echo(f"  Validation:   FAILED ({len(info['validation_errors'])} error(s))")
+        click.echo(f"  Config validation: FAILED ({len(info['validation_errors'])} error(s))")
         for err in info["validation_errors"]:
             click.echo(f"    - {err}")

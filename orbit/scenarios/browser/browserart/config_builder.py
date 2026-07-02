@@ -167,7 +167,7 @@ def build_experiment_config(
                 "Orbit-Extension" if behavior.multi_step else "BrowserART"
             ),
             **(
-                {"browserart_condition_type": topology_template.properties["condition_type"]}
+                {"browserart_resolved_condition": topology_template.properties["condition_type"]}
                 if topology_template and "condition_type" in topology_template.properties
                 else {}
             ),
@@ -175,7 +175,7 @@ def build_experiment_config(
     )
 
 
-def build_experiment_configs_from_scenario(
+def build_experiment_configs(
     scenario_config: BrowserARTScenarioConfig | None = None,
     topology_template: SetupConfig | None = None,
     attacks: list[AttackConfig] | None = None,

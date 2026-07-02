@@ -392,7 +392,7 @@ class TestBuildExperimentConfig:
 class TestBuildExperimentConfigsFromScenario:
     def test_builds_configs_from_groups(self) -> None:
         from orbit.scenarios.coding.swe_bench.config_builder import (
-            build_experiment_configs_from_scenario,
+            build_experiment_configs,
         )
         from orbit.scenarios.coding.swe_bench.configs import (
             SWEBenchScenarioConfig,
@@ -434,7 +434,7 @@ class TestBuildExperimentConfigsFromScenario:
             return_value=cache,
         ):
             config = SWEBenchScenarioConfig(num_issues=2, seed=42)
-            configs = build_experiment_configs_from_scenario(
+            configs = build_experiment_configs(
                 scenario_config=config, issues=issues,
             )
             # C(4,2) = 6 groups from 4 validated issues

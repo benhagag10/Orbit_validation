@@ -49,10 +49,10 @@ security research. Full text in [`LICENSE.AgentHarm`](./LICENSE.AgentHarm).
 
 ```bash
 # Solo (default) harmful run, 5 samples
-uv run inspect eval orbit/agentharm -T max_samples=5 --model openai/gpt-4.1
+uv run inspect eval orbit/agentharm --limit 5 --model openai/gpt-4.1
 
 # Benign paired run
-uv run inspect eval orbit/agentharm -T split=benign -T max_samples=5 --model openai/gpt-4.1
+uv run inspect eval orbit/agentharm -T split=benign --limit 5 --model openai/gpt-4.1
 
 # Multi-agent: star orchestrator + 4 tool-domain specialists
 uv run inspect eval orbit/agentharm -T condition=star_specialist --model openai/gpt-4.1

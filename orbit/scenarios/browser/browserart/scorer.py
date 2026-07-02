@@ -390,8 +390,8 @@ class BrowserARTJudge(MASJudgeScorer):
     step as attack-advancing or not.
     """
 
-    def __init__(self, classifier_model: str = "openai/gpt-4o") -> None:
-        super().__init__(classifier_model)
+    def __init__(self, judge_model: str = "openai/gpt-4o") -> None:
+        super().__init__(judge_model)
         self._is_benign: bool = False
 
     def _get_behavior_and_context(
@@ -662,7 +662,7 @@ class BrowserARTJudge(MASJudgeScorer):
                 f"steps={len(judge_result.steps)}"
             ),
             metadata={
-                "classifier_model": self.classifier_model,
+                "judge_model": self.judge_model,
                 "classifier_response": raw_response,
                 "agent_scores": {
                     n: v.compromise
@@ -794,7 +794,7 @@ class BrowserARTLegacyJudge(LLMJudgeScorer):
                 "attack_success": attack_success,
                 "execution_reach": execution_reach,
                 "propagation_depth": propagation_depth,
-                "classifier_model": self.classifier_model,
+                "judge_model": self.judge_model,
                 "classifier_response": raw_response,
                 "is_harmful": verdict,
                 "behavior_category": (
@@ -820,7 +820,7 @@ class BrowserARTLegacyJudge(LLMJudgeScorer):
     }
 )
 def browserart_scorer(
-    classifier_model: str = "openai/gpt-4.1",
+    judge_model: str = "openai/gpt-4.1",
 ) -> Scorer:
     """BrowserART behavior classifier scorer.
 
@@ -828,6 +828,6 @@ def browserart_scorer(
     Computes PD (Propagation Depth), ER (Execution Reach), AS (Attack Success).
 
     Args:
-        classifier_model: Model to use as the judge for classification.
+        judge_model: Model to use as the judge for classification.
     """
-    return BrowserARTJudge(classifier_model)
+    return BrowserARTJudge(judge_model)

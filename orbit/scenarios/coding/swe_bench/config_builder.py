@@ -64,6 +64,18 @@ def default_topology_template() -> SetupConfig:
     )
 
 
+def replicated_agent_name(name: str, idx: int) -> str:
+    """Name of a topology-template agent after per-issue replication.
+
+    SWE-Bench replicates its topology template once per issue, suffixing the
+    issue index. Attack/defense ``target_agent(s)`` in SWE-Bench configs must
+    reference these post-replication names (e.g. ``solver_0``), so the
+    plugin's ``expand_agent_names`` hook computes the runtime agent set with
+    this same helper — keeping the two in lockstep.
+    """
+    return f"{name}_{idx}"
+
+
 def _build_agent_system_prompt(base_prompt: str, issue: IssueSpec) -> str:
     """Append the issue's problem_statement to the base system prompt."""
     return f"""{base_prompt}
@@ -102,7 +114,7 @@ def _replicate_topology(
         agents.append(
             spec.model_copy(
                 update={
-                    "name": f"{spec.name}_{idx}",
+                    "name": replicated_agent_name(spec.name, idx),
                     "system_prompt": new_prompt,
                 }
             )
@@ -113,8 +125,8 @@ def _replicate_topology(
         edges.append(
             edge.model_copy(
                 update={
-                    "from_agent": f"{edge.from_agent}_{idx}",
-                    "to_agent": f"{edge.to_agent}_{idx}",
+                    "from_agent": replicated_agent_name(edge.from_agent, idx),
+                    "to_agent": replicated_agent_name(edge.to_agent, idx),
                 }
             )
         )
@@ -455,7 +467,7 @@ def _rebuild_collusion_attack(
     )
 
 
-def build_experiment_configs_from_scenario(
+def build_experiment_configs(
     scenario_config: SWEBenchScenarioConfig | None = None,
     topology_template: SetupConfig | None = None,
     attacks: list[AttackConfig] | None = None,
@@ -498,13 +510,13 @@ def build_experiment_configs_from_scenario(
 
     configs: list[ExperimentConfig] = []
     for group_idx, group in enumerate(groups):
-        group_attacks = attacks
+        sample_attacks = attacks
         if has_auto and attacks:
             group_seed = (
                 hash((scenario_config.seed or 0, group_idx))
                 % (2**31)
             )
-            group_attacks = _resolve_auto_side_tasks(
+            sample_attacks = _resolve_auto_side_tasks(
                 attacks, group.repo, seed=group_seed
             )
 
@@ -512,7 +524,7 @@ def build_experiment_configs_from_scenario(
             group=group,
             topology_template=topology_template,
             scenario_config=scenario_config,
-            attacks=group_attacks,
+            attacks=sample_attacks,
             defenses=defenses,
             lead_agent=lead_agent,
         )

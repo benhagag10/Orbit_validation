@@ -87,7 +87,7 @@ By default the task talks to `http://localhost:7878`. Override with
 
 ```bash
 inspect eval orbit/browserart_safety \
-  -T max_behaviors=3 -T max_turns=5 \
+  -T max_turns=5 --limit 3 \
   --model openai/gpt-4o
 ```
 
@@ -98,9 +98,9 @@ The BrowserART Extension adds 10 multi-step, cross-platform attack campaigns (ID
 **Run the extension tasks:**
 
 ```bash
-# All 10 multi-step tasks (defaults auto-adjust to max_turns=50, max_time=600)
+# All 10 multi-step tasks (defaults auto-adjust to max_turns=50, max_time_seconds=600)
 inspect eval orbit/browserart_safety \
-  -T dataset=hbb_extension -T max_behaviors=1 \
+  -T dataset=hbb_extension --limit 1 \
   --model openai/gpt-4o
 
 # Specific task IDs
@@ -109,7 +109,7 @@ inspect eval orbit/browserart_safety \
   --model openai/gpt-4o
 ```
 
-These tasks require significantly more turns and time than the standard BrowserART behaviors. When `dataset=hbb_extension` is used, defaults auto-adjust to `max_turns=50` and `max_time=600` unless explicitly overridden.
+These tasks require significantly more turns and time than the standard BrowserART behaviors. When `dataset=hbb_extension` is used, defaults auto-adjust to `max_turns=50` and `max_time_seconds=600` unless explicitly overridden.
 
 ## SWE-Bench (Coding Agent)
 
@@ -162,7 +162,7 @@ SWE-Bench Docker images are only published as `x86_64` on Docker Hub. On Apple S
 
 2. **Increase Docker Desktop resources**: Settings > Resources > Memory: **8 GB minimum** (default 2 GB is insufficient for running test suites in large repos like Django)
 
-3. **Longer timeouts**: Operations under x86 emulation can be 3-5x slower. If you see timeout errors, consider increasing `max_time` and `max_turns`.
+3. **Longer timeouts**: Operations under x86 emulation can be 3-5x slower. If you see timeout errors, consider increasing `max_time_seconds` and `max_turns`.
 
 **API key:** Same as above -- any Inspect-supported provider.
 
@@ -193,14 +193,13 @@ orbit run examples/swe_bench_multi_issue.yaml --model openai/gpt-4o
 | `num_issues` | int | 2 | Number of issues per group |
 | `repos` | string | — | Comma-separated repo filter (e.g. `django/django`) |
 | `seed` | int | — | Random seed for group sampling |
-| `mode` | string | round_robin | Execution mode (`round_robin` or `superstep`) |
+| `scheduling_mode` | string | round_robin | Execution mode (`round_robin` or `superstep`) |
 | `topology` | string | default | Topology template (`default` or path to YAML) |
 | `condition` | string | — | Condition preset (see below) |
 | `attack_preset` | string | — | Attack preset (`self_replication`, `sabotage`) |
 | `defense_preset` | string | — | Defense preset (`file_monitor`, `diff_monitor`, `full`) |
 | `max_turns` | int | 30 | Max turns per agent |
-| `max_time` | float | 900 | Max seconds per experiment |
-| `max_groups` | int | — | Cap groups generated per pool (limits Docker images built) |
+| `max_time_seconds` | float | 900 | Max seconds per experiment |
 
 ### Condition Presets
 
@@ -283,33 +282,33 @@ export GOOGLE_API_KEY=...      # for google/gemini-1.5-pro
 
 ```bash
 # Single agent, 5 tasks
-orbit osworld -m openai/gpt-4o --max-eval-tasks 5
+orbit osworld -m openai/gpt-4o --limit 5
 
 # Filter by app
-orbit osworld -m openai/gpt-4o --app thunderbird --max-eval-tasks 10
+orbit osworld -m openai/gpt-4o --app thunderbird --limit 10
 
 # Misuse tasks only
 orbit osworld -m openai/gpt-4o --dataset osharm_misuse
 
 # Star topology with specialists
-orbit osworld -m openai/gpt-4o --condition star_specialist --max-eval-tasks 5
+orbit osworld -m openai/gpt-4o --condition star_specialist --limit 5
 
 # Friendly parameters
-orbit osworld -m openai/gpt-4o --agents specialist --topology round_robin --max-eval-tasks 5
+orbit osworld -m openai/gpt-4o --agents specialist --topology round_robin --limit 5
 
 # With defense preset
-orbit osworld -m openai/gpt-4o --defense-preset basic --max-eval-tasks 5
+orbit osworld -m openai/gpt-4o --defense-preset basic --limit 5
 ```
 
 **Run via Inspect CLI:**
 
 ```bash
 inspect eval orbit/osworld_safety \
-  -T max_tasks=5 --model openai/gpt-4o
+  --limit 5 --model openai/gpt-4o
 
 # With condition preset
 inspect eval orbit/osworld_safety \
-  -T condition=star_specialist -T max_tasks=5 --model openai/gpt-4o
+  -T condition=star_specialist --limit 5 --model openai/gpt-4o
 ```
 
 **Run via YAML config:**
@@ -327,8 +326,6 @@ orbit run examples/osworld_osharm_basic.yaml --model openai/gpt-4o
 | `threat_category` | string | — | Filter by threat category (comma-separated) |
 | `violation_type` | string | — | Filter by violation type (comma-separated) |
 | `task_ids` | string | — | Comma-separated task IDs to include |
-| `max_tasks` | int | — | Max tasks to evaluate |
-| `seed` | int | — | Random seed for task sampling |
 | `max_turns` | int | 30 | Max turns per task |
 | `max_time_seconds` | float | 300 | Max wall-clock seconds per task |
 | `max_screenshots` | int | 1 | Max screenshots per turn for the computer tool |
@@ -380,7 +377,7 @@ orbit run examples/osworld_osharm_basic.yaml --model openai/gpt-4o
 | `ModuleNotFoundError: swebench` | swebench not installed | `uv sync --extra swebench` |
 | `manifest unknown` / image pull fails | Rosetta not enabled (Apple Silicon) or Docker not running | Enable Rosetta in Docker Desktop settings (Apple Silicon); ensure Docker is running |
 | `OOM` / tests killed | Docker Desktop memory limit too low | Increase to 8 GB+ in Docker Desktop settings |
-| Sandbox timeout | Operations slow under emulation | Increase `-T max_time=1800` |
+| Sandbox timeout | Operations slow under emulation | Increase `-T max_time_seconds=1800` |
 
 ### OSWorld / OS-Harm
 

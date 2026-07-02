@@ -9,7 +9,7 @@
 #
 # To run:
 #   inspect eval orbit/browserart_safety \
-#     -T max_behaviors=5 -T category=content/phishing \
+#     --limit 5 -T categories=content/phishing \
 #     --model openai/gpt-4o
 #
 # Or via CLI:
@@ -57,4 +57,3 @@ scheduler:
 metadata:
   browserart_dataset: "hbb"
   browserart_categories: ["content/phishing"]
-  browserart_max_behaviors: 5

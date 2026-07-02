@@ -165,11 +165,11 @@ def run_smoke(condition: str) -> int:
     logs = inspect_eval(
         "orbit/browserart_safety",
         model=model,
+        limit=1,
         task_args={
             "condition": condition,
-            "max_behaviors": 1,
             "max_turns": 6,
-            "max_time": 120.0,
+            "max_time_seconds": 120.0,
             "verbose": False,
         },
     )

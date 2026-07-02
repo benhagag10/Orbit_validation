@@ -43,6 +43,53 @@ class TestApplyBaseline:
         assert len(full_experiment.defenses) > 0
 
 
+class TestValidateSetup:
+    """`validate_setup` checks a standalone SetupConfig (topology) YAML — the
+    `-T topology_file=…` overrides that have `agents:` but no `name`/`scenario`,
+    which used to fail `orbit validate` with a spurious "missing name" (#24)."""
+
+    def test_valid_setup(self):
+        setup = SetupConfig(
+            agents=[
+                AgentSpec(name="orch", role="orchestrator"),
+                AgentSpec(name="w", role="worker"),
+            ],
+            edges=[TopologyEdge(from_agent="orch", to_agent="w", mechanism="direct_run")],
+        )
+        assert ConfigValidator.validate_setup(setup) == []
+
+    def test_empty_setup_flagged(self):
+        assert any(
+            "at least one agent" in e.lower()
+            for e in ConfigValidator.validate_setup(SetupConfig())
+        )
+
+    def test_edge_to_unknown_agent_flagged(self):
+        setup = SetupConfig(
+            agents=[AgentSpec(name="a", role="orchestrator")],
+            edges=[TopologyEdge(from_agent="a", to_agent="ghost", mechanism="direct_run")],
+        )
+        assert any("ghost" in e for e in ConfigValidator.validate_setup(setup))
+
+    def test_shipped_setup_only_examples_validate(self):
+        # The 12 topology-override YAMLs that `orbit validate` used to reject.
+        import glob
+
+        import yaml
+
+        setup_only = []
+        for f in glob.glob("examples/**/*.yaml", recursive=True):
+            try:
+                d = yaml.safe_load(open(f))
+            except Exception:
+                continue
+            if isinstance(d, dict) and "agents" in d and "name" not in d and "scenario" not in d:
+                setup_only.append((f, d))
+        assert setup_only, "expected some SetupConfig-only example YAMLs"
+        for f, d in setup_only:
+            assert ConfigValidator.validate_setup(SetupConfig(**d)) == [], f
+
+
 class TestConfigValidator:
     def test_valid_minimal(self, minimal_experiment):
         errors = ConfigValidator.validate(minimal_experiment)

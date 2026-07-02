@@ -72,4 +72,3 @@ scheduler:
 metadata:
   browserart_dataset: hbb
   browserart_categories: ["content/phishing"]
-  browserart_max_behaviors: 2
