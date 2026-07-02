@@ -24,6 +24,7 @@ from inspect_ai.dataset import MemoryDataset
 
 from orbit.dataset.sample_factory import build_sample
 from orbit.scenarios.registry import ScenarioPlugin, get_scenario
+from orbit.validation.validators import ConfigValidator
 
 logger = logging.getLogger(__name__)
 
@@ -349,6 +350,28 @@ def build_scenario_task(
             "topology via the scenario's condition.",
             plugin.name,
             [a.name for a in config.setup.agents],
+        )
+
+    # 1c. Surface ConfigValidator problems (unknown target_agent, dangling edge
+    # references, ...) centrally. Most plugins override build_setup and so skip
+    # `mas_environment_setup`, where ConfigValidator was previously the only
+    # gate — an attack whose target_agent doesn't exist would then silently fail
+    # to bind (a benign run) with no error. Validated on a representative
+    # EXPANDED config (so condition-built rosters are seen, not tau2/agentharm's
+    # empty pre-expand setup), and LOGGED not raised: a hard failure here would
+    # false-positive on runtime agent-expansion targets (a star replicating
+    # `solver` into `solver_0`), which is tracked separately in issue #7.
+    representative = configs[0] if configs else config
+    val_errors = ConfigValidator.validate(representative)
+    if val_errors:
+        logger.warning(
+            "Scenario %r config %r has %d validation issue(s): %s. (References "
+            "to runtime-expanded agents such as 'solver_0' may be false "
+            "positives — see issue #7.)",
+            plugin.name,
+            representative.name,
+            len(val_errors),
+            "; ".join(val_errors),
         )
 
     # 2. Build one sample per config (serializes the whole config to metadata).

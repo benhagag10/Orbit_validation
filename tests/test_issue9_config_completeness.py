@@ -498,6 +498,35 @@ class TestConditionSetupMutualExclusivity:
         assert [a.name for a in once.setup.agents] == [a.name for a in twice.setup.agents]
 
 
+class TestCentralConfigValidationSurfaced:
+    """ConfigValidator runs centrally in the builder, so an unknown target_agent
+    is surfaced even for scenarios that override build_setup and skip the setup
+    solver where validation used to be the only gate. Logged (not raised) to
+    avoid false-positives on runtime agent-expansion targets (issue #7).
+    """
+
+    def test_unknown_target_agent_warns(self, caplog):
+        import logging
+
+        from orbit.tasks.builder import build_scenario_task
+
+        bad = _exp(
+            "custom_scenario",
+            attacks=[
+                AttackConfig(
+                    name="x",
+                    attack_type="indirect_injection",
+                    target_agent="ghost",  # not in setup.agents
+                    payload="p",
+                    success_criteria="s",
+                )
+            ],
+        )
+        with caplog.at_level(logging.WARNING, logger="orbit.tasks.builder"):
+            build_scenario_task(bad)
+        assert any("validation issue" in r.message for r in caplog.records)
+
+
 class TestKnownScenarioImportFailsLoud:
     """A registered scenario whose module fails to import must raise, never
     silently fall back to the generic benign single-sample task (that would run
