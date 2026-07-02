@@ -33,7 +33,7 @@ from orbit.scenarios.desktop.osworld.config_builder import (
 )
 from orbit.scenarios.desktop.osworld.configs import OSWorldScenarioConfig
 from orbit.scenarios.registry import ScenarioPlugin, register_scenario
-from orbit.tasks.builder import build_scenario_task
+from orbit.tasks.builder import build_scenario_task, split_csv as _split
 
 if TYPE_CHECKING:
     from inspect_ai.scorer import Scorer
@@ -47,15 +47,6 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
-
-
-def _split(value: object) -> list[str] | None:
-    """Normalise a comma-string or list into a list of strings (or None)."""
-    if value is None:
-        return None
-    if isinstance(value, list):
-        return [str(v).strip() for v in value if str(v).strip()]
-    return [v.strip() for v in str(value).split(",") if v.strip()]
 
 
 def _scenario_config(
@@ -233,30 +224,35 @@ def _osworld_resolve(config: ExperimentConfig) -> ExperimentConfig:
     meta = config.metadata or {}
     updates: dict = {}
     cond = meta.get("osworld_condition")
+    applied_cond: str | None = None
     if cond:
+        # Mark the condition consumed either way so a second resolve() is a no-op
+        # (the builder and the validate/dry-run paths may both call resolve).
+        new_meta = {k: v for k, v in meta.items() if k != "osworld_condition"}
         if config.setup.agents:
-            raise ValueError(
+            logger.warning(
                 "osworld config declares BOTH an inline setup.agents topology and "
-                "metadata.osworld_condition — these are mutually exclusive. Use "
-                "exactly one: author the topology under setup:, OR name an "
-                f"osworld_condition and omit setup: (condition={cond!r}, "
-                f"agents={[a.name for a in config.setup.agents]})."
+                "metadata.osworld_condition=%r; using the inline setup and "
+                "IGNORING the condition. Declare exactly one.",
+                cond,
             )
-        from orbit.scenarios.desktop.osworld.condition_presets import get_condition_setup
-        updates["setup"] = get_condition_setup(cond)
-        # Mark the condition consumed so a second resolve() is a no-op (the
-        # builder and the validate/dry-run paths may both call resolve).
-        updates["metadata"] = {
-            k: v for k, v in meta.items() if k != "osworld_condition"
-        }
-        updates["metadata"]["osworld_resolved_condition"] = cond
+            new_meta["osworld_ignored_condition"] = cond
+        else:
+            from orbit.scenarios.desktop.osworld.condition_presets import get_condition_setup
+            updates["setup"] = get_condition_setup(cond)
+            new_meta["osworld_resolved_condition"] = cond
+            applied_cond = cond
+        updates["metadata"] = new_meta
     if (
         baseline_keeps_attacks(config)
         and not config.attacks
         and meta.get("osworld_attack_preset")
     ):
         from orbit.scenarios.desktop.osworld.presets import get_attack_preset
-        updates["attacks"] = get_attack_preset(meta["osworld_attack_preset"], condition=cond)
+        # An ignored condition must not tailor the attack preset.
+        updates["attacks"] = get_attack_preset(
+            meta["osworld_attack_preset"], condition=applied_cond
+        )
     if (
         baseline_keeps_defenses(config)
         and not config.defenses

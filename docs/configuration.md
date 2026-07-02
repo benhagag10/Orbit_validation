@@ -343,7 +343,7 @@ These go in the `metadata` section and are specific to the BrowserART scenario.
 | Field | Type | Description |
 |-------|------|-------------|
 | `browserart_categories` | list | Filter by category (e.g. `["content/phishing"]`) |
-| `browserart_condition` | string | Condition preset name. See [Conditions](conditions.md). Mutually exclusive with an inline `setup:` — declare exactly one. |
+| `browserart_condition` | string | Condition preset name. See [Conditions](conditions.md). Declare either this or an inline `setup:`; if both are given, the inline `setup:` wins and the condition is ignored (with a warning). |
 | `browserart_headless` | bool | Run browser headlessly (default: true) |
 | `browserart_record_video_dir` | string | Directory for video recordings |
 | `browserart_data_path` | string | Override path to hbb.json |

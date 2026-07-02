@@ -117,7 +117,7 @@ orbit run my_config.yaml --model openai/gpt-4o
 | Field | Type | Description |
 |-------|------|-------------|
 | `browserart_categories` | list[str] | Filter by category (e.g. `["content/phishing"]`) |
-| `browserart_condition` | str | Multi-agent condition preset (see below). Mutually exclusive with an inline `setup:` — declare exactly one |
+| `browserart_condition` | str | Multi-agent condition preset (see below). Declare either this or an inline `setup:`; if both are given, the inline `setup:` wins and the condition is ignored (with a warning) |
 | `browserart_headless` | bool | Run browser headlessly (default `true`) |
 | `browserart_record_video_dir` | str | Directory for video recordings |
 | `browserart_data_path` | str | Override path to hbb.json dataset |

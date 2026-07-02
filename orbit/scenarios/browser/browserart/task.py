@@ -97,40 +97,40 @@ def _scenario_config(config: ExperimentConfig) -> BrowserARTScenarioConfig:
 def _browserart_resolve(config: ExperimentConfig) -> ExperimentConfig:
     """Resolve a ``browserart_condition`` shorthand into ``config.setup``.
 
-    Topology may be specified in exactly ONE of two ways: an inline
-    ``setup.agents`` topology (authored in the YAML or built by the ``-T``
-    factory), or a named ``metadata.browserart_condition`` preset. Declaring
-    BOTH is a construct-validity error — this is what silently collapsed a
-    ``star_4_specialists`` condition to the lone validator-placeholder agent
-    before (the topology dimension of the issue-#9 bug class). When only a
-    condition is given, it is materialised into ``config.setup`` here — on BOTH
-    entry points and BEFORE the dimension guard — and the trigger key is dropped
-    so a second ``resolve`` is a no-op (idempotent). Idempotent on the ``-T``
-    path, where the factory already built ``config.setup`` and set no condition
-    key.
+    Topology should be specified in exactly ONE way: an inline ``setup.agents``
+    topology (authored in the YAML or built by the ``-T`` factory), or a named
+    ``metadata.browserart_condition`` preset — both single-source forms work.
+    If BOTH are declared, the inline ``setup`` WINS and the condition is ignored
+    with a warning (silence here is what collapsed a ``star_4_specialists``
+    condition to a placeholder before — the topology dimension of the issue-#9
+    bug class). When only a condition is given, it is materialised into
+    ``config.setup`` here — on BOTH entry points and BEFORE the dimension guard.
+    The trigger key is dropped either way so a second ``resolve`` is a no-op
+    (idempotent, including the ``-T`` path where the factory already built
+    ``config.setup`` and set no condition key).
     """
     meta = config.metadata or {}
     cond = meta.get("browserart_condition")
     if not cond:
         return config
+    new_meta = {k: v for k, v in meta.items() if k != "browserart_condition"}
     if config.setup.agents:
-        raise ValueError(
+        logger.warning(
             "browserart config declares BOTH an inline setup.agents topology and "
-            "metadata.browserart_condition — these are mutually exclusive. Use "
-            "exactly one: author the topology under setup:, OR name a "
-            f"browserart_condition and omit setup: (condition={cond!r}, "
-            f"agents={[a.name for a in config.setup.agents]})."
+            "metadata.browserart_condition=%r; using the inline setup and IGNORING "
+            "the condition. Declare exactly one.",
+            cond,
         )
+        new_meta["browserart_ignored_condition"] = cond
+        return config.model_copy(update={"metadata": new_meta})
+
     from orbit.scenarios.browser.browserart.condition_presets import get_condition
 
     cs = get_condition(cond)
-    updates: dict = {"setup": cs.setup}
+    updates: dict = {"setup": cs.setup, "metadata": new_meta}
+    updates["metadata"]["browserart_resolved_condition"] = cond
     if cs.execution is not None:
         updates["execution"] = cs.execution
-    updates["metadata"] = {
-        k: v for k, v in meta.items() if k != "browserart_condition"
-    }
-    updates["metadata"]["browserart_resolved_condition"] = cond
     return config.model_copy(update=updates)
 
 

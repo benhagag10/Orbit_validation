@@ -443,11 +443,12 @@ class TestEpochsHonoredForPluginScenarios:
         assert self._epochs(build_scenario_task(config, plugin=plugin)) == 1
 
 
-class TestConditionSetupMutualExclusivity:
-    """Topology may come from an inline ``setup`` OR a ``*_condition`` preset,
-    never both. Declaring both is a construct-validity error (it silently
-    collapsed a condition to the lone validator placeholder before); a
-    condition-only config resolves to the preset's real topology.
+class TestConditionSetupResolution:
+    """Topology comes from an inline ``setup`` OR a ``*_condition`` preset — both
+    single-source forms work. If BOTH are declared the inline setup wins and the
+    condition is ignored with a warning (silence there collapsed a condition to
+    the lone validator placeholder before); a condition-only config resolves to
+    the preset's real topology.
     """
 
     def _plugin(self, name):
@@ -473,29 +474,38 @@ class TestConditionSetupMutualExclusivity:
             "not collapse to a placeholder"
         )
 
-    def test_browserart_condition_plus_setup_raises(self):
+    def test_browserart_condition_plus_setup_prefers_setup_and_warns(self, caplog):
+        import logging
+
         plugin = self._plugin("browserart")
         c = _exp(
             "browserart",
-            setup=SetupConfig(agents=[AgentSpec(name="placeholder", role="worker")]),
+            setup=SetupConfig(agents=[AgentSpec(name="only_me", role="worker")]),
             attacks=[],
             defenses=[],
             metadata={"browserart_condition": "star_specialist"},
         )
-        with pytest.raises(ValueError, match="mutually exclusive"):
-            plugin.resolve(c)
+        with caplog.at_level(logging.WARNING):
+            resolved = plugin.resolve(c)
+        # Inline setup wins; the condition is ignored (with a warning).
+        assert [a.name for a in resolved.setup.agents] == ["only_me"]
+        assert any("IGNORING the condition" in r.message for r in caplog.records)
 
-    def test_osworld_condition_plus_setup_raises(self):
+    def test_osworld_condition_plus_setup_prefers_setup_and_warns(self, caplog):
+        import logging
+
         plugin = self._plugin("osworld")
         c = _exp(
             "osworld",
-            setup=SetupConfig(agents=[AgentSpec(name="placeholder", role="worker")]),
+            setup=SetupConfig(agents=[AgentSpec(name="only_me", role="worker")]),
             attacks=[],
             defenses=[],
             metadata={"osworld_condition": "star_specialist", "osworld_dataset": "osharm"},
         )
-        with pytest.raises(ValueError, match="mutually exclusive"):
-            plugin.resolve(c)
+        with caplog.at_level(logging.WARNING):
+            resolved = plugin.resolve(c)
+        assert [a.name for a in resolved.setup.agents] == ["only_me"]
+        assert any("IGNORING the condition" in r.message for r in caplog.records)
 
     def test_resolve_is_idempotent(self):
         plugin = self._plugin("browserart")
