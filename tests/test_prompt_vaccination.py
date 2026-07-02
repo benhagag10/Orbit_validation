@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
 from inspect_ai import eval as inspect_eval
 from inspect_ai.model import ChatMessageSystem, ChatMessageUser, ModelOutput, get_model
 
@@ -185,11 +186,19 @@ def _make_two_agent_config() -> ExperimentConfig:
     )
 
 
-def test_vaccination_reaches_targeted_agent_model_input(monkeypatch, tmp_path):
+@pytest.mark.parametrize("log_model_api", [False, True])
+def test_vaccination_reaches_targeted_agent_model_input(
+    monkeypatch, tmp_path, log_model_api
+):
     """Drive the real orchestrator with a capturing mockllm and assert the
     vaccination string appears in the TARGETED agent's generate() input but
     NOT in the non-targeted agent's. Fails on pre-fix code, where
-    get_model_filters() returned [] and the model was never wrapped."""
+    get_model_filters() returned [] and the model was never wrapped.
+
+    Parametrized over log_model_api because the construct-validity checker
+    has two evidence paths: raw provider requests (only in the log when
+    log_model_api=True) and the filter's generate-time injection counter
+    (always in the store)."""
     capture = _make_capture_model()
     capture_model = get_model(
         "mockllm/vaccine", custom_outputs=capture, memoize=False,
@@ -219,6 +228,7 @@ def test_vaccination_reaches_targeted_agent_model_input(monkeypatch, tmp_path):
         log_dir=str(tmp_path),
         message_limit=40,
         time_limit=30,
+        log_model_api=log_model_api,
     )
 
     assert len(logs) == 1
@@ -252,3 +262,50 @@ def test_vaccination_reaches_targeted_agent_model_input(monkeypatch, tmp_path):
     )
     assert "alice" in vaccinations
     assert "bob" not in vaccinations
+
+    # The filter's generate-time injection counter: written by the same call
+    # that prepends the vaccination, for the targeted agent only.
+    injections = store.get("DefenseLog:vaccination_injections", {})
+    assert injections.get("alice", 0) >= 1, injections
+    assert "bob" not in injections, injections
+
+    # The construct-validity checker must confirm the generate-time effect
+    # from this same log — issue #26's false PASS came from reading only the
+    # bookkeeping. With log_model_api=True it verifies the raw provider
+    # requests (ModelEvent.call, built BELOW the filter chain); in default
+    # logs those are stripped and it falls back to the injection counter.
+    from scripts.verify_construct_validity import (
+        check_defense_activation,
+        check_vaccination_effect,
+    )
+
+    activation = check_defense_activation(sample)
+    assert activation.passed, activation.detail
+    effect = check_vaccination_effect(sample)
+    assert effect.passed, effect.detail
+    if log_model_api:
+        assert "raw model request" in effect.detail, effect.detail
+    else:
+        assert "injection counter" in effect.detail, effect.detail
+
+    # Document the trap that makes ModelEvent.call the right read: Inspect
+    # records ModelEvent.input ABOVE the filter chain, so a correctly working
+    # vaccination never appears there. Anyone "improving" the checker to scan
+    # event.input (or sample.messages) would false-FAIL a working defense.
+    # (Content is deduplicated into sample.attachments, so resolve refs
+    # before scanning — an unresolved scan would pass vacuously.)
+    attachments = sample.attachments or {}
+
+    def _resolved(content) -> str:
+        text = str(content)
+        for attachment_id, attachment_text in attachments.items():
+            text = text.replace(f"attachment://{attachment_id}", attachment_text)
+        return text
+
+    model_events = [e for e in sample.events if getattr(e, "event", "") == "model"]
+    assert model_events, "expected model events in the eval log"
+    for ev in model_events:
+        assert not any(
+            _DEFAULT_VACCINATION in _resolved(getattr(m, "content", ""))
+            for m in (ev.input or [])
+        ), "vaccination unexpectedly visible in pre-filter ModelEvent.input"

@@ -72,6 +72,13 @@ class DefenseLog(StoreModel):
     blocks: list[dict] = Field(default_factory=list)
     detections: list[dict] = Field(default_factory=list)
     vaccinations: dict[str, str] = Field(default_factory=dict)
+    """Vaccination text per target agent — pre-deployment bookkeeping."""
+    vaccination_injections: dict[str, int] = Field(default_factory=dict)
+    """Per-agent count of generate() calls that actually received the
+    vaccination, written by the model filter at generate time. This is the
+    effect-side record the construct-validity checker relies on when raw
+    model calls are not in the log (they are stripped unless the eval runs
+    with log_model_api=True)."""
     false_positives: int = 0
     true_positives: int = 0
 
