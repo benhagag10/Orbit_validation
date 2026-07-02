@@ -99,6 +99,20 @@ class ScenarioPlugin:
     ``config.defenses`` into every produced config. Default: ``[config]``
     (single sample)."""
 
+    expand_agent_names: Callable[[ExperimentConfig], set[str]] | None = None
+    """Return the agent names that exist at runtime for ONE sample, treating
+    ``config.setup.agents`` as the pre-expansion *template*. Only needed by a
+    scenario whose ``expand`` renames or replicates the declared agents —
+    today only swe_bench (``solver`` -> ``solver_0 .. solver_{n-1}``, one per
+    issue). ``None`` means identity: runtime names == declared names.
+
+    Consumed by the offline validators via :func:`runtime_agent_names`
+    (``orbit validate`` / ``--dry-run``) so attack/defense targets are checked
+    against the names that will actually exist (issues #7/#4). Unlike
+    ``expand``, this MUST stay cheap and offline — derive the names from the
+    config alone (no dataset fetch, no Docker) — and MUST use the same naming
+    helper as the real expansion so the two cannot drift."""
+
     build_setup: Callable[[ExperimentConfig], Solver | None] | None = None
     """Return the Task ``setup=`` solver, or ``None`` for no setup solver.
     If this hook itself is ``None``, the shared default
@@ -218,3 +232,22 @@ def get_scenario(name: str | None) -> ScenarioPlugin | None:
 def registered_scenarios() -> frozenset[str]:
     """Names of scenarios that have a dedicated plugin (lazy-loadable)."""
     return frozenset(_LOADERS) | frozenset(_PLUGINS)
+
+
+def runtime_agent_names(config: ExperimentConfig) -> set[str]:
+    """The agent names that exist at runtime for one sample of ``config``.
+
+    Most scenarios run exactly the agents declared in ``config.setup.agents``
+    (the identity case, also used for scenarios with no registered plugin). A
+    scenario that replicates or renames its topology template opts in through
+    the :attr:`ScenarioPlugin.expand_agent_names` hook — today only swe_bench.
+
+    Propagates :class:`ScenarioImportError` from :func:`get_scenario`: if a
+    known scenario's module fails to import we fail loud rather than silently
+    validating against the identity names (which would reintroduce the
+    issue-#7/#4 blind spot for that scenario).
+    """
+    plugin = get_scenario(config.scenario.name if config.scenario else None)
+    if plugin is not None and plugin.expand_agent_names is not None:
+        return plugin.expand_agent_names(config)
+    return {agent.name for agent in config.setup.agents}

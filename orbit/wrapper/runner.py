@@ -143,7 +143,9 @@ def dry_run(
     config = resolve_scenario_shorthand(config)
 
     models = _resolve_models(model, config.models)
-    errors = ConfigValidator.validate(config)
+    # expand_templates: this is the offline path — validate targets against
+    # the runtime agent names (swe_bench replicates its template per issue).
+    errors = ConfigValidator.validate(config, expand_templates=True)
 
     return {
         "name": config.name,
