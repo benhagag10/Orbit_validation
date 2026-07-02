@@ -204,19 +204,19 @@ def test_vaccination_reaches_targeted_agent_model_input(
         "mockllm/vaccine", custom_outputs=capture, memoize=False,
     )
 
-    import inspect_ai.model as inspect_model
-    import inspect_ai.model._model as inspect_model_inner
+    # Agent models are resolved by name in build_topology_agents /
+    # build_turn_react_agents, which call get_model through the
+    # orbit.agents.topologies module namespace — patching there is
+    # sufficient (and avoids reaching into inspect_ai private modules).
     import orbit.agents.topologies as topologies_mod
 
-    real_get_model = inspect_model.get_model
+    real_get_model = topologies_mod.get_model
 
     def patched_get_model(model=None, **kwargs):
         if isinstance(model, str) and model == "mockllm/vaccine":
             return capture_model
         return real_get_model(model, **kwargs)
 
-    monkeypatch.setattr(inspect_model, "get_model", patched_get_model)
-    monkeypatch.setattr(inspect_model_inner, "get_model", patched_get_model)
     monkeypatch.setattr(topologies_mod, "get_model", patched_get_model)
 
     config = _make_two_agent_config()
