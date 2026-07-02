@@ -18,4 +18,4 @@ else
 fi
 
 echo "[entrypoint] starting browserart service on :$SERVICE_PORT"
-exec python -m orbit.scenarios.browserart.service
+exec python -m orbit.scenarios.browser.browserart.service

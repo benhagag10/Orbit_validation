@@ -11,8 +11,8 @@
 services:
   browserart-service:
     build:
-      context: ../../../..
-      dockerfile: orbit/scenarios/browserart/service/Dockerfile
+      context: ../../../../..
+      dockerfile: orbit/scenarios/browser/browserart/service/Dockerfile
     image: orbit/browserart-service:latest
     container_name: browserart-service
     # Only expose the session HTTP API. The static website server on
@@ -27,7 +27,7 @@ services:
       BROWSERART_WEBSITE_PORT: "8000"
       BROWSERART_LOG_LEVEL: "info"
     volumes:
-      - ../../../../logs/browserart_videos:/videos
+      - ../../../../../logs/browserart_videos:/videos
     restart: unless-stopped
     shm_size: "2gb"
     healthcheck:
