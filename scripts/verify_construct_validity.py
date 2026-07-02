@@ -169,6 +169,48 @@ def _detect_text_dispatch(messages: list, agent_names: set[str]) -> set[str]:
     return found_agents
 
 
+def _misuse_probe_scenario(sample: EvalSample) -> str | None:
+    """Return the scenario marker when this sample is a misuse-threat run.
+
+    Misuse scenarios (agentharm / os-harm) configure NO injection attacks;
+    the scenario grades the harmful behavior itself into AttackLog as
+    scenario-marked probes (same shape classification as
+    :func:`check_attack_placement`). Returns the scenario name of the first
+    probe, or ``None`` when this is not a misuse run (attacks configured,
+    no probes, or any injection-shaped detail present).
+    """
+    meta = sample.metadata or {}
+    exp = meta.get("experiment", {})
+    if isinstance(exp, str):
+        exp = json.loads(exp)
+    attacks = exp.get("attacks", []) if isinstance(exp, dict) else []
+    if attacks:
+        return None
+    store = sample.store or {}
+    details = _get_store_val(store, "AttackLog:attempt_details", [])
+    if any(isinstance(d, dict) and d.get("attack") for d in details):
+        return None
+    probes = [d for d in details
+              if isinstance(d, dict) and d.get("scenario") and not d.get("attack")]
+    if probes:
+        return probes[0]["scenario"]
+    return None
+
+
+def _delegation_tool_calls(sample: EvalSample) -> set[str]:
+    """Configured agent names appearing as tool-call targets (as_tool delegation)."""
+    names = _get_agent_names_from_config(sample)
+    found = set()
+    for m in sample.messages or []:
+        if m.role != "assistant" or not getattr(m, "tool_calls", None):
+            continue
+        for tc in m.tool_calls:
+            fn = tc.get("function") if isinstance(tc, dict) else getattr(tc, "function", None)
+            if fn in names:
+                found.add(fn)
+    return found
+
+
 def check_agent_participation(sample: EvalSample) -> CheckResult:
     """Multi-agent topologies must have >=2 distinct agents producing messages."""
     store = sample.store or {}
@@ -219,6 +261,28 @@ def check_agent_participation(sample: EvalSample) -> CheckResult:
                                f"Old log format (no RuntimeMetrics). {assistant_count} assistant messages with tool calls — likely multi-agent but cannot confirm agent names.")
         return CheckResult("agent_participation", False,
                            f"Multi-agent topology ({topology}, {config_agents} agents configured) but RuntimeMetrics empty and no multi-agent patterns in messages")
+
+    if topology == "star":
+        delegated = _delegation_tool_calls(sample)
+        if delegated:
+            # The transcript shows as_tool delegation that invoked_agents
+            # missed — instrumentation under-recording (the #21 signature).
+            return CheckResult("agent_participation", False,
+                               f"Multi-agent topology ({topology}, {config_agents} configured) but only "
+                               f"{len(invoked)} agent(s) invoked while the transcript shows delegation "
+                               f"tool-calls to {sorted(delegated)} — invoked_agents under-recording (#21)")
+        misuse_scenario = _misuse_probe_scenario(sample)
+        if misuse_scenario and not _detect_text_dispatch(
+                sample.messages or [], _get_agent_names_from_config(sample)):
+            # Misuse threat: whether the root fans out is the model's choice.
+            # A sample where it handled/refused the probe without delegating
+            # is valid behavior, not a degenerated topology — the transcript
+            # confirms no delegation happened (so instrumentation agrees).
+            return CheckResult("agent_participation", True,
+                               f"Star did not fan out ({len(invoked)} agent(s) invoked) — no injection "
+                               f"attack configured and the transcript shows no delegation: the model "
+                               f"handled/refused the {misuse_scenario} misuse probe without delegating "
+                               "(advisory, expected under misuse threat)")
 
     return CheckResult("agent_participation", False,
                        f"Multi-agent topology ({topology}, {config_agents} configured) but only {len(invoked)} agent(s) invoked: {invoked}")
@@ -300,6 +364,15 @@ def check_topology_wiring(sample: EvalSample) -> CheckResult:
             if total_turns == 0:
                 return CheckResult("topology_wiring", True,
                                    f"Star topology: {len(tool_edges)} tool edges configured. Old log format — cannot verify dispatch, skipping")
+            misuse_scenario = _misuse_probe_scenario(sample)
+            if misuse_scenario:
+                # No assistant tool-calls at all on a misuse sample: the model
+                # handled/refused the probe without acting. The wiring being
+                # unused is the model's choice, not a construct failure.
+                return CheckResult("topology_wiring", True,
+                                   f"Star topology: {len(tool_edges)} tool edges wired but unused — the model "
+                                   f"handled/refused the {misuse_scenario} misuse probe without delegating "
+                                   "(advisory, expected under misuse threat)")
             return CheckResult("topology_wiring", False,
                                f"Star topology: {len(tool_edges)} tool edges but no tool_call or text-dispatch messages found")
         if direct_edges:
