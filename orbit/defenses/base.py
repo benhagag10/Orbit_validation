@@ -146,12 +146,12 @@ class DefenseBase(ABC):
         untrusted observations). Default is a no-op.
 
         Args:
-            state: Current TaskState (Path A's shared message list lives
+            state: Current TaskState (the TopologyExecutor's shared message list lives
                 in ``state.messages``).
             turn: Current turn number (0-indexed).
-            agent_states: Path C only — map of ``agent_name`` ->
+            agent_states: ScheduledExecutor only — map of ``agent_name`` ->
                 Inspect ``AgentState`` containing that agent's isolated
-                messages. ``None`` in Path A.
+                messages. ``None`` under the TopologyExecutor.
         """
         return None
 

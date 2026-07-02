@@ -60,7 +60,7 @@ def _make_submitting_agent(name: str, registry: SubmitRegistry):
 
 
 def _make_execution_config(**overrides) -> ExecutionConfig:
-    """Create an ExecutionConfig with defaults suitable for Path C tests."""
+    """Create an ExecutionConfig with defaults suitable for scheduler tests."""
     defaults = {
         "scheduling_mode": "round_robin",
         "agent_groups": [],

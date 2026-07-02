@@ -438,12 +438,12 @@ class TestSchedulerWithRegistry:
 
 
 # ---------------------------------------------------------------------------
-# Path A completion detection tests
+# Topology-path completion detection tests
 # ---------------------------------------------------------------------------
 
 
-class TestPathACompletionDetection:
-    """Test that Path A halts when react() agent submits."""
+class TestTopologyPathCompletionDetection:
+    """Test that the topology path halts when the react() agent submits."""
 
     def test_output_completion_detected(self) -> None:
         """AgentState with output.completion set should trigger halt."""

@@ -7,10 +7,10 @@ behaviors with configurable topology, attacks, and defenses.
 Every condition (single-agent, star, memory, mesh) drives the persistent
 ``browserart-service`` Docker container via the shared ``mas_orchestrator``:
 the task solver is ``chain(browserart_setup, mas_orchestrator,
-browserart_teardown)``. Star and memory conditions run Path A (orchestrator
-is the ``react()`` root, specialists are ``as_tool()`` sub-agents); mesh
-conditions run Path C (``AgentScheduler`` with round_robin + observation
-summary). Start the service with ``scripts/browserart_service.sh up`` and
+browserart_teardown)``. Star and memory conditions run the shared-state TopologyExecutor
+(orchestrator is the ``react()`` root, specialists are ``as_tool()``
+sub-agents); mesh conditions run the ScheduledExecutor
+(``AgentScheduler`` with round_robin + observation summary). Start the service with ``scripts/browserart_service.sh up`` and
 point ``BROWSERART_SERVICE_URL`` at it (default ``http://localhost:7878``).
 
 Construction is unified through the scenario-agnostic builder

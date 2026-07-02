@@ -113,7 +113,7 @@ def _infer_topology(sample: EvalSample) -> str:
     if "peer" in agent_roles:
         return "mesh"
 
-    # Multiple agents, no edges, no role hints — likely agent_groups (Path C)
+    # Multiple agents, no edges, no role hints — likely agent_groups (scheduled)
     if len(agents) >= 2:
         return "multi_agent"
 
@@ -336,7 +336,7 @@ def check_topology_wiring(sample: EvalSample) -> CheckResult:
         distinct = len({a["agent"] for a in attribution}) if attribution else len(invoked)
         if distinct >= 2:
             return CheckResult("topology_wiring", True,
-                               f"Multi-agent (no edges, Path C): {distinct} agents participated")
+                               f"Multi-agent (no edges, scheduled): {distinct} agents participated")
         total_turns = _get_store_val(store, "RuntimeMetrics:total_turns", 0)
         if total_turns == 0:
             return CheckResult("topology_wiring", True,

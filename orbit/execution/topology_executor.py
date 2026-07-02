@@ -3,7 +3,7 @@
 All agents share one TaskState. The root agent runs and delegates to
 sub-agents via handoff/as_tool edges defined in the topology config.
 
-This is the backward-compatible execution path (formerly Path A).
+This is the shared-state execution path (one TaskState, ``react()``-based).
 """
 
 from __future__ import annotations

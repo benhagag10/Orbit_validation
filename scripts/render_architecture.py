@@ -45,10 +45,10 @@ ASCII_ART = r"""
   |                                                                    |
   |   _get_execution_path()                                            |
   |        |                                                           |
-  |        +---> Path A: react() agents, single topology               |
+  |        +---> TopologyExecutor: react() agents, shared state               |
   |        |         handoff / tool / direct_run                       |
   |        |                                                           |
-  |        +---> Path C: turn_react() agents, AgentScheduler           |
+  |        +---> ScheduledExecutor: turn_react() agents, AgentScheduler           |
   |                  SubmitRegistry, round_robin / superstep           |
   |                                                                    |
   |   +-----+    +-----+    +-----+    +-----+                        |

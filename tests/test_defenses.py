@@ -762,7 +762,7 @@ class TestDualLLMDefense:
 
     @pytest.mark.asyncio
     async def test_pre_turn_path_c_walks_target_agent_states(self):
-        """In Path C, apply_pre_turn walks per-target-agent AgentState.messages."""
+        """Under the scheduled path, apply_pre_turn walks per-target-agent AgentState.messages."""
         from inspect_ai.model import ChatMessageUser
 
         from orbit.defenses.dual_llm import DualLLMDefense

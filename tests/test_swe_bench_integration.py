@@ -234,7 +234,7 @@ class TestBuildExperimentConfig:
         )
         group = _make_group(1)
         config = build_experiment_config(group)
-        # Single issue → Path A: no groups
+        # Single issue → topology path: no groups
         assert len(config.execution.agent_groups) == 0
         assert len(config.setup.agents) == 1
         assert config.scheduler.max_turns == 30  # default max_turns_per_agent

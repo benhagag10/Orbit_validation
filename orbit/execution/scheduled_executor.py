@@ -3,7 +3,7 @@
 Each agent has its own AgentState managed by AgentScheduler. Supports
 round-robin, superstep, and interleaved scheduling modes.
 
-This is the multi-agent execution path (formerly Path C).
+This is the isolated-state, scheduled execution path.
 """
 
 from __future__ import annotations
