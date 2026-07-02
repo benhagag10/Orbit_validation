@@ -6,6 +6,7 @@ Usage:
     python scripts/check_setup.py --scenario browserart   # + BrowserART deps
     python scripts/check_setup.py --scenario swe-bench    # + SWE-Bench deps
     python scripts/check_setup.py --scenario osworld      # + OSWorld deps
+    python scripts/check_setup.py --scenario bigcodebench # + BigCodeBench deps
     python scripts/check_setup.py --scenario dcop         # + DCOP deps
     python scripts/check_setup.py --all                   # All scenario checks
 """
@@ -24,7 +25,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-SCENARIOS = ("browserart", "swe-bench", "osworld", "dcop")
+SCENARIOS = ("browserart", "swe-bench", "osworld", "bigcodebench", "dcop")
 
 # ---------------------------------------------------------------------------
 # Data types
@@ -301,16 +302,18 @@ def check_browserart() -> CheckGroup:
             "Playwright installed", "SKIP", "playwright not importable",
         ))
 
-    # 3. Test websites on port 8000
-    port = os.environ.get("BROWSERART_PORT", "8000")
+    # 3. browserart-service reachable. The service container (started via
+    # scripts/browserart_service.sh up) exposes the session API on :7878 and
+    # serves the mock websites internally — the host no longer serves :8000.
+    service_url = os.environ.get("BROWSERART_SERVICE_URL", "http://localhost:7878")
     try:
         import urllib.request
-        urllib.request.urlopen(f"http://localhost:{port}/", timeout=3)  # noqa: S310
-        group.results.append(CheckResult(f"Test websites (port {port})", "PASS"))
+        urllib.request.urlopen(f"{service_url.rstrip('/')}/healthz", timeout=3)  # noqa: S310
+        group.results.append(CheckResult(f"browserart-service ({service_url})", "PASS"))
     except Exception:
         group.results.append(CheckResult(
-            f"Test websites (port {port})", "WARN",
-            "not serving (will auto-start, or run manually)",
+            f"browserart-service ({service_url})", "WARN",
+            "not reachable (start with: scripts/browserart_service.sh up)",
         ))
 
     return group
@@ -439,13 +442,46 @@ def check_dcop() -> CheckGroup:
         else:
             group.results.append(CheckResult(
                 "scipy >= 1.11", "FAIL", f"found {ver}",
-                fix="pip install 'scipy>=1.11'",
+                fix="uv sync --extra dcop",
             ))
     else:
         group.results.append(CheckResult(
             "scipy installed", "FAIL",
-            fix="pip install 'scipy>=1.11'",
+            fix="uv sync --extra dcop",
         ))
+
+    return group
+
+
+# ---------------------------------------------------------------------------
+# BigCodeBench checks
+# ---------------------------------------------------------------------------
+
+
+def check_bigcodebench() -> CheckGroup:
+    group = CheckGroup("BigCodeBench")
+
+    # inspect_evals (base) provides the HuggingFace dataset loader
+    if _can_import("inspect_evals"):
+        group.results.append(CheckResult("inspect_evals installed", "PASS"))
+    else:
+        group.results.append(CheckResult(
+            "inspect_evals installed", "FAIL",
+            fix="uv sync --extra bigcodebench",
+        ))
+
+    # datasets (HuggingFace) is what load_dataset pulls under the hood
+    if _can_import("datasets"):
+        ver = _module_version("datasets") or "unknown"
+        group.results.append(CheckResult("datasets installed", "PASS", ver))
+    else:
+        group.results.append(CheckResult(
+            "datasets installed", "FAIL",
+            fix="uv sync --extra bigcodebench",
+        ))
+
+    # BigCodeBench runs unit tests inside a Docker sandbox
+    _check_docker_daemon(group)
 
     return group
 
@@ -546,6 +582,7 @@ SCENARIO_CHECKERS = {
     "browserart": check_browserart,
     "swe-bench": check_swe_bench,
     "osworld": check_osworld,
+    "bigcodebench": check_bigcodebench,
     "dcop": check_dcop,
 }
 

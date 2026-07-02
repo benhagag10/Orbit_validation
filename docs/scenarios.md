@@ -1,6 +1,41 @@
 # Scenario Requirements
 
-Each scenario has its own dependencies. You only need to install the ones for the experiments you want to run. If a dependency is missing, you'll get a clear error message telling you exactly what to install.
+Each scenario has its own dependencies. You only need to install the ones for the experiments you want to run. If a dependency is missing, you'll get a clear error message telling you exactly what to install (the exact `uv sync --extra <name>` command).
+
+The core install — `uv sync --extra dev` — runs most scenarios as-is. Only five scenarios need an optional pip extra. The table below is the single source of truth; it mirrors `[project.optional-dependencies]` in `pyproject.toml` and the central map in `orbit/scenarios/requirements.py`.
+
+## Install matrix
+
+| Scenario | Family | Pip extra | System / runtime | Data step | Verify |
+|----------|--------|-----------|------------------|-----------|--------|
+| BrowserART | Browser | `uv sync --extra browserart` | Docker (browserart-service), Playwright/Chromium | `scripts/fetch_browserart_data.py` | `orbit verify-setup browserart` |
+| SWE-Bench | Coding | `uv sync --extra swebench` | Docker, `GITHUB_TOKEN` | auto (runtime) | `orbit verify-setup swe-bench` |
+| BigCodeBench | Coding | `uv sync --extra bigcodebench` | Docker (sandbox) | auto (HuggingFace) | `orbit verify-setup bigcodebench` |
+| RedCode-Gen | Coding | core (no extra) | Docker (sandbox) | `scripts/fetch_redcode_data.py` | — |
+| CodeIPI | Coding | core (no extra) | Docker (sandbox) | vendored | — |
+| OSWorld / OS-Harm | Desktop | `uv sync --extra osworld` | Docker | auto (HuggingFace) | `orbit verify-setup osworld` |
+| AgentHarm | Tool safety | core (no extra) | — | `scripts/build_agentharm_data.py` | — |
+| &tau;&sup2;-Bench | Customer Service | core (no extra) | — | vendored | — |
+| ConVerse | Customer Service | core (no extra) | — | vendored | — |
+| JiraTicket | Cooperative Allocation | `uv sync --extra dcop` | — | generated | `orbit verify-setup dcop` |
+| Hospital | Cooperative Allocation | core (no extra) | — | generated | — |
+| MeetSched | Cooperative Allocation | core (no extra) | — | generated | — |
+| Colosseum DCOP | Cooperative Allocation | core (no extra) | — | generated | — |
+
+**System prerequisites at a glance:**
+- **Docker** — BrowserART, SWE-Bench, BigCodeBench, RedCode-Gen, CodeIPI, OSWorld.
+- **`GITHUB_TOKEN`** — SWE-Bench only (repo/issue access).
+- **Playwright/Chromium + browserart-service** — BrowserART only.
+- **An LLM API key** — every scenario (`OPENAI_API_KEY` or `ANTHROPIC_API_KEY` or `GOOGLE_API_KEY`). Copy `.env.example` to `.env` to set keys.
+
+> **Maintainer note (figures).** The paper/report scripts under `scripts/`
+> (`render_architecture*.py`, `generate_*_figure.py`, `analyze_*.py`) need
+> `uv sync --extra figures` (matplotlib + pymupdf). These are deliberately **not**
+> in the core install — the `orbit` package never imports them — so a default
+> `uv sync --extra dev` stays lean.
+
+Detailed per-scenario setup follows. Scenarios that run on the core install are
+grouped under [Core-install scenarios](#core-install-scenarios).
 
 ## Web Agent (BrowserART)
 
@@ -12,47 +47,43 @@ Tests whether browser agents refuse harmful instructions (phishing pages, malici
 uv sync --extra browserart
 ```
 
-This installs:
-- [BrowserGym](https://github.com/ServiceNow/BrowserGym) -- browser automation environment
-- [Playwright](https://playwright.dev/python/) -- headless browser (installed automatically with BrowserGym)
+This installs the host-side packages — [BrowserGym](https://github.com/ServiceNow/BrowserGym) (browser automation), `starlette`, and `anthropic` (used by the BrowserART safety judge).
 
-The HarmBench Browser dataset (100 harmful behaviors) is bundled as JSON in `orbit/scenarios/browser/browserart/data/`.
-
-After installing, run Playwright's browser setup:
+**Fetch the dataset.** Only Orbit's original `hbb_extension.json` is redistributed; the upstream HarmBench-Browser behaviors are fetched locally (not redistributed):
 
 ```bash
-uv run playwright install chromium
+uv run python scripts/fetch_browserart_data.py
 ```
 
-### Serving the test websites
+### Start the browserart-service
 
-The BrowserART tasks require local test websites (email, social media, forms, etc.) served at `http://localhost:8000/`. Clone the browser-art repository and start a local webserver:
+BrowserART runs the browser inside a persistent `browserart-service` Docker
+container. The container bundles BrowserGym, Playwright/Chromium, **and** the
+mock target websites (email, social media, forms) served internally — you do
+**not** serve any websites on the host. Start it once per host:
 
 ```bash
-git clone https://github.com/scaleapi/browser-art.git
-cd browser-art/src/websites
-python -m http.server 8000
+scripts/browserart_service.sh up
 ```
 
-Keep this running in a separate terminal while evaluating. If the websites are not reachable, the solver will exit with a clear error message.
+The service exposes its session API on `http://localhost:7878` (override with
+`BROWSERART_SERVICE_URL`). The evaluation talks to it over HTTP; the mock sites
+live inside the container at `http://localhost:8000/` from the browser's point of
+view. If the service is unreachable, the solver exits with a clear error.
+
+> Prefer to run the service **on the host** without Docker? Then you additionally
+> need `uv run playwright install chromium` (and `uvicorn`); see
+> `orbit/scenarios/browser/browserart/service/`. The container path above is the
+> supported default.
 
 ### Verify your setup
 
 ```bash
-# Check Playwright can launch a browser
-python -c "
-from playwright.sync_api import sync_playwright
-p = sync_playwright().start()
-b = p.chromium.launch(headless=True)
-b.close(); p.stop()
-print('Playwright: OK')
-"
-
-# Check websites are being served
-curl -s http://localhost:8000/ | head -5
-
-# Or use the built-in verify command
+# Check the browserart-service is up (and Docker, browsergym, the API key)
 orbit verify-setup browserart
+
+# Or probe the service health endpoint directly
+curl -s http://localhost:7878/healthz
 ```
 
 ### Platform notes
@@ -72,18 +103,7 @@ export ANTHROPIC_API_KEY=...   # for anthropic/claude-3-5-sonnet
 export GOOGLE_API_KEY=...      # for google/gemini-1.5-pro
 ```
 
-**Docker required.** The browser runs inside the persistent
-`browserart-service` container. Start it once per host before running
-evals:
-
-```bash
-scripts/browserart_service.sh up
-```
-
-By default the task talks to `http://localhost:7878`. Override with
-`BROWSERART_SERVICE_URL` if you run the service elsewhere.
-
-**Run:**
+**Run** (with the `browserart-service` running, per above):
 
 ```bash
 inspect eval orbit/browserart_safety \
@@ -358,15 +378,122 @@ orbit run examples/osworld_osharm_basic.yaml --model openai/gpt-4o
 | `memory_shared_actions` | Star + 4 specialists, shared action visibility |
 | `memory_full` | Star + 4 specialists, full shared memory |
 
+## BigCodeBench (Coding Agent)
+
+Tests multi-agent coding on the [BigCodeBench](https://github.com/bigcode-project/bigcodebench) benchmark (function-completion tasks with rich library use), with the same attack/defense/topology surface as the other coding scenarios.
+
+**Extra install:**
+
+```bash
+uv sync --extra bigcodebench
+```
+
+This installs `inspect-evals` (for its HuggingFace dataset loader) and `datasets`. The BigCodeBench dataset is downloaded automatically from HuggingFace on first run — no manual fetch step.
+
+**Docker required.** Generated solutions run their bundled unit tests inside a Docker sandbox (`orbit/scenarios/coding/bigcodebench/sandbox/`). Docker must be installed and running.
+
+### Verify your setup
+
+```bash
+orbit verify-setup bigcodebench
+# or: python scripts/check_setup.py --scenario bigcodebench
+```
+
+**Run:**
+
+```bash
+inspect eval orbit/bigcodebench --limit 3 --model openai/gpt-4o
+```
+
+If `inspect-evals`/`datasets` are missing you'll get: `BigCodeBench needs the 'bigcodebench' extra ... uv sync --extra bigcodebench`.
+
+## Cooperative Allocation (DCOP family)
+
+Distributed constraint-optimization scenarios where agents allocate resources under a shared objective, with optional collusion. Four scenarios share this family: **JiraTicket**, **Hospital**, **MeetSched**, and **Colosseum DCOP**.
+
+**Install:**
+
+- **JiraTicket** computes the optimal assignment with the Hungarian algorithm and needs SciPy:
+
+  ```bash
+  uv sync --extra dcop
+  ```
+
+- **Hospital**, **MeetSched**, and **Colosseum DCOP** run on the **core install** (no extra).
+
+No Docker and no data fetch — problems are generated procedurally at runtime.
+
+### Verify your setup
+
+```bash
+orbit verify-setup dcop          # checks SciPy (only JiraTicket needs it)
+```
+
+**Run:**
+
+```bash
+# JiraTicket with a 2-agent coalition (collusion)
+inspect eval orbit/jira_ticket_allocation \
+  -T num_developers=4 -T num_tasks=6 -T coalition_agents=dev_0,dev_1 \
+  --model openai/gpt-4o
+
+# Hospital / meeting scheduling (core install, no extra)
+inspect eval orbit/hospital_scheduling --model openai/gpt-4o
+inspect eval orbit/meeting_scheduling --model openai/gpt-4o
+```
+
+Running JiraTicket without SciPy raises: `Scenario 'jira_ticket' needs the optional 'dcop' extra (missing: scipy). Install it with: uv sync --extra dcop`.
+
+## Core-install scenarios
+
+These scenarios run on the base install (`uv sync --extra dev`) — no extra to install. Some need Docker (a code sandbox) and/or a one-time data fetch.
+
+### RedCode-Gen (Coding Agent)
+
+Malicious-code-generation refusal tests. Generated code runs in a **Docker** sandbox. Fetch the upstream stubs (not redistributed) before running:
+
+```bash
+uv run python scripts/fetch_redcode_data.py
+inspect eval orbit/redcode_gen --limit 5 --model openai/gpt-4o
+```
+
+### CodeIPI (Coding Agent)
+
+Indirect-prompt-injection-in-code tests. Prompts are vendored in the repo; generated code runs in a **Docker** sandbox. No data step:
+
+```bash
+inspect eval orbit/code_ipi --limit 5 --model openai/gpt-4o
+```
+
+### AgentHarm (Tool-Use Safety)
+
+Harmful tool-use refusal tests. Build the dataset from HuggingFace (MIT + safety-use-only) before running:
+
+```bash
+uv run python scripts/build_agentharm_data.py
+inspect eval orbit/agentharm --limit 5 --model openai/gpt-4o
+```
+
+### &tau;&sup2;-Bench & ConVerse (Customer Service)
+
+Policy-bound customer-service tool-calling (&tau;&sup2;-Bench) and multi-session social-engineering (ConVerse). Domain data is **vendored** under each scenario directory — no extra, no Docker, no fetch step:
+
+```bash
+inspect eval orbit/tau2 -T domain=airline --limit 3 --model openai/gpt-4o
+inspect eval orbit/converse_safety --limit 3 --model openai/gpt-4o
+```
+
+(`scripts/build_converse_data.py` regenerates the vendored ConVerse data if you ever need to.)
+
 ## Troubleshooting
 
 ### BrowserART
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| `SETUP_ERROR: websites not reachable` | Test websites not served at localhost:8000 | Clone browser-art and run `python -m http.server 8000` in `src/websites/` |
+| `browserart-service not reachable` / connection refused | Service container not running | `scripts/browserart_service.sh up` (then check `curl http://localhost:7878/healthz`) |
 | `Missing BrowserGym dependencies` | browsergym not installed | `uv sync --extra browserart` |
-| `Playwright browser not found` | Chromium not installed | `playwright install chromium` |
+| `Playwright browser not found` (host-side service) | Chromium not installed | `uv run playwright install chromium` |
 | `Browser init failed` after retries | System libraries missing (common on WSL2/headless Linux) | `playwright install-deps chromium` |
 
 ### SWE-Bench
@@ -388,12 +515,30 @@ orbit run examples/osworld_osharm_basic.yaml --model openai/gpt-4o
 | `Failed to load OS-Harm from HuggingFace` | No internet or HF Hub unreachable | Check connection, or use a local clone via `data_path` |
 | Container startup timeout | Docker slow or resource-constrained | Increase Docker memory; retry |
 
+### BigCodeBench / Cooperative Allocation
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `BigCodeBench needs the 'bigcodebench' extra` | inspect-evals/datasets not installed | `uv sync --extra bigcodebench` |
+| `Scenario 'jira_ticket' needs the optional 'dcop' extra` | scipy not installed | `uv sync --extra dcop` |
+
 ## Summary
 
-| Scenario | Task Name | Extra Install | Docker | Browser |
-|----------|-----------|--------------|--------|---------|
-| BrowserART | `browserart_safety` | `uv sync --extra browserart` + `uv run playwright install chromium` + serve websites | No | Yes (local) |
-| SWE-Bench | `swe_bench_multi_issue` | `uv sync --extra swebench` | Yes (must be running) | No |
-| OSWorld / OS-Harm | `osworld_safety` | `uv sync --extra osworld` | Yes (must be running) | No |
+Task name → scenario → what to install. Every scenario also needs a model API key
+(`OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`); see the
+[Inspect AI model docs](https://inspect.aisi.org.uk/models.html).
 
-Both scenarios need a model API key. See [Inspect AI model docs](https://inspect.aisi.org.uk/models.html) for the full list of supported providers.
+| Task name (`orbit/…`) | Scenario | Install | Docker |
+|-----------------------|----------|---------|--------|
+| `browserart_safety` | BrowserART | `uv sync --extra browserart` + `scripts/browserart_service.sh up` | Yes (service) |
+| `swe_bench_multi_issue` | SWE-Bench | `uv sync --extra swebench` | Yes |
+| `bigcodebench` | BigCodeBench | `uv sync --extra bigcodebench` | Yes |
+| `redcode_gen` | RedCode-Gen | core + `scripts/fetch_redcode_data.py` | Yes |
+| `code_ipi` | CodeIPI | core | Yes |
+| `osworld_safety`, `osworld_benchmark` | OSWorld / OS-Harm | `uv sync --extra osworld` | Yes |
+| `agentharm` | AgentHarm | core + `scripts/build_agentharm_data.py` | No |
+| `tau2` | &tau;&sup2;-Bench | core | No |
+| `converse_safety` | ConVerse | core | No |
+| `jira_ticket_allocation` | JiraTicket | `uv sync --extra dcop` | No |
+| `hospital_scheduling` | Hospital | core | No |
+| `meeting_scheduling` | MeetSched | core | No |

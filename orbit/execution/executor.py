@@ -49,6 +49,19 @@ class TurnExecutor(ABC):
         """All per-agent states. Empty dict if agents share TaskState."""
         return {}
 
+    @property
+    def invoked_agents(self) -> list[str]:
+        """Names of agents actually invoked, including sub-agents delegated
+        via ``as_tool()`` / ``direct_run`` that never surface as their own
+        :class:`AgentTurnResult`.
+
+        Default empty: callers fall back to per-turn
+        ``AgentTurnResult.agent_name`` (correct for ``ScheduledExecutor``,
+        where each agent is its own turn). ``TopologyExecutor`` overrides
+        this because a single root turn may fan out to several sub-agents.
+        """
+        return []
+
     @abstractmethod
     def inject_messages(self, messages: list, target: str | None) -> None:
         """Put attack messages where agents will see them.

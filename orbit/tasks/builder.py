@@ -296,10 +296,12 @@ def build_scenario_task(
         variant: Baseline/variant label propagated into sample ids/metadata.
     """
     if plugin is None:
-        # A known-but-broken scenario raises ScenarioImportError here (never a
-        # silent generic fallback). Only a genuinely unknown name falls back —
-        # loudly, naming the registered scenarios so a typo is visible rather
-        # than running as a benign single-sample generic task.
+        # A known-but-broken scenario raises ScenarioImportError here — an
+        # actionable MissingScenarioDependencyError naming the exact
+        # `uv sync --extra <name>` command when its optional extra is missing —
+        # never a silent generic fallback. Only a genuinely unknown name falls
+        # back — loudly, naming the registered scenarios so a typo is visible
+        # rather than running as a benign single-sample generic task.
         plugin = get_scenario(config.scenario.name)
         if plugin is None:
             from orbit.scenarios.registry import registered_scenarios

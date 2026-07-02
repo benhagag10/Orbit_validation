@@ -34,7 +34,13 @@ def load_bigcodebench_tasks(
     if config is None:
         config = BigCodeBenchScenarioConfig()
 
-    from inspect_evals.utils.huggingface import load_dataset
+    try:
+        from inspect_evals.utils.huggingface import load_dataset
+    except ImportError as exc:
+        raise ImportError(
+            "BigCodeBench needs the 'bigcodebench' extra (inspect-evals + "
+            "datasets) to load its HuggingFace dataset: uv sync --extra bigcodebench"
+        ) from exc
 
     logger.info("Loading BigCodeBench dataset (version=%s)", config.version)
     records = load_dataset("bigcode/bigcodebench", split=config.version)
