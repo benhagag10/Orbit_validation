@@ -1209,7 +1209,10 @@ def validate_cmd(
             # topology) so a condition-only config validates against its real
             # topology, not an empty one — the same resolution the builder does.
             config = resolve_scenario_shorthand(config)
-            errors = ConfigValidator.validate(config)
+            # expand_templates: validate attack/defense targets against the
+            # runtime agent names (swe_bench replicates solver -> solver_0…),
+            # not the raw template — issues #7/#4.
+            errors = ConfigValidator.validate(config, expand_templates=True)
             kind = "config"
     except Exception as e:
         click.echo(f"Error loading config: {e}", err=True)

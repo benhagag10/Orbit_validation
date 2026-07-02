@@ -358,16 +358,17 @@ def build_scenario_task(
     # gate — an attack whose target_agent doesn't exist would then silently fail
     # to bind (a benign run) with no error. Validated on a representative
     # EXPANDED config (so condition-built rosters are seen, not tau2/agentharm's
-    # empty pre-expand setup), and LOGGED not raised: a hard failure here would
-    # false-positive on runtime agent-expansion targets (a star replicating
-    # `solver` into `solver_0`), which is tracked separately in issue #7.
+    # empty pre-expand setup) with the default identity names — expansion
+    # already renamed any template agents (swe_bench's solver -> solver_0), so
+    # `expand_templates=True` here would double-expand. LOGGED not raised: the
+    # representative sample may not capture per-sample roster variation; the
+    # offline `orbit validate` / `--dry-run` (which do expand the template) are
+    # the hard gates.
     representative = configs[0] if configs else config
     val_errors = ConfigValidator.validate(representative)
     if val_errors:
         logger.warning(
-            "Scenario %r config %r has %d validation issue(s): %s. (References "
-            "to runtime-expanded agents such as 'solver_0' may be false "
-            "positives — see issue #7.)",
+            "Scenario %r config %r has %d validation issue(s): %s",
             plugin.name,
             representative.name,
             len(val_errors),

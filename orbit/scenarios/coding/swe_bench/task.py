@@ -28,6 +28,7 @@ from inspect_ai.solver import chain
 from orbit.scenarios.coding.swe_bench.config_builder import (
     build_experiment_configs,
     default_topology_template,
+    replicated_agent_name,
 )
 from orbit.scenarios.coding.swe_bench.configs import SWEBenchScenarioConfig
 from orbit.scenarios.registry import ScenarioPlugin, register_scenario
@@ -112,6 +113,28 @@ def _scenario_config(config: ExperimentConfig) -> SWEBenchScenarioConfig:
         max_time_seconds=config.scheduler.max_time_seconds,
         force_arch=meta.get("swe_bench_force_arch", ""),
     )
+
+
+def _swe_bench_agent_names(config: ExperimentConfig) -> set[str]:
+    """Runtime agent names for one SWE-Bench sample (validation support).
+
+    ``expand`` replicates the topology template once per issue in a group
+    (``config_builder._replicate_topology``), so each declared agent ``name``
+    becomes ``name_0 .. name_{num_issues-1}``. Derived from the config alone —
+    same ``_scenario_config`` resolution and empty-setup fallback as
+    ``_swe_bench_expand``, same naming helper as the real replication — but
+    with no dataset fetch or Docker, so it is safe inside ``orbit validate`` /
+    ``--dry-run``. (A trailing group may hold fewer issues than
+    ``num_issues``; this is the full-group name set, which is what targets
+    are authored against.)
+    """
+    num_issues = max(1, _scenario_config(config).num_issues)
+    template = config.setup if config.setup.agents else default_topology_template()
+    return {
+        replicated_agent_name(agent.name, idx)
+        for agent in template.agents
+        for idx in range(num_issues)
+    }
 
 
 def _swe_bench_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
@@ -213,6 +236,7 @@ SWE_BENCH_PLUGIN = register_scenario(
         name="swe_bench",
         resolve=_swe_bench_resolve,
         expand=_swe_bench_expand,
+        expand_agent_names=_swe_bench_agent_names,
         build_setup=_swe_bench_setup,
         build_solver=None,  # default mas_orchestrator
         build_scorers=_swe_bench_scorers,
