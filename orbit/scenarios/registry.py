@@ -48,6 +48,17 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class ScenarioImportError(ImportError):
+    """A registered scenario's module failed to import.
+
+    Raised by :func:`get_scenario` when a *known* scenario (one in ``_LOADERS``)
+    cannot be imported. Scenario modules import their heavy optional deps lazily
+    (inside ``expand``/dataset builders), so an import-time failure here is a
+    real bug — never a merely-missing extra — and must surface instead of
+    silently degrading the run to the generic plugin.
+    """
+
+
 @dataclass(frozen=True)
 class ScenarioPlugin:
     """Declares the scenario-specific pieces of Task construction.
@@ -157,12 +168,17 @@ def register_scenario(plugin: ScenarioPlugin) -> ScenarioPlugin:
 
 
 def get_scenario(name: str | None) -> ScenarioPlugin | None:
-    """Return the registered plugin for ``name``, or ``None`` if unknown.
+    """Return the registered plugin for ``name``.
 
-    Triggers a lazy import of the owning scenario module the first time a
-    known name is requested. If the scenario's optional dependency is missing,
-    the import is swallowed and ``None`` is returned (the caller falls back to
-    the generic path).
+    Triggers a lazy import of the owning scenario module the first time a known
+    name is requested. Returns ``None`` for an *unknown* name (no registered
+    plugin) — the caller falls back to the generic path.
+
+    Raises :class:`ScenarioImportError` if a *known* scenario's module fails to
+    import. Scenario modules import optional deps lazily, so an import failure
+    is a genuine bug (a missing extra surfaces later, from ``expand``); silently
+    returning ``None`` here would run a declared scenario as a benign
+    single-sample generic task with no error — the issue-#9 failure class.
     """
     if not name:
         return None
@@ -170,8 +186,14 @@ def get_scenario(name: str | None) -> ScenarioPlugin | None:
     if key not in _PLUGINS and key in _LOADERS:
         try:
             importlib.import_module(_LOADERS[key])
-        except Exception as exc:  # optional dep missing, or import error
-            logger.debug("Scenario plugin %r unavailable: %s", key, exc)
+        except Exception as exc:
+            logger.error("Scenario plugin %r failed to import: %s", key, exc)
+            raise ScenarioImportError(
+                f"Scenario {key!r} is registered but its module "
+                f"{_LOADERS[key]!r} failed to import ({exc!s}). Optional scenario "
+                f"dependencies are imported lazily, so this is a bug in the "
+                f"scenario module, not a missing extra."
+            ) from exc
     return _PLUGINS.get(key)
 
 

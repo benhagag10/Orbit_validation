@@ -381,3 +381,36 @@ class TestConditionSetupMutualExclusivity:
         once = plugin.resolve(c)
         twice = plugin.resolve(once)  # must not raise (trigger key consumed)
         assert [a.name for a in once.setup.agents] == [a.name for a in twice.setup.agents]
+
+
+class TestKnownScenarioImportFailsLoud:
+    """A registered scenario whose module fails to import must raise, never
+    silently fall back to the generic benign single-sample task (that would run
+    a declared scenario as a benign run with no error — the issue-#9 class on
+    the reader path). A genuinely unknown name still falls back, but loudly.
+    """
+
+    def test_broken_known_scenario_raises(self, monkeypatch):
+        import orbit.scenarios.registry as reg
+
+        # Point a known scenario at a module that raises on import, and clear any
+        # cached plugin so the loader is re-run.
+        monkeypatch.setitem(reg._LOADERS, "swe_bench", "orbit._does_not_exist_xyz")
+        monkeypatch.delitem(reg._PLUGINS, "swe_bench", raising=False)
+        with pytest.raises(reg.ScenarioImportError):
+            reg.get_scenario("swe_bench")
+
+    def test_unknown_scenario_falls_back_to_generic(self, caplog):
+        import logging
+
+        from orbit.scenarios.registry import get_scenario
+        from orbit.tasks.builder import DEFAULT_PLUGIN, build_scenario_task
+
+        assert get_scenario("totally_made_up_scenario") is None
+        config = _exp("totally_made_up_scenario")
+        with caplog.at_level(logging.WARNING, logger="orbit.tasks.builder"):
+            task = build_scenario_task(config)
+        assert any("No scenario plugin registered" in r.message for r in caplog.records)
+        # Generic path still threads the whole config (attacks/defenses/topology).
+        exp = _sample_configs(task)[0]
+        assert exp.attacks and exp.defenses and len(exp.setup.agents) == 2

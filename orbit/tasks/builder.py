@@ -15,6 +15,7 @@ rationale. When ``config.scenario.name`` has no registered plugin, the generic
 
 from __future__ import annotations
 
+import logging
 from collections import Counter
 from typing import TYPE_CHECKING, Any
 
@@ -23,6 +24,8 @@ from inspect_ai.dataset import MemoryDataset
 
 from orbit.dataset.sample_factory import build_sample
 from orbit.scenarios.registry import ScenarioPlugin, get_scenario
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from inspect_ai.scorer import Scorer
@@ -246,7 +249,23 @@ def build_scenario_task(
         variant: Baseline/variant label propagated into sample ids/metadata.
     """
     if plugin is None:
-        plugin = get_scenario(config.scenario.name) or DEFAULT_PLUGIN
+        # A known-but-broken scenario raises ScenarioImportError here (never a
+        # silent generic fallback). Only a genuinely unknown name falls back —
+        # loudly, naming the registered scenarios so a typo is visible rather
+        # than running as a benign single-sample generic task.
+        plugin = get_scenario(config.scenario.name)
+        if plugin is None:
+            from orbit.scenarios.registry import registered_scenarios
+
+            logger.warning(
+                "No scenario plugin registered for scenario.name=%r; using the "
+                "generic benchmark path (topology/attacks/defenses are still "
+                "threaded, but there is no scenario-specific dataset expansion or "
+                "scorers). If this is a typo, the registered scenarios are: %s.",
+                config.scenario.name,
+                ", ".join(sorted(registered_scenarios())),
+            )
+            plugin = DEFAULT_PLUGIN
 
     # 0. Resolve scenario-specific shorthand (preset/condition metadata keys)
     # into the canonical config. Runs on BOTH entry points, so a preset declared
