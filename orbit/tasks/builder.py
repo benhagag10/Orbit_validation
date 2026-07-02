@@ -51,17 +51,23 @@ def _assert_experiment_dimensions_preserved(
     original: ExperimentConfig,
     produced: list[ExperimentConfig],
     plugin_name: str,
+    stage: str = "expanding",
 ) -> None:
-    """Fail loud if dataset expansion dropped an experiment-level dimension.
+    """Fail loud if a plugin hook dropped a declared attack/defense dimension.
 
-    The contract, stated precisely: ``expand`` owns per-sample construction, so
-    a plugin's ``expand()`` MAY ADD attacks/defenses (code_ipi prepends a
-    per-task injection) or transform an attack's *properties* (swe_bench
-    resolves an ``auto`` side-task payload per group) — but it must PRESERVE
-    each declared ``attack_type``/``defense_type``, count included. The one
-    thing it must never do is reduce the multiset of declared types: that
-    silently collapses a security condition into a benign run — the issue-#9
-    bug class.
+    The contract, stated precisely: ``resolve`` and ``expand`` own per-sample
+    construction, so they MAY ADD attacks/defenses (code_ipi prepends a per-task
+    injection) or transform an attack's *properties* (swe_bench resolves an
+    ``auto`` side-task payload per group) — but must PRESERVE each declared
+    ``attack_type``/``defense_type``, count included. The one thing they must
+    never do is reduce the multiset of declared types: that silently collapses a
+    security condition into a benign run — the issue-#9 bug class.
+
+    Applied at TWO stages, each keyed on the pre-hook config so neither hook can
+    lower the floor the other is checked against:
+      * after ``resolve`` — ``resolve`` may materialise preset shorthand into
+        MORE attacks/defenses but may not strip a type the config declared;
+      * after ``expand`` — keyed on the post-resolve config.
 
     The check is a per-type multiset *floor* (``>=`` on the ``attack_type`` /
     ``defense_type`` Counters), keyed on the declared *type*, not on attack
@@ -85,12 +91,49 @@ def _assert_experiment_dimensions_preserved(
         if missing_a or missing_d:
             raise ScenarioExpansionError(
                 f"Scenario plugin {plugin_name!r} dropped experiment-level "
-                f"dimensions while expanding sample {i} ({cfg.name!r}): "
+                f"dimensions while {stage} sample {i} ({cfg.name!r}): "
                 f"missing attacks={dict(missing_a)}, defenses={dict(missing_d)}. "
-                f"A plugin's expand() must thread config.attacks/config.defenses "
-                f"into every produced config (it may add to or transform them, "
-                f"but never drop a declared type). See "
-                f"orbit.scenarios.registry.ScenarioPlugin.expand."
+                f"A plugin's resolve()/expand() must thread "
+                f"config.attacks/config.defenses into every produced config (it "
+                f"may add to or transform them, but never drop a declared type). "
+                f"See orbit.scenarios.registry.ScenarioPlugin."
+            )
+
+
+def _assert_topology_preserved(
+    resolved: ExperimentConfig,
+    produced: list[ExperimentConfig],
+    plugin_name: str,
+) -> None:
+    """Fail loud if ``expand`` collapsed the topology or dropped shared memory.
+
+    The attack/defense floor does not cover topology, yet "star silently
+    degenerates to a single agent" is the worst construct-validity failure this
+    project has. For a ``threads_setup`` plugin (the default), a produced config
+    may not have FEWER agents than the resolved config, nor turn a declared
+    ``memory.shared=True`` into ``False``. This is a floor: adding agents is
+    fine (agent expansion happens later in the orchestrator). Scenarios that
+    derive topology from a native selector (``threads_setup=False``:
+    tau2/agentharm) are exempt — the builder warns instead.
+    """
+    want_agents = len(resolved.setup.agents)
+    want_shared = resolved.setup.memory.shared
+    if want_agents == 0 and not want_shared:
+        return
+    for i, cfg in enumerate(produced):
+        if len(cfg.setup.agents) < want_agents:
+            raise ScenarioExpansionError(
+                f"Scenario plugin {plugin_name!r} collapsed the topology while "
+                f"expanding sample {i} ({cfg.name!r}): {want_agents} agent(s) "
+                f"declared, {len(cfg.setup.agents)} produced. A threads_setup "
+                f"plugin's expand() must thread config.setup into every produced "
+                f"config. See orbit.scenarios.registry.ScenarioPlugin.threads_setup."
+            )
+        if want_shared and not cfg.setup.memory.shared:
+            raise ScenarioExpansionError(
+                f"Scenario plugin {plugin_name!r} dropped shared memory while "
+                f"expanding sample {i} ({cfg.name!r}): config declared "
+                f"memory.shared=True but the produced config has shared=False."
             )
 
 
@@ -269,11 +312,16 @@ def build_scenario_task(
 
     # 0. Resolve scenario-specific shorthand (preset/condition metadata keys)
     # into the canonical config. Runs on BOTH entry points, so a preset declared
-    # in an `orbit run` YAML is resolved exactly as the `-T` factory resolves it
-    # — and BEFORE the dimension invariant, so the resolved attacks/defenses are
-    # guarded too. Idempotent: a no-op when the config is already resolved.
+    # in an `orbit run` YAML is resolved exactly as the `-T` factory resolves it.
+    # Guarded against dropping a declared type: the floor is snapshotted from the
+    # PRE-resolve config, so resolve may only ADD (materialise shorthand), never
+    # strip. Idempotent: a no-op when the config is already resolved.
     if plugin.resolve is not None:
+        pre_resolve = config
         config = plugin.resolve(config)
+        _assert_experiment_dimensions_preserved(
+            pre_resolve, [config], plugin.name, stage="resolving"
+        )
 
     # 1. Dataset expansion (threads config.setup/attacks/defenses through).
     configs = plugin.expand(config) if plugin.expand else [config]
@@ -284,6 +332,21 @@ def build_scenario_task(
     # treated as a drop by design (issue #9). Enforced once, here, for every
     # scenario — see the helper's docstring.
     _assert_experiment_dimensions_preserved(config, configs, plugin.name)
+
+    # 1b. Topology floor: a threads_setup plugin (the default) may not collapse
+    # the agent count or drop shared memory during expansion. Scenarios that
+    # derive topology from a native selector (tau2/agentharm) are exempt, but we
+    # warn if they were handed an inline setup that will be ignored.
+    if plugin.threads_setup:
+        _assert_topology_preserved(config, configs, plugin.name)
+    elif config.setup.agents:
+        logger.warning(
+            "Scenario %r derives its topology from its own condition selector; "
+            "the inline setup.agents (%s) is IGNORED. Remove it, or select the "
+            "topology via the scenario's condition.",
+            plugin.name,
+            [a.name for a in config.setup.agents],
+        )
 
     # 2. Build one sample per config (serializes the whole config to metadata).
     samples = []

@@ -179,6 +179,83 @@ class TestBuilderEnforcesDimensionFloor:
         exp = _sample_configs(task)[0]
         assert len(exp.attacks) == 2
 
+    def test_resolve_dropping_attack_raises(self):
+        # The floor is snapshotted PRE-resolve, so a resolve() that strips a
+        # declared attack (not via a baseline) is caught, not silently obeyed.
+        from orbit.scenarios.registry import ScenarioPlugin
+        from orbit.tasks.builder import ScenarioExpansionError, build_scenario_task
+
+        config = _exp("custom_scenario")
+        plugin = ScenarioPlugin(
+            name="custom_scenario",
+            resolve=lambda c: c.model_copy(update={"attacks": []}),
+        )
+        with pytest.raises(ScenarioExpansionError):
+            build_scenario_task(config, plugin=plugin)
+
+
+class TestBuilderEnforcesTopologyFloor:
+    """A ``threads_setup`` plugin (the default) may not collapse the agent count
+    or drop shared memory during expansion — the "star silently degenerates to a
+    single agent" failure. ``threads_setup=False`` scenarios are exempt but warn.
+    """
+
+    def _collapsing_expand(self, c):
+        one = c.setup.model_copy(update={"agents": c.setup.agents[:1], "edges": []})
+        return [c.model_copy(update={"setup": one})]
+
+    def test_collapsing_topology_raises(self):
+        from orbit.scenarios.registry import ScenarioPlugin
+        from orbit.tasks.builder import ScenarioExpansionError, build_scenario_task
+
+        config = _exp("custom_scenario")  # 2 agents
+        plugin = ScenarioPlugin(name="custom_scenario", expand=self._collapsing_expand)
+        with pytest.raises(ScenarioExpansionError, match="collapsed the topology"):
+            build_scenario_task(config, plugin=plugin)
+
+    def test_dropping_shared_memory_raises(self):
+        from orbit.configs.setup import MemoryConfig, SetupConfig
+        from orbit.scenarios.registry import ScenarioPlugin
+        from orbit.tasks.builder import ScenarioExpansionError, build_scenario_task
+
+        config = _exp(
+            "custom_scenario",
+            setup=SetupConfig(
+                agents=[
+                    AgentSpec(name="a", role="orchestrator", tools=[]),
+                    AgentSpec(name="b", role="executor", tools=[]),
+                ],
+                memory=MemoryConfig(shared=True),
+            ),
+        )
+
+        def expand(c):
+            no_shared = c.setup.model_copy(
+                update={"memory": c.setup.memory.model_copy(update={"shared": False})}
+            )
+            return [c.model_copy(update={"setup": no_shared})]
+
+        plugin = ScenarioPlugin(name="custom_scenario", expand=expand)
+        with pytest.raises(ScenarioExpansionError, match="shared memory"):
+            build_scenario_task(config, plugin=plugin)
+
+    def test_threads_setup_false_is_exempt_and_warns(self, caplog):
+        import logging
+
+        from orbit.scenarios.registry import ScenarioPlugin
+        from orbit.tasks.builder import build_scenario_task
+
+        config = _exp("custom_scenario")  # 2 agents
+        plugin = ScenarioPlugin(
+            name="custom_scenario",
+            expand=self._collapsing_expand,
+            threads_setup=False,
+        )
+        with caplog.at_level(logging.WARNING, logger="orbit.tasks.builder"):
+            task = build_scenario_task(config, plugin=plugin)  # must NOT raise
+        assert len(_sample_configs(task)[0].setup.agents) == 1
+        assert any("IGNORED" in r.message for r in caplog.records)
+
 
 class TestExpandingPluginsPreserveDimensions:
     """Every real expanding plugin must thread config.attacks/defenses into the

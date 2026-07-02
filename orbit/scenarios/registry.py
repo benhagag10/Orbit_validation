@@ -26,10 +26,18 @@ entry points converge on the same plugin:
       flat params/presets into an ``ExperimentConfig`` → ``build_scenario_task``
 
 Because there is exactly one consumer per scenario and it sees the entire
-``ExperimentConfig``, a config section that is set (topology/attacks/defenses)
-can never be silently dropped — the class of bug in issue #9 is impossible by
-construction. Adding a new scenario is "register a plugin", not "hand-write
-another Task factory".
+``ExperimentConfig``, the builder can enforce that config sections are not
+silently dropped. Concretely it enforces, centrally, for every scenario:
+
+    * attacks/defenses: ``resolve`` may only ADD declared types, ``expand`` may
+      only preserve/transform-within-type them (never drop) — the exact class of
+      bug in issue #9, made a hard error;
+    * topology/memory: a ``threads_setup`` plugin (the default) may not reduce
+      the agent count or drop shared memory during expansion.
+
+These are *floors*, not full equality: a plugin can still add agents or change
+an attack's payload. Adding a new scenario is "register a plugin", not
+"hand-write another Task factory".
 """
 
 from __future__ import annotations
@@ -122,6 +130,16 @@ class ScenarioPlugin:
     (``build_sample(c, sample_id=c.name)``) — the convention for expanding
     scenarios. If False, ids fall back to ``{name}_{variant}`` (the generic
     benchmark convention)."""
+
+    threads_setup: bool = True
+    """Whether ``expand`` threads ``config.setup`` (topology/memory) into every
+    produced config. When True (the default and the case for almost every
+    scenario), the builder enforces a topology floor: a produced config may not
+    have FEWER agents than the resolved config, nor drop shared memory. Set
+    False only for a scenario that *derives* its topology from a scenario-native
+    selector and deliberately ignores the inline ``setup`` (tau2/agentharm build
+    the roster from their ``*_condition``); the builder then skips the floor and
+    warns if an ignored inline ``setup`` was supplied."""
 
 
 # ---------------------------------------------------------------------------

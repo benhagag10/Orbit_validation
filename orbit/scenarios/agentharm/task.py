@@ -77,6 +77,9 @@ AGENTHARM_PLUGIN = register_scenario(
         build_solver=None,  # default mas_orchestrator (v1/v2)
         build_scorers=_agentharm_scorers,
         build_sandbox=lambda config: None,  # tools are mocked; no sandbox
+        # agentharm builds its roster from agentharm_condition, ignoring any
+        # inline setup — so it is exempt from the builder's topology floor.
+        threads_setup=False,
     )
 )
 

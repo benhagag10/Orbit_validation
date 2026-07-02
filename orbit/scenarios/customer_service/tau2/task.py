@@ -315,6 +315,9 @@ TAU2_PLUGIN = register_scenario(
         build_task_kwargs=lambda config: {
             "epochs": Epochs(1, [pass_hat_k(1), pass_hat_k(2), pass_hat_k(4)])
         },
+        # tau2 builds its roster from the per-task tau2_condition, ignoring any
+        # inline setup — so it is exempt from the builder's topology floor.
+        threads_setup=False,
     )
 )
 
