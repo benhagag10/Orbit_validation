@@ -104,6 +104,47 @@ def split_csv(value: object) -> list[str] | None:
     return [v.strip() for v in str(value).split(",") if v.strip()]
 
 
+def baseline_keeps_attacks(config: ExperimentConfig) -> bool:
+    """Whether ``config``'s baseline mode retains attacks.
+
+    A plugin's ``resolve`` hook materialises attack *preset shorthand* into
+    ``config.attacks``. That must NOT happen when a baseline intentionally
+    stripped attacks (``no_attack``/``benign``) — otherwise the "control" run
+    silently re-acquires the attack and the attack-effect delta is measured
+    against a contaminated reference. ``resolve`` hooks gate preset injection on
+    this. Keyed on ``baseline_mode`` (set once by ``apply_baseline`` and carried
+    through ``model_copy``), so it is correct regardless of whether the baseline
+    was applied before or after ``resolve``.
+    """
+    from orbit.configs.baseline import BaselineMode
+
+    return config.baseline_mode not in (BaselineMode.NO_ATTACK, BaselineMode.BENIGN)
+
+
+def baseline_keeps_defenses(config: ExperimentConfig) -> bool:
+    """Whether ``config``'s baseline mode retains defenses (see
+    :func:`baseline_keeps_attacks`)."""
+    from orbit.configs.baseline import BaselineMode
+
+    return config.baseline_mode not in (BaselineMode.NO_DEFENSE, BaselineMode.BENIGN)
+
+
+def resolve_scenario_shorthand(config: ExperimentConfig) -> ExperimentConfig:
+    """Apply the scenario plugin's ``resolve`` hook to ``config`` (or a no-op).
+
+    Materialises scenario *shorthand* (a ``*_condition`` topology preset, an
+    ``*_attack_preset`` name) into the canonical config, exactly as the shared
+    builder does before dataset expansion. Callers that inspect or validate a
+    config *before* it reaches the builder — ``orbit validate`` and
+    ``orbit run --dry-run`` — use this so a condition-only YAML reports and
+    validates against its resolved topology rather than an empty one. Idempotent
+    (``resolve`` hooks strip the shorthand they consume)."""
+    plugin = get_scenario(config.scenario.name)
+    if plugin is not None and plugin.resolve is not None:
+        return plugin.resolve(config)
+    return config
+
+
 # ---------------------------------------------------------------------------
 # Generic defaults (extracted verbatim from the original security_benchmark)
 # ---------------------------------------------------------------------------

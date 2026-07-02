@@ -187,12 +187,22 @@ def _swe_bench_resolve(config: ExperimentConfig) -> ExperimentConfig:
     ``-T`` factory uses. Idempotent: a no-op when attacks/defenses are already
     set (the ``-T`` path).
     """
+    from orbit.tasks.builder import baseline_keeps_attacks, baseline_keeps_defenses
+
     meta = config.metadata or {}
     updates: dict = {}
-    if not config.attacks and meta.get("swe_bench_attack_preset"):
+    if (
+        baseline_keeps_attacks(config)
+        and not config.attacks
+        and meta.get("swe_bench_attack_preset")
+    ):
         from orbit.scenarios.coding.swe_bench.presets import get_attack_preset
         updates["attacks"] = get_attack_preset(meta["swe_bench_attack_preset"])
-    if not config.defenses and meta.get("swe_bench_defense_preset"):
+    if (
+        baseline_keeps_defenses(config)
+        and not config.defenses
+        and meta.get("swe_bench_defense_preset")
+    ):
         from orbit.scenarios.coding.swe_bench.presets import get_defense_preset
         updates["defenses"] = get_defense_preset(meta["swe_bench_defense_preset"])
     return config.model_copy(update=updates) if updates else config
