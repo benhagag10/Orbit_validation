@@ -16,7 +16,6 @@ from __future__ import annotations
 import importlib.resources
 import json
 import logging
-import random
 import tomllib
 from functools import lru_cache
 from pathlib import Path
@@ -91,16 +90,17 @@ def filter_tasks(
     tasks: list[Tau2Task],
     config: Tau2ScenarioConfig,
 ) -> list[Tau2Task]:
-    """Apply ``task_ids`` / ``max_tasks`` / ``seed`` filters."""
+    """Apply the ``task_ids`` filter.
+
+    Sample-count limiting is delegated to Inspect's native ``--limit`` (with
+    ``--sample-shuffle`` / ``--seed`` for a random subset), so this only
+    narrows by explicit task id.
+    """
     filtered = tasks
     if config.task_ids:
         wanted = set(config.task_ids)
         filtered = [t for t in filtered if t.id in wanted]
         logger.info("Filtered to task_ids %s: %d tasks", config.task_ids, len(filtered))
-    if config.max_tasks is not None and len(filtered) > config.max_tasks:
-        rng = random.Random(config.seed)
-        filtered = rng.sample(filtered, config.max_tasks)
-        logger.info("Sampled %d tasks (seed=%s)", config.max_tasks, config.seed)
     return filtered
 
 

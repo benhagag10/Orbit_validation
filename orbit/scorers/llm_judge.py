@@ -18,8 +18,8 @@ Usage:
         def map_to_metrics(self, state, verdict, raw_response): ...
 
     @scorer(metrics=[mean(), std()])
-    def my_scorer(classifier_model="openai/gpt-4.1") -> Scorer:
-        return MyJudge(classifier_model)
+    def my_scorer(judge_model="openai/gpt-4.1") -> Scorer:
+        return MyJudge(judge_model)
 """
 
 from __future__ import annotations
@@ -51,8 +51,8 @@ class LLMJudgeScorer(ABC):
     missing metadata, browser errors).
     """
 
-    def __init__(self, classifier_model: str = "openai/gpt-4.1") -> None:
-        self.classifier_model = classifier_model
+    def __init__(self, judge_model: str = "openai/gpt-4.1") -> None:
+        self.judge_model = judge_model
 
     # -- Abstract methods (subclasses must implement) -----------------------
 
@@ -98,7 +98,7 @@ class LLMJudgeScorer(ABC):
 
         prompt = result
         try:
-            model = get_model(self.classifier_model)
+            model = get_model(self.judge_model)
             response = await model.generate(prompt)
             raw_response = response.completion
             verdict = self.parse_verdict(raw_response)

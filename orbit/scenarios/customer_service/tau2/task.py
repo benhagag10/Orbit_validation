@@ -5,9 +5,12 @@ Registered with Inspect via ``orbit/_registry.py``. Produces one
 Inspect ``Sample`` per tau2 task and wires up the tau2 scorer on top
 of the generic security scorer.
 
-Supports ``mode='solo'`` (PR 1, Orbit-specific airline-only baseline)
-and ``mode='dual_control'`` (PR 2, upstream-faithful user simulator ↔
-assistant loop) against the airline, retail, and telecom domains.
+A single ``condition`` selector picks the topology preset and the
+execution mode it implies: ``condition='solo'`` (PR 1, Orbit-specific
+airline-only single-agent baseline) and ``condition='dual_control'``
+(PR 2, upstream-faithful user simulator ↔ assistant loop), plus the
+PR 4 multi-agent presets, against the airline, retail, and telecom
+domains.
 """
 
 from __future__ import annotations
@@ -15,13 +18,13 @@ from __future__ import annotations
 import copy
 import logging
 
+from typing import TYPE_CHECKING
+
 from inspect_ai import Epochs, Task, task
-from inspect_ai.dataset import MemoryDataset
 from inspect_ai.solver import Solver, TaskState, solver
 from inspect_ai.util import store_as
 
 from orbit.dataset.metadata import MASMetadata
-from orbit.dataset.sample_factory import build_sample
 from orbit.scenarios.customer_service.tau2.config_builder import build_experiment_config
 from orbit.scenarios.customer_service.tau2.configs import Tau2ScenarioConfig, Tau2Task
 from orbit.scenarios.customer_service.tau2.dataset_builder import (
@@ -40,9 +43,12 @@ from orbit.scenarios.customer_service.tau2.scorer import (
 )
 from orbit.scenarios.customer_service.tau2.scorer import pass_hat_k, tau2_scorer
 from orbit.scenarios.customer_service.tau2.state import DomainState
+from orbit.scenarios.registry import ScenarioPlugin, register_scenario
 from orbit.scorers.security_scorer import security_scorer
-from orbit.solvers.orchestrator import mas_orchestrator
-from orbit.solvers.orchestrator_v2 import mas_orchestrator_v2
+from orbit.tasks.builder import build_scenario_task
+
+if TYPE_CHECKING:
+    from orbit.configs.experiment import ExperimentConfig
 
 logger = logging.getLogger(__name__)
 
@@ -196,8 +202,9 @@ def _build_setup_solver(
 
 
 _SUPPORTED_DOMAINS = ("airline", "retail", "telecom")
-_SUPPORTED_MODES = ("solo", "dual_control")
-_SUPPORTED_TOPOLOGIES = (
+# Named topology presets selectable via ``-T condition=...``. ``solo`` is the
+# single-agent (solo-mode) baseline; every other value runs dual-control.
+_SUPPORTED_CONDITIONS = (
     "solo",
     "dual_control",
     "supervisor_specialist",
@@ -208,14 +215,118 @@ _SUPPORTED_TOPOLOGIES = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Scenario plugin hooks (total over ExperimentConfig)
+# ---------------------------------------------------------------------------
+
+
+def _scenario_config(config: ExperimentConfig) -> Tau2ScenarioConfig:
+    """Reconstruct the tau2 scenario config from metadata.
+
+    The -T factory serializes the resolved config under
+    ``tau2_scenario_config``; an ``orbit run`` YAML can instead carry the
+    individual ``tau2_*`` keys (domain falls back to ``scenario.name``,
+    e.g. ``tau2_airline`` -> ``airline``).
+    """
+    meta = config.metadata or {}
+    if "tau2_scenario_config" in meta:
+        return Tau2ScenarioConfig(**meta["tau2_scenario_config"])
+    domain = meta.get("tau2_domain") or config.scenario.name.replace("tau2_", "") or "airline"
+    # A scenario name that doesn't encode a concrete dataset domain — e.g. the
+    # cross_domain_handoff topology ships as scenario.name "tau2_cross_domain" —
+    # falls back to the airline dataset (the documented base for `-T domain=...`).
+    # The per-domain specialists that actually run are driven by the topology,
+    # not this field, so tasks/scorer stay single-domain exactly as upstream.
+    if domain not in _SUPPORTED_DOMAINS:
+        domain = "airline"
+    # One named selector covers both the topology preset and the execution
+    # mode: ``condition='solo'`` is the single-agent baseline, every other
+    # value runs dual-control.
+    condition = meta.get("tau2_condition", "dual_control")
+    mode = "solo" if condition == "solo" else "dual_control"
+    return Tau2ScenarioConfig(
+        domain=domain,  # type: ignore[arg-type]
+        task_ids=_parse_csv(meta.get("tau2_task_ids")),
+        mode=mode,  # type: ignore[arg-type]
+        topology=condition,  # type: ignore[arg-type]
+        judge_model=meta.get("tau2_judge_model", "openai/gpt-4.1"),
+        max_turns=config.scheduler.max_turns,
+        max_time_seconds=config.scheduler.max_time_seconds,
+        data_path=meta.get("tau2_data_path"),
+    )
+
+
+def _tau2_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
+    sc = _scenario_config(config)
+    tasks = filter_tasks(load_tau2_tasks(sc), sc)
+    policy_text = load_policy(sc)
+    configs = [
+        build_experiment_config(task=t, scenario_config=sc, policy_text=policy_text)
+        for t in tasks
+    ]
+    # tau2 builds its topology per task (not from config.setup) and synthesizes
+    # no attacks/defenses of its own, so thread the experiment-level ones onto
+    # every produced config. Without this an `orbit run` YAML that declares an
+    # attack/defense would silently run benign (issue #9); the builder enforces it.
+    if config.attacks or config.defenses:
+        configs = [
+            c.model_copy(
+                update={
+                    "attacks": list(config.attacks),
+                    "defenses": list(config.defenses),
+                }
+            )
+            for c in configs
+        ]
+    if not configs:
+        logger.warning("No tau2 samples built — check filters and domain")
+    return configs
+
+
+def _tau2_setup(config: ExperimentConfig) -> Solver:
+    sc = _scenario_config(config)
+    return _build_setup_solver(
+        domain=sc.domain,
+        initial_db=load_initial_db(sc),
+        initial_user_db=load_initial_user_db(sc),
+        scenario_config=sc,
+    )
+
+
+def _tau2_scorers(config: ExperimentConfig) -> list:
+    sc = _scenario_config(config)
+    return [
+        tau2_scorer(data_path=sc.data_path, judge_model=sc.judge_model),
+        security_scorer(),
+    ]
+
+
+# Default to 1 epoch with pass^1 / pass^2 / pass^4 reducers wired in. Running
+# with ``--epochs N`` overrides the count but preserves the reducer list, so
+# ``--epochs 4`` yields directly paper-comparable pass^4 numbers.
+TAU2_PLUGIN = register_scenario(
+    ScenarioPlugin(
+        name="tau2",
+        expand=_tau2_expand,
+        build_setup=_tau2_setup,
+        build_solver=None,  # default mas_orchestrator (v1/v2)
+        build_scorers=_tau2_scorers,
+        build_sandbox=lambda config: None,
+        build_task_kwargs=lambda config: {
+            "epochs": Epochs(1, [pass_hat_k(1), pass_hat_k(2), pass_hat_k(4)])
+        },
+        # tau2 builds its roster from the per-task tau2_condition, ignoring any
+        # inline setup — so it is exempt from the builder's topology floor.
+        threads_setup=False,
+    )
+)
+
+
 @task
 def tau2(
     domain: str = "airline",
     task_ids: str | None = None,
-    max_tasks: int | None = None,
-    seed: int | None = None,
-    mode: str = "dual_control",
-    topology: str = "dual_control",
+    condition: str = "dual_control",
     judge_model: str = "openai/gpt-4.1",
     max_turns: int = 100,
     max_time_seconds: float = 600.0,
@@ -224,12 +335,12 @@ def tau2(
 ) -> Task:
     """τ²-Bench dual-control tool-use benchmark.
 
-    Supports three domains and two execution modes:
+    Supports three domains, selected with ``-T domain=...``:
 
     - ``domain='airline'`` — 50 reservation tasks, reward_basis
-      ``[DB, COMMUNICATE]``. The only domain where ``mode='solo'`` is
-      accepted (as an Orbit-specific baseline; upstream rejects airline
-      solo mode).
+      ``[DB, COMMUNICATE]``. The only domain where ``condition='solo'``
+      is accepted (as an Orbit-specific baseline; upstream rejects
+      airline solo mode).
     - ``domain='retail'`` — 114 order-management tasks, reward_basis
       ``[DB, NL_ASSERTION]`` on 112/114 tasks. Exercises the LLM judge
       ported in PR 2.
@@ -241,15 +352,21 @@ def tau2(
       env) and the user simulator gets a 30-tool device-diagnostics
       tool set.
 
-    Execution modes:
+    The ``condition`` parameter is the single named selector for the
+    topology preset *and* the execution mode it implies:
 
-    - ``mode='dual_control'`` (default): round-robin user simulator ↔
-      assistant loop with ``peer_messages`` observation and the
-      ``check_tau2_stop_sentinels`` halt condition (``###STOP###`` /
-      ``###TRANSFER###`` / ``###OUT-OF-SCOPE###``). Upstream-faithful.
-    - ``mode='solo'`` (airline only): single-agent baseline with the
+    - ``condition='dual_control'`` (default): upstream-faithful
+      round-robin user simulator ↔ assistant loop with ``peer_messages``
+      observation and the ``check_tau2_stop_sentinels`` halt condition
+      (``###STOP###`` / ``###TRANSFER###`` / ``###OUT-OF-SCOPE###``).
+    - ``condition='solo'`` (airline only): single-agent baseline with the
       user scenario rendered into the assistant's system prompt as a
       ticket. Orbit-specific.
+    - ``condition='supervisor_specialist'`` / ``'tiered_escalation'`` /
+      ``'mesh_committee'`` / ``'dual_control_review'`` /
+      ``'cross_domain_handoff'``: Orbit-specific multi-agent shapes, all
+      running under dual-control. See ``topologies.py`` for each preset's
+      roster, observation mode, and halt wiring.
 
     The task entry point also runs the NL-assertions LLM judge
     (retail) and evaluates ENV_ASSERTION-based rewards (telecom), and
@@ -260,10 +377,10 @@ def tau2(
         domain: ``'airline'``, ``'retail'``, or ``'telecom'``.
         task_ids: Comma-separated tau2 task IDs to include
             (e.g. ``'1,2,3'``).
-        max_tasks: Maximum number of tasks to evaluate.
-        seed: Random seed for deterministic task sampling when
-            ``max_tasks`` is set.
-        mode: ``'solo'`` (airline only) or ``'dual_control'`` (default).
+        condition: Named topology preset — one of ``'solo'`` (airline
+            only), ``'dual_control'`` (default), ``'supervisor_specialist'``,
+            ``'tiered_escalation'``, ``'mesh_committee'``,
+            ``'dual_control_review'``, ``'cross_domain_handoff'``.
         judge_model: Model used for NL-assertion grading. Only invoked
             when the task's ``reward_basis`` includes ``NL_ASSERTION``.
         max_turns: Maximum orchestrator turns per task.
@@ -277,81 +394,53 @@ def tau2(
             f"Domain '{domain}' is not supported. Expected one of "
             f"{_SUPPORTED_DOMAINS}."
         )
-    if mode not in _SUPPORTED_MODES:
+    if condition not in _SUPPORTED_CONDITIONS:
         raise ValueError(
-            f"Mode '{mode}' is not supported. Expected one of "
-            f"{_SUPPORTED_MODES}."
+            f"Condition '{condition}' is not supported. Expected one of "
+            f"{_SUPPORTED_CONDITIONS}."
         )
-    if topology not in _SUPPORTED_TOPOLOGIES:
-        raise ValueError(
-            f"Topology '{topology}' is not supported. Expected one of "
-            f"{_SUPPORTED_TOPOLOGIES}."
-        )
+    # ``solo`` is the only single-agent condition; everything else is
+    # dual-control. The mode is fully determined by the condition.
+    mode = "solo" if condition == "solo" else "dual_control"
     if mode == "solo" and domain != "airline":
         raise ValueError(
-            f"Solo mode is an Orbit-specific baseline only wired for "
+            f"condition='solo' is an Orbit-specific baseline only wired for "
             f"airline (upstream rejects airline-solo too). Use "
-            f"mode='dual_control' for {domain!r}."
-        )
-    if mode == "solo" and topology != "solo":
-        raise ValueError(
-            f"mode='solo' only supports topology='solo'. Got "
-            f"topology={topology!r}."
-        )
-    if mode == "dual_control" and topology == "solo":
-        raise ValueError(
-            "topology='solo' requires mode='solo'. Use "
-            "topology='dual_control' for dual-control runs."
+            f"condition='dual_control' for {domain!r}."
         )
 
     scenario_config = Tau2ScenarioConfig(
         domain=domain,  # type: ignore[arg-type]
         task_ids=_parse_csv(task_ids),
-        max_tasks=max_tasks,
-        seed=seed,
         mode=mode,  # type: ignore[arg-type]
-        topology=topology,  # type: ignore[arg-type]
+        topology=condition,  # type: ignore[arg-type]
         judge_model=judge_model,
         max_turns=max_turns,
         max_time_seconds=max_time_seconds,
         data_path=data_path,
     )
 
-    tasks = load_tau2_tasks(scenario_config)
-    tasks = filter_tasks(tasks, scenario_config)
+    # Build the single template config and delegate to the shared builder.
+    # The tau2 plugin's expand hook fans this out into one config per task
+    # (its topology is built per-task by topologies.py, not from config.setup).
+    from orbit.configs.experiment import ExperimentConfig
+    from orbit.configs.metrics import MetricsConfig
+    from orbit.configs.scenario import ScenarioConfig
+    from orbit.configs.scheduler import SchedulerConfig
 
-    policy_text = load_policy(scenario_config)
-    initial_db = load_initial_db(scenario_config)
-    initial_user_db = load_initial_user_db(scenario_config)
-
-    samples = []
-    for t in tasks:
-        config = build_experiment_config(
-            task=t, scenario_config=scenario_config, policy_text=policy_text
-        )
-        samples.append(build_sample(config, sample_id=config.name))
-
-    if not samples:
-        logger.warning("No tau2 samples built — check filters and domain")
-
-    setup_solver = _build_setup_solver(
-        domain=domain,
-        initial_db=initial_db,
-        initial_user_db=initial_user_db,
-        scenario_config=scenario_config,
+    config = ExperimentConfig(
+        name=f"tau2_{domain}",
+        description=f"τ²-Bench {domain} ({condition})",
+        scenario=ScenarioConfig(
+            name=f"tau2_{domain}",
+            description=f"τ²-Bench {domain} customer-service scenario",
+        ),
+        scheduler=SchedulerConfig(
+            max_turns=max_turns,
+            max_time_seconds=max_time_seconds,
+            halt_on_convergence=False,
+        ),
+        metrics=MetricsConfig(),
+        metadata={"tau2_scenario_config": scenario_config.model_dump()},
     )
-
-    # Default to 1 epoch with pass^1 / pass^2 / pass^4 reducers wired
-    # in. When the user runs with ``--epochs N`` Inspect overrides the
-    # epoch count but preserves the reducer list, so passing
-    # ``--epochs 4`` yields directly paper-comparable pass^4 numbers.
-    return Task(
-        dataset=MemoryDataset(samples) if samples else MemoryDataset([]),
-        setup=setup_solver,
-        solver=mas_orchestrator_v2() if orchestrator == "v2" else mas_orchestrator(),
-        scorer=[
-            tau2_scorer(data_path=data_path, judge_model=judge_model),
-            security_scorer(),
-        ],
-        epochs=Epochs(1, [pass_hat_k(1), pass_hat_k(2), pass_hat_k(4)]),
-    )
+    return build_scenario_task(config, TAU2_PLUGIN, orchestrator=orchestrator)

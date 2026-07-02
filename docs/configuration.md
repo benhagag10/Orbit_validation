@@ -20,17 +20,15 @@ orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin
 | `--memory` | choice | `none` | Memory sharing: `none`, `own_actions`, `own_reasoning`, `shared_actions`, `full` |
 | `--instructions` | choice | `detailed` | Instruction detail: `detailed`, `relaxed` |
 | `--condition` | string | — | Condition preset name (cannot be used with `--agents`) |
-| `--max-behaviors` | int | all | Number of behaviors to test |
 | `--max-turns` | int | 15 | Max turns per behavior |
-| `--max-time` | float | 300 | Max seconds per behavior |
-| `--category` | string | — | Filter by behavior category (e.g. `"content/phishing"`) |
+| `--max-time-seconds` | float | 300 | Max seconds per behavior |
+| `--categories` | string | — | Filter by behavior category (e.g. `"content/phishing"`) |
+| `--limit` | int | all | Limit number of behaviors (Inspect passthrough) |
 | `--task-id` | int | — | Run a single task by ID |
 | `--dataset` | choice | `hbb` | `hbb` or `hbb_extension` |
-| `--seed` | int | — | Random seed for behavior sampling |
 | `--headless / --no-headless` | bool | true | Run browser headlessly |
 | `--record-video-dir` | string | — | Save browser recordings to this directory |
-| `--classifier-model` | string | openai/gpt-4o | Model for the safety classifier |
-| `--solver-mode` | choice | browsergym | `browsergym` (local) or `orchestrator` (Docker) |
+| `--judge-model` | string | openai/gpt-4.1 | Model for the safety classifier |
 | `--topology-file` | string | `default` | Custom topology YAML path (advanced) |
 
 ### Examples
@@ -49,7 +47,7 @@ orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin
 orbit browserart -m openai/gpt-4o --agents specialist --record-video-dir ./videos
 
 # Filter by category, limit to 5 behaviors
-orbit browserart -m openai/gpt-4o --category content/phishing --max-behaviors 5
+orbit browserart -m openai/gpt-4o --categories content/phishing --limit 5
 ```
 
 ## `inspect eval` with `-T` Flags
@@ -71,14 +69,12 @@ inspect eval orbit/browserart_safety \
 | `memory` | string | `none` | Memory sharing level |
 | `instructions` | string | `detailed` | Instruction detail: `detailed`, `relaxed` |
 | `condition` | string | — | Condition preset name (cannot be used with `agents`) |
-| `max_behaviors` | int | all | Number of behaviors to test |
 | `max_turns` | int | 15 | Max turns per behavior |
-| `max_time` | float | 300 | Max seconds per behavior |
-| `category` | string | — | Filter by behavior category (e.g. `"content/phishing"`) |
-| `seed` | int | — | Random seed for behavior sampling |
+| `max_time_seconds` | float | 300 | Max seconds per behavior |
+| `categories` | string | — | Filter by behavior category (e.g. `"content/phishing"`) |
 | `headless` | bool | true | Run browser headlessly |
 | `record_video_dir` | string | — | Save browser recordings to this directory |
-| `classifier_model` | string | openai/gpt-4o | Model for the safety classifier |
+| `judge_model` | string | openai/gpt-4o | Model for the safety classifier |
 | `topology_file` | string | `default` | Custom topology YAML path (advanced) |
 | `data_path` | string | — | Override path to hbb.json dataset |
 
@@ -112,23 +108,20 @@ scheduler:
   max_turns: 5
   max_time_seconds: 120.0
 
-metadata:
-  browserart_max_behaviors: 5
+metadata: {}
 ```
 
 ### Multi-Agent Config (with Condition)
 
-When using `browserart_condition`, the condition preset injects agents and topology automatically. You still need a minimal `setup` for validation.
+When using `browserart_condition`, the condition preset supplies the agents and
+topology automatically — **omit the `setup` block entirely**. Do not add a
+placeholder `setup.agents`: if both an inline `setup` and a condition are
+declared, the inline setup wins and the condition is silently ignored (with a
+warning), so a placeholder would collapse the run to a single agent.
 
 ```yaml
-name: "star_4_specialists"
+name: "browserart_multi_agent"
 description: "Orchestrator + 4 specialists"
-
-setup:
-  agents:
-    - name: "placeholder"
-      role: "executor"
-  edges: []
 
 scenario:
   name: "browserart"
@@ -138,8 +131,7 @@ scheduler:
   max_time_seconds: 120.0
 
 metadata:
-  browserart_condition: "star_4_specialists"
-  browserart_max_behaviors: 5
+  browserart_condition: "star_specialist"
 ```
 
 ### Config with Attack and Defense
@@ -180,8 +172,7 @@ scheduler:
   max_turns: 10
   max_time_seconds: 120.0
 
-metadata:
-  browserart_max_behaviors: 3
+metadata: {}
 ```
 
 ---
@@ -348,12 +339,10 @@ These go in the `metadata` section and are specific to the BrowserART scenario.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `browserart_max_behaviors` | int | Max number of behaviors to test |
 | `browserart_categories` | list | Filter by category (e.g. `["content/phishing"]`) |
-| `browserart_condition` | string | Condition preset name. See [Conditions](conditions.md). |
+| `browserart_condition` | string | Condition preset name. See [Conditions](conditions.md). Declare either this or an inline `setup:`; if both are given, the inline `setup:` wins and the condition is ignored (with a warning). |
 | `browserart_headless` | bool | Run browser headlessly (default: true) |
 | `browserart_record_video_dir` | string | Directory for video recordings |
-| `browserart_seed` | int | Random seed |
 | `browserart_data_path` | string | Override path to hbb.json |
 
 ### SWE-Bench Metadata Fields
@@ -365,11 +354,9 @@ These go in the `metadata` section and are specific to the SWE-Bench scenario.
 | `swe_bench_num_issues` | int | Number of issues per group (default: 2) |
 | `swe_bench_repos` | list | Repository filter (e.g. `["django/django"]`) |
 | `swe_bench_seed` | int | Random seed for group sampling |
-| `swe_bench_mode` | string | Execution mode: `"round_robin"` or `"superstep"` |
-| `swe_bench_topology` | string | Topology template: `"default"` or path to YAML |
+| `swe_bench_scheduling_mode` | string | Execution mode: `"round_robin"` or `"superstep"` |
 | `swe_bench_attack_preset` | string | Attack preset: `"self_replication"`, `"sabotage"` |
 | `swe_bench_defense_preset` | string | Defense preset: `"file_monitor"`, `"diff_monitor"`, `"full"` |
-| `swe_bench_max_groups` | int | Cap groups generated per pool (limits Docker images) |
 
 ---
 
@@ -391,18 +378,16 @@ orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin
 | `--memory CHOICE` | Memory level: `none`, `own_actions`, `own_reasoning`, `shared_actions`, `full` |
 | `--instructions CHOICE` | Instruction detail: `detailed`, `relaxed` |
 | `--condition TEXT` | Condition preset name (cannot be used with `--agents`) |
-| `--max-behaviors INT` | Max behaviors to sample |
 | `--max-turns INT` | Max agent turns (default: 15) |
-| `--max-time FLOAT` | Max time in seconds (default: 300) |
-| `--category TEXT` | Filter by category (comma-separated) |
+| `--max-time-seconds FLOAT` | Max time in seconds (default: 300) |
+| `--categories TEXT` | Filter by category (comma-separated) |
+| `--limit INT` | Limit number of behaviors (Inspect passthrough) |
 | `--task-id INT` | Single task ID to run |
 | `--dataset CHOICE` | `hbb` or `hbb_extension` |
 | `--headless / --no-headless` | Run browser headlessly (default: on) |
 | `--record-video-dir PATH` | Directory for video recordings |
-| `--classifier-model TEXT` | Model for scoring classifier |
-| `--solver-mode CHOICE` | `browsergym` or `orchestrator` |
+| `--judge-model TEXT` | Model for scoring classifier |
 | `--topology-file PATH` | Custom topology YAML path (advanced) |
-| `--seed INT` | Random seed for sampling |
 | `-v, --verbose` | Verbose logging |
 
 ### `orbit run`

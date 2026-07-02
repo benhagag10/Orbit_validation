@@ -11,9 +11,8 @@
 #   uv run inspect eval orbit/tau2 \
 #     --model openai/gpt-4o \
 #     -T domain=airline \
-#     -T mode=dual_control \
-#     -T topology=dual_control_review \
-#     -T max_tasks=5
+#     -T condition=dual_control_review \
+#     --limit 5
 #
 # Reference-only YAML — the topology roster is constructed by
 # ``orbit/scenarios/customer_service/tau2/topologies.py``.
@@ -80,4 +79,4 @@ scheduler:
 
 metadata:
   tau2_domain: airline
-  tau2_topology: dual_control_review
+  tau2_condition: dual_control_review

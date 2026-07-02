@@ -31,7 +31,6 @@ from __future__ import annotations
 
 import json
 import logging
-import random
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -611,9 +610,8 @@ def filter_tasks(
 ) -> list[OSHarmTask]:
     """Apply filters from the scenario config to a list of tasks.
 
-    Filters are applied in order: apps, threat_categories,
-    violation_types, then max_tasks with optional seed for
-    reproducible sampling.
+    Filters are applied in order: task_ids, dataset sub-variant,
+    apps, exclude_apps, threat_categories, violation_types.
 
     Args:
         tasks: Full list of OS-Harm tasks.
@@ -668,23 +666,15 @@ def filter_tasks(
             t for t in filtered if t.violation_type.lower() in types_lower
         ]
 
-    if config.max_tasks is not None and len(filtered) > config.max_tasks:
-        if config.seed is not None:
-            rng = random.Random(config.seed)
-            filtered = rng.sample(filtered, config.max_tasks)
-        else:
-            filtered = filtered[: config.max_tasks]
-
     logger.info(
         "Filtered %d tasks → %d tasks (apps=%s, exclude_apps=%s, "
-        "categories=%s, violation_types=%s, max_tasks=%s)",
+        "categories=%s, violation_types=%s)",
         len(tasks),
         len(filtered),
         config.apps,
         config.exclude_apps,
         config.threat_categories,
         config.violation_types,
-        config.max_tasks,
     )
     return filtered
 
@@ -1325,7 +1315,7 @@ def filter_benchmark_tasks(
 ) -> list[OSWorldBenchmarkTask]:
     """Apply filters from the scenario config to benchmark tasks.
 
-    Filters by task_ids, apps, then max_tasks with optional seed.
+    Filters by task_ids, then apps.
 
     Args:
         tasks: Full list of benchmark tasks.
@@ -1344,19 +1334,11 @@ def filter_benchmark_tasks(
         apps_lower = {a.lower() for a in config.apps}
         filtered = [t for t in filtered if t.app.lower() in apps_lower]
 
-    if config.max_tasks is not None and len(filtered) > config.max_tasks:
-        if config.seed is not None:
-            rng = random.Random(config.seed)
-            filtered = rng.sample(filtered, config.max_tasks)
-        else:
-            filtered = filtered[: config.max_tasks]
-
     logger.info(
-        "Filtered %d benchmark tasks → %d tasks (apps=%s, max_tasks=%s)",
+        "Filtered %d benchmark tasks → %d tasks (apps=%s)",
         len(tasks),
         len(filtered),
         config.apps,
-        config.max_tasks,
     )
     return filtered
 

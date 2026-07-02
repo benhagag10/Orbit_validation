@@ -131,4 +131,3 @@ metadata:
   browserart_task_ids: [227]
   browserart_headless: true
   browserart_record_video_dir: "logs/demo3_video"
-  browserart_topology: "examples/browserart_env_specialists_topology.yaml"

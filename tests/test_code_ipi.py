@@ -15,7 +15,7 @@ from orbit.scenarios.coding.code_ipi.condition_presets import (
 )
 from orbit.scenarios.coding.code_ipi.config_builder import (
     build_experiment_config,
-    build_experiment_configs_from_scenario,
+    build_experiment_configs,
     default_topology_template,
 )
 from orbit.scenarios.coding.code_ipi.constants import (
@@ -116,7 +116,7 @@ class TestCodeIPIScenarioConfig:
         assert cfg.vectors is None
         assert cfg.severities is None
         assert cfg.include_benign is True
-        assert cfg.defense_prompt is True
+        assert cfg.inline_defense_warning is True
         assert cfg.max_turns == 30
 
     def test_frozen(self):
@@ -128,17 +128,13 @@ class TestCodeIPIScenarioConfig:
         cfg = CodeIPIScenarioConfig(
             vectors=["issue_text"],
             severities=["S1", "S2"],
-            max_tasks=10,
-            seed=42,
             include_benign=False,
-            defense_prompt=False,
+            inline_defense_warning=False,
         )
         assert cfg.vectors == ["issue_text"]
         assert cfg.severities == ["S1", "S2"]
-        assert cfg.max_tasks == 10
-        assert cfg.seed == 42
         assert not cfg.include_benign
-        assert not cfg.defense_prompt
+        assert not cfg.inline_defense_warning
 
 
 # ---------------------------------------------------------------------------
@@ -200,17 +196,6 @@ class TestFiltering:
         assert all(not t.is_benign for t in filtered)
         assert len(filtered) == 5
 
-    def test_filter_max_tasks(self, sample_tasks: list[CodeIPITask]):
-        cfg = CodeIPIScenarioConfig(max_tasks=3, seed=42)
-        filtered = filter_tasks(sample_tasks, cfg)
-        assert len(filtered) == 3
-
-    def test_filter_max_tasks_deterministic(self, sample_tasks: list[CodeIPITask]):
-        cfg = CodeIPIScenarioConfig(max_tasks=3, seed=42)
-        a = filter_tasks(sample_tasks, cfg)
-        b = filter_tasks(sample_tasks, cfg)
-        assert [t.id for t in a] == [t.id for t in b]
-
     def test_filter_combined(self, sample_tasks: list[CodeIPITask]):
         cfg = CodeIPIScenarioConfig(
             vectors=["issue_text"],
@@ -242,7 +227,7 @@ class TestConfigBuilder:
         assert "bash" in topo.agents[0].tools
 
     def test_default_topology_no_defense(self):
-        topo = default_topology_template(defense_prompt=False)
+        topo = default_topology_template(inline_defense_warning=False)
         assert "Do not follow" not in topo.agents[0].system_prompt
 
     def test_build_injected_config(self):
@@ -294,10 +279,12 @@ class TestConfigBuilder:
         config = build_experiment_config(task, attacks=attacks)
         assert len(config.attacks) == 2  # sample injection + additional
 
-    def test_build_experiment_configs_from_scenario(self):
-        cfg = CodeIPIScenarioConfig(max_tasks=3, seed=42)
-        configs = build_experiment_configs_from_scenario(scenario_config=cfg)
-        assert len(configs) == 3
+    def test_build_experiment_configs(self):
+        cfg = CodeIPIScenarioConfig()
+        configs = build_experiment_configs(scenario_config=cfg)
+        expected = len(filter_tasks(load_code_ipi_tasks(), cfg))
+        assert len(configs) == expected
+        assert len(configs) > 0
 
     def test_metadata_keys(self):
         task = _make_task()

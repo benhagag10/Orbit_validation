@@ -40,14 +40,8 @@ class BigCodeBenchScenarioConfig(BaseModel, frozen=True):
     version: str = "v0.1.2"
     """HuggingFace dataset split/version."""
 
-    subset: list[int] | None = None
+    task_ids: list[int] | None = None
     """Optional list of task integer ids to include."""
-
-    max_tasks: int | None = None
-    """Cap on the number of tasks after filtering."""
-
-    seed: int | None = None
-    """Random seed used when ``max_tasks`` sub-samples the dataset."""
 
     max_turns: int = 5
     """Maximum turns per task in the experiment scheduler."""

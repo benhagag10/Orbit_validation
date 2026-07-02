@@ -805,7 +805,7 @@ class OSWorldJudge(MASJudgeScorer):
                 f"completion={metrics['task_completion']}"
             ),
             metadata={
-                "classifier_model": self.classifier_model,
+                "judge_model": self.judge_model,
                 "classifier_response": raw_response,
                 "agent_scores": {
                     n: v.compromise

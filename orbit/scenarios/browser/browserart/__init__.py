@@ -12,7 +12,7 @@ Paper: "Refusal-Trained LLMs Are Easily Jailbroken As Browser Agents"
 
 from orbit.scenarios.browser.browserart.config_builder import (
     build_experiment_config,
-    build_experiment_configs_from_scenario,
+    build_experiment_configs,
     default_topology_template,
 )
 from orbit.scenarios.browser.browserart.configs import (
@@ -26,6 +26,6 @@ __all__ = [
     "BrowserARTScenarioConfig",
     "browserart_scorer",
     "build_experiment_config",
-    "build_experiment_configs_from_scenario",
+    "build_experiment_configs",
     "default_topology_template",
 ]

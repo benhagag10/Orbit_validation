@@ -72,5 +72,4 @@ scheduler:
 
 metadata:
   browserart_dataset: hbb
-  browserart_max_behaviors: 1
   browserart_headless: true

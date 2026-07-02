@@ -776,14 +776,22 @@ class TestMultiAgentMetadataRoundtrip:
 
 
 class TestBrowserARTConditionPassthrough:
-    """Verify the wrapper passes condition and record_video_dir to browserart_safety."""
+    """Verify browserart config sections reach the config-complete builder.
+
+    ``orbit run`` now routes browserart through
+    ``security_benchmark(config)`` -> ``build_scenario_task``; the browserart
+    plugin's ``expand`` hook reads ``browserart_condition`` /
+    ``browserart_record_video_dir`` from ``config.metadata``. These tests
+    assert the whole config (with that metadata) reaches the builder rather
+    than being flattened to a lossy kwarg subset.
+    """
 
     @patch("orbit.wrapper.runner.eval")
-    @patch("orbit.scenarios.browser.browserart.task.browserart_safety")
+    @patch("orbit.tasks.security_benchmark.build_scenario_task")
     def test_condition_passed_from_metadata(
-        self, mock_browserart, mock_eval, tmp_path: Path
+        self, mock_build, mock_eval, tmp_path: Path
     ):
-        """When metadata has browserart_condition, it flows to browserart_safety."""
+        """browserart_condition rides in config.metadata to the builder."""
         import textwrap
 
         config_content = textwrap.dedent("""\
@@ -795,28 +803,28 @@ class TestBrowserARTConditionPassthrough:
               max_time_seconds: 60.0
             metadata:
               browserart_condition: "star_specialist"
-              browserart_max_behaviors: 1
         """)
         config_file = tmp_path / "condition_test.yaml"
         config_file.write_text(config_content)
 
-        mock_browserart.return_value = MagicMock()
+        mock_build.return_value = MagicMock()
         mock_eval.return_value = [MagicMock()]
 
         from orbit.wrapper.runner import run_experiment
 
         run_experiment(str(config_file), model="openai/gpt-4o")
 
-        mock_browserart.assert_called_once()
-        call_kwargs = mock_browserart.call_args
-        assert call_kwargs[1]["condition"] == "star_specialist"
+        mock_build.assert_called_once()
+        cfg = mock_build.call_args[0][0]
+        assert cfg.scenario.name == "browserart"
+        assert cfg.metadata["browserart_condition"] == "star_specialist"
 
     @patch("orbit.wrapper.runner.eval")
-    @patch("orbit.scenarios.browser.browserart.task.browserart_safety")
-    def test_condition_none_when_not_in_metadata(
-        self, mock_browserart, mock_eval, tmp_path: Path
+    @patch("orbit.tasks.security_benchmark.build_scenario_task")
+    def test_condition_absent_when_not_in_metadata(
+        self, mock_build, mock_eval, tmp_path: Path
     ):
-        """When metadata has no browserart_condition, condition is None."""
+        """No browserart_condition key means the plugin falls back to default."""
         import textwrap
 
         config_content = textwrap.dedent("""\
@@ -826,28 +834,27 @@ class TestBrowserARTConditionPassthrough:
             scheduler:
               max_turns: 5
               max_time_seconds: 60.0
-            metadata:
-              browserart_max_behaviors: 1
         """)
         config_file = tmp_path / "no_condition.yaml"
         config_file.write_text(config_content)
 
-        mock_browserart.return_value = MagicMock()
+        mock_build.return_value = MagicMock()
         mock_eval.return_value = [MagicMock()]
 
         from orbit.wrapper.runner import run_experiment
 
         run_experiment(str(config_file), model="openai/gpt-4o")
 
-        call_kwargs = mock_browserart.call_args
-        assert call_kwargs[1]["condition"] is None
+        mock_build.assert_called_once()
+        cfg = mock_build.call_args[0][0]
+        assert "browserart_condition" not in cfg.metadata
 
     @patch("orbit.wrapper.runner.eval")
-    @patch("orbit.scenarios.browser.browserart.task.browserart_safety")
+    @patch("orbit.tasks.security_benchmark.build_scenario_task")
     def test_record_video_dir_passed(
-        self, mock_browserart, mock_eval, tmp_path: Path
+        self, mock_build, mock_eval, tmp_path: Path
     ):
-        """record_video_dir flows from metadata to browserart_safety."""
+        """record_video_dir rides in config.metadata to the builder."""
         import textwrap
 
         config_content = textwrap.dedent("""\
@@ -858,21 +865,21 @@ class TestBrowserARTConditionPassthrough:
               max_turns: 5
               max_time_seconds: 60.0
             metadata:
-              browserart_max_behaviors: 1
               browserart_record_video_dir: "/tmp/videos"
         """)
         config_file = tmp_path / "video_test.yaml"
         config_file.write_text(config_content)
 
-        mock_browserart.return_value = MagicMock()
+        mock_build.return_value = MagicMock()
         mock_eval.return_value = [MagicMock()]
 
         from orbit.wrapper.runner import run_experiment
 
         run_experiment(str(config_file), model="openai/gpt-4o")
 
-        call_kwargs = mock_browserart.call_args
-        assert call_kwargs[1]["record_video_dir"] == "/tmp/videos"
+        mock_build.assert_called_once()
+        cfg = mock_build.call_args[0][0]
+        assert cfg.metadata["browserart_record_video_dir"] == "/tmp/videos"
 
 
 # ===========================================================================
@@ -1074,8 +1081,10 @@ class TestScenarioOptionValidation:
     def test_negative_seed_rejected(self, runner: CliRunner):
         from orbit.wrapper.cli import cli
 
+        # --seed is only on swe-bench now (it's the lone scenario where the
+        # seed still drives sampling); other commands dropped the vestigial flag.
         result = runner.invoke(
-            cli, ["--skip-preflight", "browserart", "-m", "openai/gpt-4o",
+            cli, ["--skip-preflight", "swe-bench", "-m", "openai/gpt-4o",
                   "--seed", "-1"]
         )
         assert result.exit_code != 0
@@ -1086,7 +1095,7 @@ class TestScenarioOptionValidation:
 
         result = runner.invoke(
             cli, ["--skip-preflight", "browserart", "-m", "openai/gpt-4o",
-                  "--max-time", "-10.0"]
+                  "--max-time-seconds", "-10.0"]
         )
         assert result.exit_code != 0
         assert "positive" in result.output or "Invalid" in result.output

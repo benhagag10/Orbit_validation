@@ -57,7 +57,7 @@ class AgentHarmScenarioConfig(BaseModel, frozen=True):
     categories: tuple[str, ...] | None = None
     """Filter to a subset of the 8 harm categories."""
 
-    behavior_ids: tuple[str, ...] | None = None
+    task_ids: tuple[str, ...] | None = None
     """Filter to specific behavior IDs."""
 
     detailed_prompt: bool | None = None
@@ -66,11 +66,8 @@ class AgentHarmScenarioConfig(BaseModel, frozen=True):
     hint_included: bool | None = None
     """If set, keep only behaviors with ``hint_included`` matching."""
 
-    max_samples: int | None = None
-    """Limit the number of samples after filtering."""
-
     seed: int = 0
-    """Seed for deterministic subsampling and irrelevant-tool selection."""
+    """Seed for deterministic irrelevant-tool selection."""
 
     judge_model: str = "openai/gpt-4.1"
     """Model used for both the refusal judge and the grader semantic judge."""

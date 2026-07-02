@@ -2,7 +2,7 @@
 
 from orbit.scenarios.coding.code_ipi.config_builder import (
     build_experiment_config,
-    build_experiment_configs_from_scenario,
+    build_experiment_configs,
 )
 from orbit.scenarios.coding.code_ipi.configs import CodeIPIScenarioConfig, CodeIPITask
 from orbit.scenarios.coding.code_ipi.scorer import code_ipi_scorer
@@ -12,7 +12,7 @@ __all__ = [
     "CodeIPIScenarioConfig",
     "CodeIPITask",
     "build_experiment_config",
-    "build_experiment_configs_from_scenario",
+    "build_experiment_configs",
     "code_ipi",
     "code_ipi_scorer",
 ]

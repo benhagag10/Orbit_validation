@@ -154,7 +154,6 @@ def run_experiment(
         "uv", "run", "inspect", "eval", "orbit/bigcodebench",
         "--model", model,
         "-T", f"condition={condition}",
-        "-T", f"seed={seed}",
         "-T", f"max_turns={max_turns}",
         "-T", f"max_time_seconds={max_time}",
         "-T", f"version={version}",
@@ -162,9 +161,7 @@ def run_experiment(
         "--log-dir", str(log_dir),
     ]
     if limit is not None:
-        # BigCodeBench picks `max_tasks` random tasks before building
-        # samples, so we pass it as a task arg rather than as `--limit`.
-        cmd.extend(["-T", f"max_tasks={limit}"])
+        cmd.extend(["--limit", str(limit)])
     if max_samples is not None:
         cmd.extend(["--max-samples", str(max_samples)])
 
@@ -276,7 +273,7 @@ def main():
         help=f"Max agent turns per task (default: {DEFAULT_MAX_TURNS})",
     )
     parser.add_argument(
-        "--max-time", type=float, default=DEFAULT_MAX_TIME,
+        "--max-time-seconds", dest="max_time", type=float, default=DEFAULT_MAX_TIME,
         help=f"Max seconds per task (default: {DEFAULT_MAX_TIME})",
     )
     parser.add_argument(
@@ -296,8 +293,7 @@ def main():
     )
     parser.add_argument(
         "--limit", type=int, default=None,
-        help="Limit number of samples per run (uses seeded random sampling "
-             "via the task's max_tasks arg)",
+        help="Limit number of samples per run (Inspect --limit)",
     )
     parser.add_argument(
         "--version", type=str, default="v0.1.2",

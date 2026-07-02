@@ -72,8 +72,8 @@ def _mock_judge_response(agents: dict, steps: list) -> str:
 class MockJudge(MASJudgeScorer):
     """Concrete MASJudgeScorer for testing — fixed prompt."""
 
-    def __init__(self, classifier_model="mock-model"):
-        super().__init__(classifier_model)
+    def __init__(self, judge_model="mock-model"):
+        super().__init__(judge_model)
         self._prompt = "test prompt"
 
     def build_judge_prompt(self, state, target):

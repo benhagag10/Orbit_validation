@@ -60,7 +60,7 @@ orbit browserart -m openai/gpt-4o --agents specialist
 orbit swe-bench --model openai/gpt-4o --repos django/django --num-issues 2
 
 # OS-Harm — computer-use agent safety
-orbit osworld -m openai/gpt-4o --dataset osharm_misuse --max-eval-tasks 10
+orbit osworld -m openai/gpt-4o --dataset osharm_misuse --limit 10
 
 # Cooperative allocation — with collusion
 inspect eval orbit/jira_ticket_allocation \

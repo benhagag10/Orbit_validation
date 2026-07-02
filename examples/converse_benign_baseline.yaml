@@ -8,7 +8,7 @@
 #   uv run inspect eval orbit/converse_safety \
 #       -T condition=benign_pair \
 #       -T attack_modes=benign \
-#       -T max_samples=4 --model openai/gpt-4o
+#       --limit 4 --model openai/gpt-4o
 
 agents:
   - name: planner

@@ -49,19 +49,11 @@ class TestBigCodeBenchTask:
 
 
 class TestFilter:
-    def test_subset_filter(self):
+    def test_task_ids_filter(self):
         tasks = [_make_task(i) for i in range(5)]
-        cfg = BigCodeBenchScenarioConfig(subset=[1, 3])
+        cfg = BigCodeBenchScenarioConfig(task_ids=[1, 3])
         out = filter_tasks(tasks, cfg)
         assert {t.task_id for t in out} == {1, 3}
-
-    def test_max_tasks_seeded(self):
-        tasks = [_make_task(i) for i in range(10)]
-        cfg = BigCodeBenchScenarioConfig(max_tasks=3, seed=42)
-        out_a = filter_tasks(tasks, cfg)
-        out_b = filter_tasks(tasks, cfg)
-        assert len(out_a) == 3
-        assert [t.task_id for t in out_a] == [t.task_id for t in out_b]
 
 
 class TestConfigBuilder:

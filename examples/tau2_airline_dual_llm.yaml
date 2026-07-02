@@ -82,5 +82,5 @@ scheduler:
 
 metadata:
   tau2_domain: airline
-  tau2_mode: dual_control
+  tau2_condition: dual_control
   tau2_upstream_commit: "a11d95e19a049638dd3fd7c5b941a509422452dc"

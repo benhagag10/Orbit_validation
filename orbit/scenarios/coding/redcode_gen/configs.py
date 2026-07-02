@@ -71,12 +71,6 @@ class RedCodeGenScenarioConfig(BaseModel, frozen=True):
     task_ids: list[str] | None = None
     """Filter to specific task IDs. ``None`` = all tasks."""
 
-    max_tasks: int | None = None
-    """Limit number of tasks to evaluate. ``None`` = all 160."""
-
-    seed: int | None = None
-    """Random seed for deterministic task sampling when ``max_tasks`` is set."""
-
     judge_model: str = "openai/gpt-4.1"
     """Model to use as the LLM judge for scoring generated code."""
 

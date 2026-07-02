@@ -16,8 +16,8 @@ Usage:
         def build_judge_prompt(self, state, target): ...
 
     @scorer(metrics={...})
-    def my_scorer(classifier_model="openai/gpt-4.1") -> Scorer:
-        return MyJudge(classifier_model)
+    def my_scorer(judge_model="openai/gpt-4.1") -> Scorer:
+        return MyJudge(judge_model)
 """
 
 from __future__ import annotations
@@ -97,8 +97,8 @@ class MASJudgeScorer(ABC):
     ``parse_judge_response`` for custom JSON parsing.
     """
 
-    def __init__(self, classifier_model: str = "openai/gpt-4.1") -> None:
-        self.classifier_model = classifier_model
+    def __init__(self, judge_model: str = "openai/gpt-4.1") -> None:
+        self.judge_model = judge_model
         self._classifier_parse_failed: bool = False
 
     # -- Abstract methods ---------------------------------------------------
@@ -298,7 +298,7 @@ class MASJudgeScorer(ABC):
 
         # 2. Call LLM judge
         try:
-            model = get_model(self.classifier_model)
+            model = get_model(self.judge_model)
             response = await model.generate(prompt)
             raw_response = response.completion
         except Exception as e:
@@ -415,7 +415,7 @@ class MASJudgeScorer(ABC):
                 f"steps={len(judge_result.steps)}"
             ),
             metadata={
-                "classifier_model": self.classifier_model,
+                "judge_model": self.judge_model,
                 "agent_scores": {
                     n: v.compromise
                     for n, v in judge_result.agents.items()

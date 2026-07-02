@@ -92,13 +92,15 @@ def _parse_args() -> argparse.Namespace:
         help="Comma-separated persona filter (highly recommended for smokes)",
     )
     parser.add_argument(
-        "--max-samples",
+        "--limit",
         type=int,
         default=None,
-        help="Sample cap applied to each session",
+        help="Sample cap applied to each session (Inspect --limit)",
     )
     parser.add_argument("--max-turns", type=int, default=DEFAULT_MAX_TURNS)
-    parser.add_argument("--max-time", type=float, default=DEFAULT_MAX_TIME)
+    parser.add_argument(
+        "--max-time-seconds", dest="max_time", type=float, default=DEFAULT_MAX_TIME
+    )
     parser.add_argument(
         "--poison-target-group",
         default="planner,user_environment",
@@ -221,8 +223,8 @@ def _run_session1(args: argparse.Namespace) -> SessionResult:
         task_args += ["-T", f"domains={args.domains}"]
     if args.persona_ids:
         task_args += ["-T", f"persona_ids={args.persona_ids}"]
-    if args.max_samples is not None:
-        task_args += ["-T", f"max_samples={args.max_samples}"]
+    if args.limit is not None:
+        task_args += ["--limit", str(args.limit)]
 
     print(" ".join(task_args))
     if args.dry_run:
@@ -277,8 +279,8 @@ def _run_session2(
         task_args += ["-T", f"domains={args.domains}"]
     if args.persona_ids:
         task_args += ["-T", f"persona_ids={args.persona_ids}"]
-    if args.max_samples is not None:
-        task_args += ["-T", f"max_samples={args.max_samples}"]
+    if args.limit is not None:
+        task_args += ["--limit", str(args.limit)]
 
     print(" ".join(task_args))
     if args.dry_run:

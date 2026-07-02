@@ -6,8 +6,8 @@
 #
 # Usage:
 #   inspect eval orbit/osworld_benchmark \
-#       -T corpus=small -T attack_preset=desktop_injection \
-#       -T max_tasks=5 --model openai/gpt-4o
+#       -T dataset=osworld_small -T attack_preset=desktop_injection \
+#       --limit 5 --model openai/gpt-4o
 
 name: "osworld_benchmark_injection"
 description: "OSWorld benchmark — single agent with desktop injection attack"

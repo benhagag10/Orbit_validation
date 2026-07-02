@@ -17,7 +17,9 @@ To wrap a new scenario in DCOP:
     1. Subclass DCOPScenario
     2. Implement build_problem() returning a DCOPProblem
     3. Implement get_agent_specs(), get_scenario_tools(), compute_reward(), init_state()
-    4. Register your @task function that calls build_task()
+    4. Register a plugin (``register_scenario(make_dcop_plugin(...))``) and a
+       @task factory that routes through ``build_scenario_task`` — see task.py
+       in this package.
     See this file as a reference implementation.
 """
 

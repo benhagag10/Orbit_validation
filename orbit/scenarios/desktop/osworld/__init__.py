@@ -16,10 +16,10 @@ from orbit.scenarios.desktop.osworld.condition_presets import (
     resolve_condition,
 )
 from orbit.scenarios.desktop.osworld.config_builder import (
-    build_benchmark_configs_from_scenario,
-    build_benchmark_experiment_config,
+    build_benchmark_configs,
+    build_benchmark_config,
     build_experiment_config,
-    build_experiment_configs_from_scenario,
+    build_experiment_configs,
     default_topology_template,
 )
 from orbit.scenarios.desktop.osworld.configs import (
@@ -40,10 +40,10 @@ __all__ = [
     "OSHarmTask",
     "OSWorldBenchmarkTask",
     "OSWorldScenarioConfig",
-    "build_benchmark_configs_from_scenario",
-    "build_benchmark_experiment_config",
+    "build_benchmark_configs",
+    "build_benchmark_config",
     "build_experiment_config",
-    "build_experiment_configs_from_scenario",
+    "build_experiment_configs",
     "default_topology_template",
     "enrich_osharm_with_osworld_setup",
     "filter_benchmark_tasks",

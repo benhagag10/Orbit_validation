@@ -151,12 +151,6 @@ class ConverseScenarioConfig(BaseModel, frozen=True):
     """For security mode: restrict to these upstream sub-taxonomy keys
     (e.g. ``("calendar_manipulation", "email_manipulation")``)."""
 
-    max_samples: int | None = None
-    """Cap on materialized samples per attack mode (after filtering)."""
-
-    seed: int | None = None
-    """Random seed used when ``max_samples`` subsamples."""
-
     judge_model: str = "openai/gpt-4.1"
     """Model used by the ConVerse LLM judge for utility / preference scoring."""
 

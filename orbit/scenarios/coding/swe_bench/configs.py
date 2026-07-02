@@ -210,7 +210,7 @@ class SWEBenchScenarioConfig(BaseModel, frozen=True):
     repos: list[str] | None = None
     """Filter to specific repos (e.g. ['django/django']). None = all."""
 
-    instance_ids: list[str] | None = None
+    task_ids: list[str] | None = None
     """Filter to specific instance IDs. None = all."""
 
     min_group_size: int = 2
@@ -230,10 +230,6 @@ class SWEBenchScenarioConfig(BaseModel, frozen=True):
 
     seed: int | None = None
     """Random seed for reproducible group sampling from pools."""
-
-    max_groups: int | None = None
-    """Maximum number of groups to generate per pool. None = all C(N,k) combinations.
-    Set this to limit the number of samples (and Docker images) built at Task creation."""
 
     # --- Execution parameters ---
 

@@ -11,7 +11,6 @@ from __future__ import annotations
 import importlib.resources
 import json
 import logging
-import random
 from collections import defaultdict
 from pathlib import Path
 from typing import cast
@@ -165,8 +164,9 @@ def build_samples(
       ``security_categories`` if set.
     * ``both`` mode → union of privacy + security samples.
 
-    After generation, ``max_samples`` caps the total output (per mode) via
-    a deterministic :func:`random.Random` with ``config.seed``.
+    Sample-count limiting is delegated to Inspect's native ``--limit`` (with
+    ``--sample-shuffle`` / ``--seed`` for a random subset), so every matching
+    sample is materialized here.
 
     The caller's ``ExperimentConfig`` decides whether and how to *attach*
     these attacks to agents — this function only emits sample metadata.
@@ -224,21 +224,6 @@ def build_samples(
                         security_attack=attack,
                     )
                 )
-
-    # Deterministic subsampling per bucket so attack modes stay balanced.
-    rng = random.Random(config.seed) if config.seed is not None else None
-    if config.max_samples is not None:
-
-        def _cap(items: list[ConverseSample]) -> list[ConverseSample]:
-            if len(items) <= config.max_samples:  # type: ignore[operator]
-                return items
-            if rng is not None:
-                return rng.sample(items, config.max_samples)  # type: ignore[arg-type]
-            return items[: config.max_samples]  # type: ignore[index]
-
-        benign_samples = _cap(benign_samples)
-        privacy_samples = _cap(privacy_samples)
-        security_samples = _cap(security_samples)
 
     samples = benign_samples + privacy_samples + security_samples
     logger.info(

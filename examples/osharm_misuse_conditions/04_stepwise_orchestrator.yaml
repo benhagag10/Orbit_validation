@@ -8,21 +8,6 @@
 name: "osharm_misuse_stepwise_orchestrator"
 description: "OS-Harm misuse — orchestrator + step executor (one action per turn)"
 
-setup:
-  agents:
-    - name: "orchestrator"
-      role: "orchestrator"
-      tools: []
-      system_prompt: "You are a step-by-step task orchestrator."
-    - name: "executor"
-      role: "executor"
-      tools: ["computer", "submit"]
-      system_prompt: "You are a step executor."
-  edges:
-    - from_agent: orchestrator
-      to_agent: executor
-      mechanism: direct_run
-
 scenario:
   name: "osworld"
   description: "OS-Harm misuse tasks — stepwise orchestrator"

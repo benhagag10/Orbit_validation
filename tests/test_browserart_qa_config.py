@@ -178,7 +178,7 @@ def test_topology_edge_count(condition):
 
 @pytest.mark.parametrize("condition", [c for c in CANONICAL_CONDITIONS if c != "single_agent"])
 def test_condition_type_in_metadata(condition, hbb_by_id):
-    """Conditions with topology_type != single embed browserart_condition_type."""
+    """Conditions with topology_type != single embed browserart_resolved_condition."""
     behavior = hbb_by_id[0]
     config = build_config_for_test(behavior, condition)
     md = config.metadata
@@ -187,7 +187,7 @@ def test_condition_type_in_metadata(condition, hbb_by_id):
     assert "condition_type" in setup.properties
     assert setup.properties["condition_type"] == condition
     # Also propagated to metadata
-    assert md.get("browserart_condition_type") == condition
+    assert md.get("browserart_resolved_condition") == condition
 
 
 # ---------------------------------------------------------------------------

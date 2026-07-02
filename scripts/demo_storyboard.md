@@ -81,7 +81,7 @@ $ inspect eval inspect_mas/browserart_safety \
     -T condition=single_agent \
     -T dataset=hbb \
     -T task_ids=3 \
-    -T max_behaviors=1 \
+    --limit 1 \
     -T record_video_dir=logs/demo_video_single \
     --model openai/gpt-4o
 ```

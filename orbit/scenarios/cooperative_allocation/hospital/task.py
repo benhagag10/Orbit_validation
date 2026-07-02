@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from inspect_ai import Task, task
-from inspect_ai.dataset import MemoryDataset
-from inspect_ai.util import store_as
 
 from orbit.configs.attack import AttackConfig
 from orbit.configs.execution import AgentGroup, ExecutionConfig, ObservationConfig
@@ -12,13 +10,13 @@ from orbit.configs.experiment import ExperimentConfig
 from orbit.configs.scenario import ScenarioConfig
 from orbit.configs.scheduler import SchedulerConfig
 from orbit.configs.setup import AgentSpec, SetupConfig, TopologyEdge
-from orbit.dataset.sample_factory import build_sample
+from orbit.scenarios.cooperative_allocation.dcop.plugin import make_dcop_plugin
 from orbit.scenarios.cooperative_allocation.hospital.dataset_builder import build_problem
 from orbit.scenarios.cooperative_allocation.hospital.scorer import hospital_scorer
-from orbit.scorers.collusion_scorer import collusion_scorer
-from orbit.scorers.security_scorer import security_scorer
-from orbit.solvers.orchestrator import mas_orchestrator
-from orbit.solvers.orchestrator_v2 import mas_orchestrator_v2
+from orbit.scenarios.registry import register_scenario
+from orbit.tasks.builder import build_scenario_task
+
+HOSPITAL_PLUGIN = register_scenario(make_dcop_plugin("hospital", hospital_scorer))
 
 
 def _get_defenses(defense_preset: str | None) -> list:
@@ -64,44 +62,6 @@ def _get_defenses(defense_preset: str | None) -> list:
         raise ValueError(f"Unknown defense preset: {defense_preset}")
 
 
-def _build_setup_solver(problem, compromised_agent_name=None):
-    """Build a setup solver that initializes HospitalState."""
-    from inspect_ai.solver import Solver, TaskState, solver
-    from orbit.scenarios.cooperative_allocation.hospital.state import HospitalState
-
-    @solver
-    def hospital_setup() -> Solver:
-        async def solve(state: TaskState, generate) -> TaskState:
-            from orbit.scenarios.cooperative_allocation.dcop.state import DCOPState
-
-            hs = store_as(HospitalState)
-            hs.hospitals = [h.model_dump() for h in problem.hospitals]
-            hs.patients = [p.model_dump() for p in problem.patients]
-            for hospital in problem.hospitals:
-                hs.inventory[hospital.name] = dict(hospital.resources)
-
-            dcop_state = store_as(DCOPState)
-            dcop_state.optimal_total_reward = problem.upper_bound_reward
-            dcop_state.is_optimal_exact = False
-            if problem.agent_names:
-                opt_share = problem.upper_bound_reward / len(problem.agent_names)
-                dcop_state.optimal_per_agent_reward = {
-                    a: opt_share for a in problem.agent_names
-                }
-
-            if compromised_agent_name:
-                from orbit.attacks.collusion.collusion_state import CollusionLog
-                collusion_log = store_as(CollusionLog)
-                collusion_log.coalition_agents = [compromised_agent_name]
-                collusion_log.collusion_mode = "compromised"
-
-            return state
-
-        return solve
-
-    return hospital_setup()
-
-
 @task
 def hospital_scheduling(
     num_hospitals: int = 2,
@@ -116,10 +76,10 @@ def hospital_scheduling(
     persuasion_tactic: str | None = None,
     misalignment_strategy: str | None = None,
     compromised_agent: str | None = None,
-    topology_preset: str = "flat",
+    condition: str = "flat",
     defense_preset: str | None = None,
     max_turns: int = 15,
-    max_time: float = 600.0,
+    max_time_seconds: float = 600.0,
     orchestrator: str = "v1",
 ) -> Task:
     """Hospital patient scheduling and resource allocation scenario.
@@ -175,7 +135,7 @@ def hospital_scheduling(
     observation = ObservationConfig()
     all_agent_names = [s.name for s in agent_specs]
 
-    if topology_preset == "star":
+    if condition == "star":
         supervisor = all_agent_names[0]
         agent_specs[0] = agent_specs[0].model_copy(
             update={
@@ -191,7 +151,7 @@ def hospital_scheduling(
             edges.append(TopologyEdge(
                 from_agent=supervisor, to_agent=worker, mechanism="tool",
             ))
-    elif topology_preset == "mesh_shared":
+    elif condition == "mesh_shared":
         for a in all_agent_names:
             for b in all_agent_names:
                 if a != b:
@@ -269,7 +229,16 @@ def hospital_scheduling(
         scenario=ScenarioConfig(
             name="hospital",
             description="Patient scheduling with resource allocation",
+            # Build parameters let the shared setup solver rebuild the problem
+            # and seed HospitalState/DCOPState identically on every entry point.
             properties={
+                "num_hospitals": num_hospitals,
+                "departments_per_hospital": departments_per_hospital,
+                "include_provisioner": include_provisioner,
+                "num_patients": num_patients,
+                "pathway_length": pathway_length,
+                "scarcity": scarcity,
+                "seed": seed,
                 "upper_bound_reward": problem.upper_bound_reward,
             },
         ),
@@ -278,25 +247,10 @@ def hospital_scheduling(
         execution=execution,
         scheduler=SchedulerConfig(
             max_turns=max_turns,
-            max_time_seconds=max_time,
+            max_time_seconds=max_time_seconds,
         ),
         max_turns=max_turns,
-        max_time_seconds=max_time,
+        max_time_seconds=max_time_seconds,
     )
 
-    sample = build_sample(config)
-    setup_solver = _build_setup_solver(problem, compromised_agent)
-
-    from orbit.scenarios.cooperative_allocation.dcop.scorer import dcop_scorer
-    from orbit.validation.integrity_scorer import integrity_scorer
-
-    scorers = [security_scorer(), integrity_scorer(), hospital_scorer(), dcop_scorer()]
-    if coalition_agents or compromised_agent:
-        scorers.append(collusion_scorer())
-
-    return Task(
-        dataset=MemoryDataset([sample]),
-        setup=setup_solver,
-        solver=mas_orchestrator_v2() if orchestrator == "v2" else mas_orchestrator(),
-        scorer=scorers,
-    )
+    return build_scenario_task(config, HOSPITAL_PLUGIN, orchestrator=orchestrator)

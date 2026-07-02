@@ -9,213 +9,77 @@ Provides two Inspect tasks registered via _registry.py:
 
 Both use the OSWorld desktop environment from ``inspect_evals`` for
 sandbox execution with the ``computer`` tool.
+
+Construction is unified through the scenario-agnostic builder
+(``orbit.tasks.builder.build_scenario_task``): each scenario's ``expand`` hook
+reads the task-selection config from ``config.metadata`` and threads
+``config.setup`` (topology), ``config.attacks`` and ``config.defenses`` into
+every per-task config, so ``inspect eval -T ...`` and ``orbit run <yaml>``
+construct identical Tasks.
 """
 
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from inspect_ai import Task, task
-from inspect_ai.dataset import MemoryDataset
 
-from orbit.dataset.sample_factory import build_sample
 from orbit.scenarios.desktop.osworld.config_builder import (
     _resolve_osworld_compose_file,
-    build_experiment_configs_from_scenario,
+    build_benchmark_configs,
+    build_experiment_configs,
     default_topology_template,
 )
 from orbit.scenarios.desktop.osworld.configs import OSWorldScenarioConfig
-from orbit.scenarios.desktop.osworld.scorer import osworld_scorer
+from orbit.scenarios.registry import ScenarioPlugin, register_scenario
+from orbit.tasks.builder import build_scenario_task, split_csv as _split
+
+if TYPE_CHECKING:
+    from inspect_ai.scorer import Scorer
+
+    from orbit.configs.experiment import ExperimentConfig
+    from orbit.configs.setup import SetupConfig
 
 logger = logging.getLogger(__name__)
 
 
-@task
-def osworld_safety(
-    dataset: str = "osharm",
-    app: str | None = None,
-    threat_category: str | None = None,
-    violation_type: str | None = None,
-    task_ids: str | None = None,
-    max_tasks: int | None = None,
-    seed: int | None = None,
-    max_turns: int = 100,
-    max_time_seconds: float = 600.0,
-    max_screenshots: int = 1,
-    computer_timeout: int = 180,
-    topology_file: str = "default",
-    condition: str | None = None,
-    agents: str | None = None,
-    topology: str | None = None,
-    memory: str | None = None,
-    instructions: str | None = None,
-    defense_preset: str | None = None,
-    attack_preset: str | None = None,
-    judge_model: str = "openai/gpt-4.1",
-) -> Task:
-    """OSWorld multi-agent safety benchmark task.
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
 
-    Evaluates computer-use agent safety against harmful task instructions
-    from the OS-Harm dataset on the OSWorld desktop environment.
 
-    Topology can be specified in three mutually exclusive ways:
+def _scenario_config(
+    config: ExperimentConfig, *, default_dataset: str
+) -> OSWorldScenarioConfig:
+    """Reconstruct the task-selection config from metadata + scheduler.
 
-    1. **Named condition** (``condition``): a pre-validated multi-agent
-       topology preset (e.g. ``"star_specialist"``).
-    2. **Friendly parameters** (``agents``, ``topology``, ``memory``,
-       ``instructions``): human-readable knobs that resolve to a named
-       condition.
-    3. **Custom YAML** (``topology_file``): path to a SetupConfig YAML.
-
-    Examples:
-        # Basic evaluation (requires OS-Harm data):
-        inspect eval orbit/osworld_safety \\
-            -T max_tasks=5 --model openai/gpt-4o
-
-        # Filter by app:
-        inspect eval orbit/osworld_safety \\
-            -T app=thunderbird -T max_tasks=10 --model openai/gpt-4o
-
-        # Named condition preset:
-        inspect eval orbit/osworld_safety \\
-            -T condition=star_specialist -T max_tasks=5 --model openai/gpt-4o
-
-        # Friendly parameters:
-        inspect eval orbit/osworld_safety \\
-            -T agents=specialist -T topology=star -T max_tasks=5 \\
-            --model openai/gpt-4o
-
-        # With defense preset:
-        inspect eval orbit/osworld_safety \\
-            -T defense_preset=basic --model openai/gpt-4o
-
-    Args:
-        dataset: Dataset to load. ``"osharm"`` loads the full OS-Harm
-            dataset; sub-variants ``"osharm_misuse"``, ``"osharm_injection"``,
-            ``"osharm_misbehavior"`` pre-filter by threat category.
-        app: Filter tasks by target application (comma-separated).
-        task_ids: Comma-separated list of task IDs to include. Applied
-            before all other filters.
-        threat_category: Filter by threat category (comma-separated).
-        violation_type: Filter by violation type (comma-separated).
-        max_tasks: Limit number of tasks to evaluate.
-        seed: Random seed for task sampling.
-        max_turns: Maximum turns per task.
-        max_time_seconds: Maximum wall-clock seconds per task.
-        max_screenshots: Maximum screenshots per turn for the computer tool.
-        computer_timeout: Timeout in seconds for the computer tool.
-        topology_file: Topology template: ``"default"`` or path to YAML.
-        condition: Named condition preset (e.g. ``"star_specialist"``).
-            Mutually exclusive with ``agents`` and ``topology_file``.
-        agents: Agent configuration style (``"single"``, ``"batch"``,
-            ``"specialist"``, ``"app_specialist"``, ``"step"``).
-            ``"specialist"`` uses tool-action specialists (click, type,
-            key, scroll). ``"app_specialist"`` uses application-based
-            specialists (email, browser, document, code). Resolves to a
-            condition. Mutually exclusive with ``condition`` and
-            ``topology_file``.
-        topology: Topology type (``"star"``, ``"round_robin"``,
-            ``"delegation"``). Used with ``agents``.
-        memory: Memory level (``"none"``, ``"own_actions"``,
-            ``"own_reasoning"``, ``"shared_actions"``, ``"full"``).
-            Used with ``agents``.
-        instructions: Instruction detail level (``"detailed"``,
-            ``"relaxed"``). Used with ``agents``.
-        defense_preset: Defense preset name (e.g. ``"basic"``).
-        attack_preset: Attack preset name (e.g. ``"prompt_injection"``).
-        judge_model: Model for the safety judge scorer.
+    The -T factory serializes the resolved ``OSWorldScenarioConfig`` under
+    ``osworld_scenario_config``; YAML/​orbit-run configs use the individual
+    ``osworld_*`` keys.
     """
-    # Parse comma-separated filter parameters
-    apps = [a.strip() for a in app.split(",")] if app else None
-    threat_categories = (
-        [c.strip() for c in threat_category.split(",")]
-        if threat_category
-        else None
-    )
-    violation_types = (
-        [v.strip() for v in violation_type.split(",")]
-        if violation_type
-        else None
-    )
-    parsed_task_ids = (
-        [t.strip() for t in task_ids.split(",") if t.strip()]
-        if task_ids
-        else None
-    )
-
-    # Build scenario config
-    scenario_config = OSWorldScenarioConfig(
-        dataset=dataset,
-        apps=apps,
-        threat_categories=threat_categories,
-        violation_types=violation_types,
-        task_ids=parsed_task_ids,
-        max_tasks=max_tasks,
-        seed=seed,
-        judge_model=judge_model,
-        max_turns=max_turns,
-        max_time_seconds=max_time_seconds,
-        max_screenshots=max_screenshots,
-        computer_timeout=computer_timeout,
-    )
-
-    # Resolve topology
-    topology_template, resolved_condition = _resolve_topology(
-        condition=condition,
-        agents=agents,
-        topology=topology,
-        memory=memory,
-        instructions=instructions,
-        topology_file=topology_file,
-    )
-
-    # Build attack/defense configs from presets
-    attacks = None
-    defenses = None
-    if attack_preset:
-        from orbit.scenarios.desktop.osworld.presets import get_attack_preset
-
-        attacks = get_attack_preset(attack_preset, condition=resolved_condition)
-    if defense_preset:
-        from orbit.scenarios.desktop.osworld.presets import get_defense_preset
-
-        defenses = get_defense_preset(defense_preset)
-
-    # Build experiment configs
-    configs = build_experiment_configs_from_scenario(
-        scenario_config=scenario_config,
-        topology_template=topology_template,
-        attacks=attacks,
-        defenses=defenses,
-    )
-
-    # Build samples
-    samples = [build_sample(config, sample_id=config.name) for config in configs]
-
-    if not samples:
-        logger.warning(
-            "No samples built — check scenario config and available tasks"
-        )
-
-    # Choose solver
-    from orbit.solvers.orchestrator import mas_orchestrator
-
-    task_solver = mas_orchestrator()
-
-    # Build task
-    from orbit.scorers.security_scorer import security_scorer
-
-    return Task(
-        dataset=MemoryDataset(samples) if samples else MemoryDataset([]),
-        solver=task_solver,
-        scorer=[osworld_scorer(judge_model), security_scorer()],
-        sandbox=("docker", _resolve_osworld_compose_file()),
+    meta = config.metadata or {}
+    if "osworld_scenario_config" in meta:
+        return OSWorldScenarioConfig(**meta["osworld_scenario_config"])
+    return OSWorldScenarioConfig(
+        dataset=meta.get("osworld_dataset", default_dataset),
+        apps=_split(meta.get("osworld_app")),
+        threat_categories=_split(meta.get("osworld_threat_category")),
+        violation_types=_split(meta.get("osworld_violation_type")),
+        task_ids=_split(meta.get("osworld_task_ids")),
+        judge_model=meta.get("osworld_judge_model", "openai/gpt-4.1"),
+        max_turns=config.scheduler.max_turns,
+        max_time_seconds=config.scheduler.max_time_seconds,
+        max_screenshots=meta.get("osworld_max_screenshots", 1),
+        computer_timeout=meta.get("osworld_computer_timeout", 180),
     )
 
 
-# ---------------------------------------------------------------------------
-# Topology resolution helper (shared between osworld_safety and benchmark)
-# ---------------------------------------------------------------------------
+def _judge_model(config: ExperimentConfig) -> str:
+    meta = config.metadata or {}
+    if "osworld_scenario_config" in meta:
+        return meta["osworld_scenario_config"].get("judge_model", "openai/gpt-4.1")
+    return meta.get("osworld_judge_model", "openai/gpt-4.1")
 
 
 def _resolve_topology(
@@ -238,25 +102,17 @@ def _resolve_topology(
     has_sub_params = any(p is not None for p in [topology, memory, instructions])
 
     if has_condition and has_agents:
-        raise ValueError(
-            "Cannot specify both --condition and --agents."
-        )
+        raise ValueError("Cannot specify both --condition and --agents.")
     if has_condition and has_custom_topo:
-        raise ValueError(
-            "Cannot specify both --condition and --topology_file."
-        )
+        raise ValueError("Cannot specify both --condition and --topology_file.")
     if has_agents and has_custom_topo:
-        raise ValueError(
-            "Cannot specify both --agents and --topology_file."
-        )
+        raise ValueError("Cannot specify both --agents and --topology_file.")
     if (has_condition or has_custom_topo) and has_sub_params:
         raise ValueError(
             "--topology, --memory, --instructions are only used with --agents."
         )
     if not has_agents and has_sub_params:
-        raise ValueError(
-            "--topology, --memory, --instructions require --agents."
-        )
+        raise ValueError("--topology, --memory, --instructions require --agents.")
 
     resolved_condition: str | None = None
 
@@ -292,33 +148,313 @@ def _resolve_topology(
     return topo_template, resolved_condition
 
 
+def _osworld_template_config(
+    *,
+    scenario_name: str,
+    scenario_config: OSWorldScenarioConfig,
+    topology_template: SetupConfig,
+    attacks: list | None,
+    defenses: list | None,
+) -> ExperimentConfig:
+    """Build the single template ExperimentConfig passed to the builder."""
+    from orbit.configs.experiment import ExperimentConfig
+    from orbit.configs.metrics import MetricsConfig
+    from orbit.configs.scenario import ScenarioConfig
+    from orbit.configs.scheduler import SchedulerConfig
+
+    return ExperimentConfig(
+        name=scenario_name,
+        description=f"OSWorld {scenario_name}",
+        setup=topology_template,
+        scenario=ScenarioConfig(name=scenario_name, description=f"OSWorld {scenario_name}"),
+        attacks=attacks or [],
+        defenses=defenses or [],
+        scheduler=SchedulerConfig(
+            max_turns=scenario_config.max_turns,
+            max_time_seconds=scenario_config.max_time_seconds,
+            halt_on_convergence=False,
+        ),
+        metrics=MetricsConfig(),
+        metadata={
+            "osworld_scenario_config": scenario_config.model_dump(),
+        },
+    )
+
+
 # ---------------------------------------------------------------------------
-# OSWorld benchmark task (standard desktop tasks)
+# osworld_safety plugin + factory
 # ---------------------------------------------------------------------------
+
+
+def _osworld_safety_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
+    scenario_config = _scenario_config(config, default_dataset="osharm")
+    topology_template = config.setup if config.setup.agents else default_topology_template()
+    configs = build_experiment_configs(
+        scenario_config=scenario_config,
+        topology_template=topology_template,
+        attacks=list(config.attacks) or None,
+        defenses=list(config.defenses) or None,
+    )
+    if not configs:
+        logger.warning("No samples built — check scenario config and available tasks")
+    return configs
+
+
+def _osworld_safety_scorers(config: ExperimentConfig) -> list[Scorer]:
+    from orbit.scenarios.desktop.osworld.scorer import osworld_scorer
+    from orbit.scorers.security_scorer import security_scorer
+
+    return [osworld_scorer(_judge_model(config)), security_scorer()]
+
+
+def _osworld_resolve(config: ExperimentConfig) -> ExperimentConfig:
+    """Resolve osworld shorthand into the canonical config on the orbit-run path.
+
+    An ``orbit run`` YAML may carry shorthand in ``config.metadata``:
+    ``osworld_condition`` (a named topology/memory condition) and
+    ``osworld_attack_preset`` / ``osworld_defense_preset`` (preset names). Resolve
+    each to its canonical form, using the same primitives the ``-T`` factory
+    uses, so the YAML path matches ``inspect eval -T`` and nothing is silently
+    dropped or degraded (a named memory condition must not collapse to default
+    non-shared memory — a P0 construct-validity failure). Idempotent on the
+    ``-T`` path, where the factory already built setup/attacks/defenses.
+    """
+    from orbit.tasks.builder import baseline_keeps_attacks, baseline_keeps_defenses
+
+    meta = config.metadata or {}
+    updates: dict = {}
+    cond = meta.get("osworld_condition")
+    applied_cond: str | None = None
+    if cond:
+        # Mark the condition consumed either way so a second resolve() is a no-op
+        # (the builder and the validate/dry-run paths may both call resolve).
+        new_meta = {k: v for k, v in meta.items() if k != "osworld_condition"}
+        if config.setup.agents:
+            logger.warning(
+                "osworld config declares BOTH an inline setup.agents topology and "
+                "metadata.osworld_condition=%r; using the inline setup and "
+                "IGNORING the condition. Declare exactly one.",
+                cond,
+            )
+            new_meta["osworld_ignored_condition"] = cond
+        else:
+            from orbit.scenarios.desktop.osworld.condition_presets import get_condition_setup
+            updates["setup"] = get_condition_setup(cond)
+            new_meta["osworld_resolved_condition"] = cond
+            applied_cond = cond
+        updates["metadata"] = new_meta
+    if (
+        baseline_keeps_attacks(config)
+        and not config.attacks
+        and meta.get("osworld_attack_preset")
+    ):
+        from orbit.scenarios.desktop.osworld.presets import get_attack_preset
+        # An ignored condition must not tailor the attack preset.
+        updates["attacks"] = get_attack_preset(
+            meta["osworld_attack_preset"], condition=applied_cond
+        )
+    if (
+        baseline_keeps_defenses(config)
+        and not config.defenses
+        and meta.get("osworld_defense_preset")
+    ):
+        from orbit.scenarios.desktop.osworld.presets import get_defense_preset
+        updates["defenses"] = get_defense_preset(meta["osworld_defense_preset"])
+    return config.model_copy(update=updates) if updates else config
+
+
+OSWORLD_SAFETY_PLUGIN = register_scenario(
+    ScenarioPlugin(
+        name="osworld",
+        resolve=_osworld_resolve,
+        expand=_osworld_safety_expand,
+        build_setup=lambda config: None,
+        build_solver=None,  # default mas_orchestrator
+        build_scorers=_osworld_safety_scorers,
+        build_sandbox=lambda config: ("docker", _resolve_osworld_compose_file()),
+    )
+)
 
 
 @task
-def osworld_benchmark(
-    corpus: str = "all",
+def osworld_safety(
+    dataset: str = "osharm",
     app: str | None = None,
+    threat_category: str | None = None,
+    violation_type: str | None = None,
     task_ids: str | None = None,
-    max_tasks: int | None = None,
-    seed: int | None = None,
     max_turns: int = 100,
     max_time_seconds: float = 600.0,
     max_screenshots: int = 1,
     computer_timeout: int = 180,
-    # Topology
+    topology_file: str = "default",
+    condition: str | None = None,
+    agents: str | None = None,
+    topology: str | None = None,
+    memory: str | None = None,
+    instructions: str | None = None,
+    defense_preset: str | None = None,
+    attack_preset: str | None = None,
+    judge_model: str = "openai/gpt-4.1",
+    orchestrator: str = "v1",
+) -> Task:
+    """OSWorld multi-agent safety benchmark task.
+
+    Evaluates computer-use agent safety against harmful task instructions
+    from the OS-Harm dataset on the OSWorld desktop environment.
+
+    Topology can be specified in three mutually exclusive ways:
+
+    1. **Named condition** (``condition``): a pre-validated multi-agent
+       topology preset (e.g. ``"star_specialist"``).
+    2. **Friendly parameters** (``agents``, ``topology``, ``memory``,
+       ``instructions``): human-readable knobs that resolve to a named
+       condition.
+    3. **Custom YAML** (``topology_file``): path to a SetupConfig YAML.
+
+    Examples:
+        # Basic evaluation (requires OS-Harm data):
+        inspect eval orbit/osworld_safety \\
+            --limit 5 --model openai/gpt-4o
+
+        # Named condition preset:
+        inspect eval orbit/osworld_safety \\
+            -T condition=star_specialist --limit 5 --model openai/gpt-4o
+
+    Args:
+        dataset: Dataset to load. ``"osharm"`` loads the full OS-Harm
+            dataset; sub-variants ``"osharm_misuse"``, ``"osharm_injection"``,
+            ``"osharm_misbehavior"`` pre-filter by threat category.
+        app: Filter tasks by target application (comma-separated).
+        task_ids: Comma-separated list of task IDs to include.
+        threat_category: Filter by threat category (comma-separated).
+        violation_type: Filter by violation type (comma-separated).
+        max_turns: Maximum turns per task.
+        max_time_seconds: Maximum wall-clock seconds per task.
+        max_screenshots: Maximum screenshots per turn for the computer tool.
+        computer_timeout: Timeout in seconds for the computer tool.
+        topology_file: Topology template: ``"default"`` or path to YAML.
+        condition: Named condition preset (e.g. ``"star_specialist"``).
+        agents: Agent configuration style.
+        topology: Topology type (used with ``agents``).
+        memory: Memory level (used with ``agents``).
+        instructions: Instruction detail level (used with ``agents``).
+        defense_preset: Defense preset name (e.g. ``"basic"``).
+        attack_preset: Attack preset name (e.g. ``"prompt_injection"``).
+        judge_model: Model for the safety judge scorer.
+        orchestrator: ``"v1"`` or ``"v2"`` — selects the orchestrator solver.
+    """
+    scenario_config = OSWorldScenarioConfig(
+        dataset=dataset,
+        apps=_split(app),
+        threat_categories=_split(threat_category),
+        violation_types=_split(violation_type),
+        task_ids=_split(task_ids),
+        judge_model=judge_model,
+        max_turns=max_turns,
+        max_time_seconds=max_time_seconds,
+        max_screenshots=max_screenshots,
+        computer_timeout=computer_timeout,
+    )
+
+    topology_template, resolved_condition = _resolve_topology(
+        condition=condition,
+        agents=agents,
+        topology=topology,
+        memory=memory,
+        instructions=instructions,
+        topology_file=topology_file,
+    )
+
+    attacks = None
+    defenses = None
+    if attack_preset:
+        from orbit.scenarios.desktop.osworld.presets import get_attack_preset
+
+        attacks = get_attack_preset(attack_preset, condition=resolved_condition)
+    if defense_preset:
+        from orbit.scenarios.desktop.osworld.presets import get_defense_preset
+
+        defenses = get_defense_preset(defense_preset)
+
+    config = _osworld_template_config(
+        scenario_name="osworld",
+        scenario_config=scenario_config,
+        topology_template=topology_template,
+        attacks=attacks,
+        defenses=defenses,
+    )
+    return build_scenario_task(
+        config, OSWORLD_SAFETY_PLUGIN, orchestrator=orchestrator
+    )
+
+
+# ---------------------------------------------------------------------------
+# osworld_benchmark plugin + factory
+# ---------------------------------------------------------------------------
+
+
+def _osworld_benchmark_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
+    scenario_config = _scenario_config(config, default_dataset="osworld")
+    topology_template = config.setup if config.setup.agents else default_topology_template()
+    configs = build_benchmark_configs(
+        scenario_config=scenario_config,
+        topology_template=topology_template,
+        attacks=list(config.attacks) or None,
+        defenses=list(config.defenses) or None,
+    )
+    if not configs:
+        logger.warning("No benchmark samples built — check corpus and filters")
+    return configs
+
+
+def _osworld_benchmark_scorers(config: ExperimentConfig) -> list[Scorer]:
+    from orbit.scenarios.desktop.osworld.scorer import (
+        osworld_capability_scorer,
+        osworld_scorer,
+    )
+
+    scorers: list[Scorer] = [osworld_capability_scorer()]
+    if config.attacks:
+        from orbit.scorers.security_scorer import security_scorer
+
+        scorers.append(osworld_scorer(_judge_model(config)))
+        scorers.append(security_scorer())
+    return scorers
+
+
+OSWORLD_BENCHMARK_PLUGIN = register_scenario(
+    ScenarioPlugin(
+        name="osworld_benchmark",
+        resolve=_osworld_resolve,
+        expand=_osworld_benchmark_expand,
+        build_setup=lambda config: None,
+        build_solver=None,
+        build_scorers=_osworld_benchmark_scorers,
+        build_sandbox=lambda config: ("docker", _resolve_osworld_compose_file()),
+    )
+)
+
+
+@task
+def osworld_benchmark(
+    dataset: str = "osworld",
+    app: str | None = None,
+    task_ids: str | None = None,
+    max_turns: int = 100,
+    max_time_seconds: float = 600.0,
+    max_screenshots: int = 1,
+    computer_timeout: int = 180,
     condition: str | None = None,
     agents: str | None = None,
     topology: str | None = None,
     memory: str | None = None,
     instructions: str | None = None,
     topology_file: str = "default",
-    # Attack/defense overlay for injection experiments
     attack_preset: str | None = None,
     defense_preset: str | None = None,
     judge_model: str = "openai/gpt-4.1",
+    orchestrator: str = "v1",
 ) -> Task:
     """OSWorld standard benchmark task for capability evaluation.
 
@@ -330,20 +466,11 @@ def osworld_benchmark(
     is set, attacks are layered onto the benign tasks and both
     capability and safety scorers run.
 
-    Examples:
-        inspect eval orbit/osworld_benchmark \\
-            -T corpus=small -T max_tasks=5 --model openai/gpt-4o
-
-        inspect eval orbit/osworld_benchmark \\
-            -T attack_preset=desktop_injection -T max_tasks=5 \\
-            --model openai/gpt-4o
-
     Args:
-        corpus: OSWorld corpus (``"all"`` or ``"small"``).
+        dataset: OSWorld dataset variant (``"osworld"`` for the full
+            benchmark or ``"osworld_small"`` for the small corpus).
         app: Filter by app (comma-separated).
         task_ids: Comma-separated task IDs to include.
-        max_tasks: Limit number of tasks.
-        seed: Random seed for sampling.
         max_turns: Maximum turns per task.
         max_time_seconds: Maximum wall-clock seconds per task.
         max_screenshots: Maximum screenshots per turn.
@@ -357,38 +484,22 @@ def osworld_benchmark(
         attack_preset: Attack preset for injection experiments.
         defense_preset: Defense preset name.
         judge_model: Model for safety judge (used in injection mode).
+        orchestrator: ``"v1"`` or ``"v2"`` — selects the orchestrator solver.
     """
-    from orbit.scenarios.desktop.osworld.config_builder import (
-        build_benchmark_configs_from_scenario,
-    )
-    from orbit.scenarios.desktop.osworld.scorer import osworld_capability_scorer
-
-    # Parse comma-separated filters
-    apps = [a.strip() for a in app.split(",")] if app else None
-    parsed_task_ids = (
-        [t.strip() for t in task_ids.split(",") if t.strip()]
-        if task_ids
-        else None
-    )
-
-    # Map corpus to dataset value
-    dataset_val = "osworld_small" if corpus == "small" else "osworld"
+    osworld_corpus = "small" if dataset == "osworld_small" else "all"
 
     scenario_config = OSWorldScenarioConfig(
-        dataset=dataset_val,
-        apps=apps,
-        task_ids=parsed_task_ids,
-        max_tasks=max_tasks,
-        seed=seed,
+        dataset=dataset,
+        apps=_split(app),
+        task_ids=_split(task_ids),
         judge_model=judge_model,
         max_turns=max_turns,
         max_time_seconds=max_time_seconds,
         max_screenshots=max_screenshots,
         computer_timeout=computer_timeout,
-        osworld_corpus=corpus if corpus in ("all", "small") else "all",
+        osworld_corpus=osworld_corpus,
     )
 
-    # Resolve topology
     topology_template, resolved_condition = _resolve_topology(
         condition=condition,
         agents=agents,
@@ -398,47 +509,24 @@ def osworld_benchmark(
         topology_file=topology_file,
     )
 
-    # Build attack/defense configs
     attacks = None
     defenses = None
     if attack_preset:
         from orbit.scenarios.desktop.osworld.presets import get_attack_preset
+
         attacks = get_attack_preset(attack_preset, condition=resolved_condition)
     if defense_preset:
         from orbit.scenarios.desktop.osworld.presets import get_defense_preset
+
         defenses = get_defense_preset(defense_preset)
 
-    # Build experiment configs
-    configs = build_benchmark_configs_from_scenario(
+    config = _osworld_template_config(
+        scenario_name="osworld_benchmark",
         scenario_config=scenario_config,
         topology_template=topology_template,
         attacks=attacks,
         defenses=defenses,
     )
-
-    # Build samples
-    samples = [build_sample(config, sample_id=config.name) for config in configs]
-
-    if not samples:
-        logger.warning(
-            "No benchmark samples built — check corpus and filters"
-        )
-
-    # Choose solver
-    from orbit.solvers.orchestrator import mas_orchestrator
-    task_solver = mas_orchestrator()
-
-    # Choose scorers based on mode
-    scorers = [osworld_capability_scorer()]
-    if attacks:
-        # Injection mode: add safety scorers
-        from orbit.scorers.security_scorer import security_scorer
-        scorers.append(osworld_scorer(judge_model))
-        scorers.append(security_scorer())
-
-    return Task(
-        dataset=MemoryDataset(samples) if samples else MemoryDataset([]),
-        solver=task_solver,
-        scorer=scorers,
-        sandbox=("docker", _resolve_osworld_compose_file()),
+    return build_scenario_task(
+        config, OSWORLD_BENCHMARK_PLUGIN, orchestrator=orchestrator
     )

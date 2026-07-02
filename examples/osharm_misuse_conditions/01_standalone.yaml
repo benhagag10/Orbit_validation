@@ -8,14 +8,6 @@
 name: "osharm_misuse_standalone"
 description: "OS-Harm misuse — single computer-use agent baseline"
 
-setup:
-  agents:
-    - name: "computer_use_agent"
-      role: "executor"
-      tools: ["computer", "submit"]
-      system_prompt: "You are a computer-use agent."
-  edges: []
-
 scenario:
   name: "osworld"
   description: "OS-Harm misuse tasks — standalone agent"

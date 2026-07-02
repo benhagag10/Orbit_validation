@@ -135,6 +135,13 @@ def dry_run(
     if config_overrides:
         config = apply_config_overrides(config, config_overrides)
 
+    # Reflect the same shorthand resolution the real run performs, so the
+    # preview reports resolved attacks/topology (e.g. a preset or condition)
+    # rather than the raw pre-resolve config.
+    from orbit.tasks.builder import resolve_scenario_shorthand
+
+    config = resolve_scenario_shorthand(config)
+
     models = _resolve_models(model, config.models)
     errors = ConfigValidator.validate(config)
 
@@ -157,92 +164,20 @@ def dry_run(
 def _build_task(config: ExperimentConfig) -> Task:
     """Build an Inspect Task from an ExperimentConfig.
 
-    Dispatches to scenario-specific task factories when the scenario
-    name is recognised (``browserart``, ``swe_bench``, ``osworld``),
-    otherwise falls back to the generic ``security_benchmark`` task.
+    Every scenario flows through the single, config-complete entry point
+    ``security_benchmark(config=config)``, which delegates to the
+    scenario-agnostic builder (``orbit.tasks.builder.build_scenario_task``).
+    That builder is total over ``ExperimentConfig``: it consults the scenario's
+    registered :class:`~orbit.scenarios.registry.ScenarioPlugin` (keyed on
+    ``scenario.name``) for dataset expansion, setup, solver, scorers, and
+    sandbox, threading ``config.setup``/``config.attacks``/``config.defenses``
+    through expansion.
+
+    There is no per-scenario dispatch here on purpose: this is the exact same
+    construction path used by ``inspect eval orbit/<scenario> -T ...``, so a
+    config section set in the YAML (topology / attacks / defenses) cannot be
+    silently dropped on the ``orbit run`` path.
     """
-    scenario_name = config.scenario.name if config.scenario else ""
-
-    if scenario_name == "browserart":
-        from orbit.scenarios.browser.browserart.task import browserart_safety
-
-        meta = config.metadata or {}
-        return browserart_safety(
-            category=",".join(meta["browserart_categories"])
-            if meta.get("browserart_categories")
-            else None,
-            max_behaviors=meta.get("browserart_max_behaviors"),
-            seed=meta.get("browserart_seed"),
-            classifier_model=meta.get(
-                "browserart_classifier_model", "openai/gpt-4.1"
-            ),
-            data_path=meta.get("browserart_data_path"),
-            max_turns=config.scheduler.max_turns,
-            max_time=config.scheduler.max_time_seconds,
-            topology=meta.get("browserart_topology", "default"),
-            headless=meta.get("browserart_headless", True),
-            record_video_dir=meta.get("browserart_record_video_dir"),
-            condition=meta.get("browserart_condition"),
-            dataset=meta.get("browserart_dataset", "hbb"),
-            task_ids=",".join(str(x) for x in meta["browserart_task_ids"])
-            if isinstance(meta.get("browserart_task_ids"), list)
-            else meta.get("browserart_task_ids"),
-        )
-
-    if scenario_name == "swe_bench":
-        from orbit.scenarios.coding.swe_bench.task import swe_bench_multi_issue
-
-        meta = config.metadata or {}
-
-        # Use the YAML's setup as topology template when agents are defined,
-        # so per-agent model/temperature overrides are preserved.
-        topology_arg = meta.get("swe_bench_topology", "default")
-        if config.setup.agents and topology_arg == "default":
-            topology_arg = config.setup
-
-        return swe_bench_multi_issue(
-            num_issues=meta.get("swe_bench_num_issues", 2),
-            seed=meta.get("swe_bench_seed"),
-            repos=",".join(meta["swe_bench_repos"])
-            if meta.get("swe_bench_repos")
-            else None,
-            mode=meta.get("swe_bench_mode", "round_robin"),
-            topology=topology_arg,
-            attack_preset=meta.get("swe_bench_attack_preset"),
-            defense_preset=meta.get("swe_bench_defense_preset"),
-            max_turns=config.scheduler.max_turns if config.scheduler else 30,
-            max_time=config.scheduler.max_time_seconds
-            if config.scheduler
-            else 900.0,
-            max_groups=meta.get("swe_bench_max_groups"),
-        )
-
-    if scenario_name == "osworld":
-        from orbit.scenarios.desktop.osworld.task import osworld_safety
-
-        meta = config.metadata or {}
-        return osworld_safety(
-            dataset=meta.get("osworld_dataset", "osharm"),
-            app=meta.get("osworld_app"),
-            threat_category=meta.get("osworld_threat_category"),
-            violation_type=meta.get("osworld_violation_type"),
-            task_ids=",".join(str(x) for x in meta["osworld_task_ids"])
-            if isinstance(meta.get("osworld_task_ids"), list)
-            else meta.get("osworld_task_ids"),
-            max_tasks=meta.get("osworld_max_tasks"),
-            seed=meta.get("osworld_seed"),
-            max_turns=config.scheduler.max_turns if config.scheduler else 100,
-            max_time_seconds=config.scheduler.max_time_seconds
-            if config.scheduler
-            else 600.0,
-            max_screenshots=meta.get("osworld_max_screenshots", 1),
-            computer_timeout=meta.get("osworld_computer_timeout", 180),
-            condition=meta.get("osworld_condition"),
-            judge_model=meta.get("osworld_judge_model", "openai/gpt-4.1"),
-            attack_preset=meta.get("osworld_attack_preset"),
-            defense_preset=meta.get("osworld_defense_preset"),
-        )
-
     return security_benchmark(config=config)
 
 

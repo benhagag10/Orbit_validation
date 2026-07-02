@@ -362,10 +362,19 @@ def check_attack_placement(sample: EvalSample) -> CheckResult:
     if isinstance(exp, str):
         exp = json.loads(exp)
     attacks = exp.get("attacks", []) if isinstance(exp, dict) else []
+    scenario = exp.get("scenario", {}) if isinstance(exp, dict) else {}
+    scenario_name = scenario.get("name", "") if isinstance(scenario, dict) else ""
 
     if not attacks:
         if attempts == 0:
             return CheckResult("attack_placement", True, "No attacks configured, none attempted — correct")
+        # agentharm is a misuse scenario: the harmful behavior itself is graded
+        # into AttackLog (attempt_details = the behavior's grading), with NO
+        # injected attack. That is expected, not a placement mismatch (#27).
+        if scenario_name == "agentharm":
+            return CheckResult("attack_placement", True,
+                               f"agentharm misuse scenario: {attempts} behavior-grading attempt(s) "
+                               f"recorded in AttackLog, no injected attack configured — expected")
         return CheckResult("attack_placement", False,
                            f"No attacks configured but {attempts} attempts logged")
 

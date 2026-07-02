@@ -23,7 +23,7 @@ from orbit.scenarios.browser.browserart.dataset_builder import (
 )
 from orbit.scenarios.browser.browserart.config_builder import (
     build_experiment_config,
-    build_experiment_configs_from_scenario,
+    build_experiment_configs,
     default_topology_template,
 )
 from orbit.scenarios.browser.browserart.scorer import (
@@ -98,11 +98,8 @@ class TestBrowserARTScenarioConfig:
     def test_with_filters(self):
         cfg = BrowserARTScenarioConfig(
             categories=["content/phishing"],
-            max_behaviors=10,
-            seed=42,
         )
         assert cfg.categories == ["content/phishing"]
-        assert cfg.max_behaviors == 10
 
     def test_frozen(self):
         cfg = BrowserARTScenarioConfig()
@@ -131,14 +128,6 @@ class TestDatasetBuilder:
         filtered = filter_behaviors(behaviors, config)
         assert len(filtered) > 0
         assert all(b.semantic_category == "content/phishing" for b in filtered)
-
-    def test_load_with_max_behaviors(self):
-        if not (DATA_DIR / "hbb.json").exists():
-            pytest.skip("hbb.json not bundled")
-        config = BrowserARTScenarioConfig(max_behaviors=5, seed=42)
-        behaviors = load_browserart_behaviors(config)
-        filtered = filter_behaviors(behaviors, config)
-        assert len(filtered) == 5
 
     def test_statistics(self):
         behaviors = [
@@ -202,7 +191,7 @@ class TestConfigBuilder:
 
     def test_build_configs_from_scenario(self):
         behaviors = [_make_behavior(behavior_id=i) for i in range(3)]
-        configs = build_experiment_configs_from_scenario(
+        configs = build_experiment_configs(
             behaviors=behaviors,
         )
         assert len(configs) == 3

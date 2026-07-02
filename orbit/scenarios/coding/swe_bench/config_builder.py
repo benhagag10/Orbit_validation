@@ -455,7 +455,7 @@ def _rebuild_collusion_attack(
     )
 
 
-def build_experiment_configs_from_scenario(
+def build_experiment_configs(
     scenario_config: SWEBenchScenarioConfig | None = None,
     topology_template: SetupConfig | None = None,
     attacks: list[AttackConfig] | None = None,
@@ -498,13 +498,13 @@ def build_experiment_configs_from_scenario(
 
     configs: list[ExperimentConfig] = []
     for group_idx, group in enumerate(groups):
-        group_attacks = attacks
+        sample_attacks = attacks
         if has_auto and attacks:
             group_seed = (
                 hash((scenario_config.seed or 0, group_idx))
                 % (2**31)
             )
-            group_attacks = _resolve_auto_side_tasks(
+            sample_attacks = _resolve_auto_side_tasks(
                 attacks, group.repo, seed=group_seed
             )
 
@@ -512,7 +512,7 @@ def build_experiment_configs_from_scenario(
             group=group,
             topology_template=topology_template,
             scenario_config=scenario_config,
-            attacks=group_attacks,
+            attacks=sample_attacks,
             defenses=defenses,
             lead_agent=lead_agent,
         )

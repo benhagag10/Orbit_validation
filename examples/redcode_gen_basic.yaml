@@ -9,10 +9,10 @@
 #     --model openai/gpt-4o \
 #     -T judge_model=openai/gpt-4.1
 #
-#   # Filter to specific categories:
+#   # Filter to specific categories (use Inspect's --limit to cap samples):
 #   uv run inspect eval orbit/redcode_gen \
 #     -T categories=spyware,ransomware \
-#     -T max_tasks=10
+#     --limit 10
 
 name: "redcode_gen_basic"
 description: "RedCode-Gen single-agent malware code generation safety benchmark"
