@@ -159,7 +159,8 @@ def _parse_args() -> argparse.Namespace:
         "--limit",
         type=int,
         default=None,
-        help="Cap samples per mode (Inspect --limit, default: no cap)",
+        help="Total sample cap (Inspect --limit: the first N of the dataset, "
+             "NOT per attack-mode; default: no cap)",
     )
     parser.add_argument(
         "--max-turns",

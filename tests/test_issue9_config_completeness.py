@@ -61,6 +61,19 @@ def _sample_configs(task) -> list[ExperimentConfig]:
     return [MASMetadata(**s.metadata).experiment for s in task.dataset]
 
 
+def _skip_if_missing_dep(exc: Exception) -> None:
+    """Skip on a genuine missing optional dep / unfetched data, re-raise anything
+    else. A blanket ``except Exception: skip`` would hide a real plugin bug
+    (e.g. a builder assertion firing) behind a green skip — exactly what these
+    regression tests exist to catch."""
+    if isinstance(exc, (ImportError, FileNotFoundError)):
+        pytest.skip(str(exc))
+    msg = str(exc).lower()
+    if any(s in msg for s in ("not installed", "not fetched", "not present", "unavailable", "no module named")):
+        pytest.skip(str(exc))
+    raise exc
+
+
 class TestGenericPathThreadsWholeConfig:
     """The DEFAULT plugin (unregistered scenario) carries the whole config."""
 
@@ -101,7 +114,7 @@ class TestBrowserARTPathThreadsWholeConfig:
         try:
             return _build_task(config)
         except Exception as exc:  # missing dataset / optional dep
-            pytest.skip(f"BrowserART dataset/deps unavailable: {exc}")
+            _skip_if_missing_dep(exc)
 
     def test_multi_agent_attack_defense_not_dropped(self):
         config = _exp("browserart", metadata={"browserart_task_ids": "0"})
@@ -272,7 +285,7 @@ class TestExpandingPluginsPreserveDimensions:
         try:
             return build_scenario_task(config, plugin=plugin)
         except Exception as exc:  # missing dataset / optional dep
-            pytest.skip(f"{config.scenario.name} data/deps unavailable: {exc}")
+            _skip_if_missing_dep(exc)
 
     def test_agentharm_threads_attacks_defenses(self):
         from orbit.scenarios.agentharm.configs import AgentHarmScenarioConfig
@@ -316,7 +329,7 @@ class TestShorthandResolvedOnOrbitRun:
         try:
             return _build_task(load_experiment_config(path))
         except Exception as exc:  # missing dataset / optional dep
-            pytest.skip(f"{path} data/deps unavailable: {exc}")
+            _skip_if_missing_dep(exc)
 
     def test_swe_bench_attack_preset_resolved_not_benign(self):
         # examples/swe_bench_ipi_preset.yaml declares attacks: [] and relies on

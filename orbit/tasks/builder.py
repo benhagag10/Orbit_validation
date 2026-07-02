@@ -411,7 +411,7 @@ def build_scenario_task(
         task_kwargs.update(plugin.build_task_kwargs(config))
 
     return Task(
-        dataset=MemoryDataset(samples) if samples else MemoryDataset([]),
+        dataset=MemoryDataset(samples),
         setup=setup,
         solver=solver,
         scorer=scorers,

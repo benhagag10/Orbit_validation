@@ -117,10 +117,9 @@ orbit run my_config.yaml --model openai/gpt-4o
 | Field | Type | Description |
 |-------|------|-------------|
 | `browserart_categories` | list[str] | Filter by category (e.g. `["content/phishing"]`) |
-| `browserart_condition` | str | Multi-agent condition preset (see below) |
+| `browserart_condition` | str | Multi-agent condition preset (see below). Mutually exclusive with an inline `setup:` — declare exactly one |
 | `browserart_headless` | bool | Run browser headlessly (default `true`) |
 | `browserart_record_video_dir` | str | Directory for video recordings |
-| `browserart_seed` | int | Random seed for behavior sampling |
 | `browserart_data_path` | str | Override path to hbb.json dataset |
 
 ### SWE-Bench metadata fields
@@ -131,7 +130,6 @@ orbit run my_config.yaml --model openai/gpt-4o
 | `swe_bench_repos` | list[str] | Repository filter (e.g. `["django/django"]`) |
 | `swe_bench_seed` | int | Random seed for group sampling |
 | `swe_bench_scheduling_mode` | str | Execution mode: `"round_robin"` or `"superstep"` |
-| `swe_bench_topology` | str | Topology template: `"default"` or path to YAML |
 | `swe_bench_attack_preset` | str | Attack preset: `"self_replication"`, `"sabotage"` |
 | `swe_bench_defense_preset` | str | Defense preset: `"file_monitor"`, `"diff_monitor"`, `"full"` |
 

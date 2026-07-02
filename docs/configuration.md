@@ -343,10 +343,9 @@ These go in the `metadata` section and are specific to the BrowserART scenario.
 | Field | Type | Description |
 |-------|------|-------------|
 | `browserart_categories` | list | Filter by category (e.g. `["content/phishing"]`) |
-| `browserart_condition` | string | Condition preset name. See [Conditions](conditions.md). |
+| `browserart_condition` | string | Condition preset name. See [Conditions](conditions.md). Mutually exclusive with an inline `setup:` — declare exactly one. |
 | `browserart_headless` | bool | Run browser headlessly (default: true) |
 | `browserart_record_video_dir` | string | Directory for video recordings |
-| `browserart_seed` | int | Random seed |
 | `browserart_data_path` | string | Override path to hbb.json |
 
 ### SWE-Bench Metadata Fields
@@ -359,7 +358,6 @@ These go in the `metadata` section and are specific to the SWE-Bench scenario.
 | `swe_bench_repos` | list | Repository filter (e.g. `["django/django"]`) |
 | `swe_bench_seed` | int | Random seed for group sampling |
 | `swe_bench_scheduling_mode` | string | Execution mode: `"round_robin"` or `"superstep"` |
-| `swe_bench_topology` | string | Topology template: `"default"` or path to YAML |
 | `swe_bench_attack_preset` | string | Attack preset: `"self_replication"`, `"sabotage"` |
 | `swe_bench_defense_preset` | string | Defense preset: `"file_monitor"`, `"diff_monitor"`, `"full"` |
 

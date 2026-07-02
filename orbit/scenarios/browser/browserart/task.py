@@ -166,14 +166,18 @@ def _browserart_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
 
 
 def _browserart_solver(config: ExperimentConfig, orchestrator: str) -> Solver:
-    """browserart_setup → mas_orchestrator → browserart_teardown."""
+    """browserart_setup → mas_orchestrator(v1/v2) → browserart_teardown."""
     from inspect_ai.solver import chain as solver_chain
 
     from orbit.scenarios.browser.browserart.setup import (
         browserart_setup,
         browserart_teardown,
     )
-    from orbit.solvers.orchestrator import mas_orchestrator
+
+    if orchestrator == "v2":
+        from orbit.solvers.orchestrator_v2 import mas_orchestrator_v2 as _orchestrator
+    else:
+        from orbit.solvers.orchestrator import mas_orchestrator as _orchestrator
 
     meta = config.metadata or {}
     return solver_chain(
@@ -181,7 +185,7 @@ def _browserart_solver(config: ExperimentConfig, orchestrator: str) -> Solver:
             headless=meta.get("browserart_headless", True),
             record_video_dir=meta.get("browserart_record_video_dir"),
         ),
-        mas_orchestrator(),
+        _orchestrator(),
         browserart_teardown(),
     )
 
