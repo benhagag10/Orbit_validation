@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from orbit.configs.baseline import BaselineMode
 from orbit.configs.experiment import ExperimentConfig
+from orbit.configs.setup import SetupConfig
 
 
 class ConfigValidator:
@@ -23,29 +24,32 @@ class ConfigValidator:
     """
 
     @staticmethod
-    def validate(config: ExperimentConfig) -> list[str]:
-        """Run all validation checks on the config.
+    def validate_setup(setup: SetupConfig) -> list[str]:
+        """Validate a topology (``SetupConfig``) in isolation.
 
-        Returns a list of error messages. Empty list means valid.
+        These are the checks that apply equally to a standalone SetupConfig YAML
+        (a ``-T topology_file=…`` override) and to the ``setup`` inside a full
+        ``ExperimentConfig``: at least one agent, unique agent names, and edges
+        that reference real agents with no self-loops. Returns a list of error
+        messages (empty = valid).
         """
         errors: list[str] = []
-
-        agent_names = {agent.name for agent in config.setup.agents}
+        agent_names = {agent.name for agent in setup.agents}
 
         # 1. At least one agent is defined
-        if not config.setup.agents:
+        if not setup.agents:
             errors.append("At least one agent must be defined in setup.agents")
 
         # 2. No duplicate agent names
-        if len(agent_names) != len(config.setup.agents):
+        if len(agent_names) != len(setup.agents):
             seen: set[str] = set()
-            for agent in config.setup.agents:
+            for agent in setup.agents:
                 if agent.name in seen:
                     errors.append(f"Duplicate agent name: '{agent.name}'")
                 seen.add(agent.name)
 
         # 3. All agents referenced in edges exist
-        for edge in config.setup.edges:
+        for edge in setup.edges:
             if edge.from_agent not in agent_names:
                 errors.append(
                     f"Edge references unknown from_agent: '{edge.from_agent}'"
@@ -56,11 +60,26 @@ class ConfigValidator:
                 )
 
         # 4. No self-loops in edges
-        for edge in config.setup.edges:
+        for edge in setup.edges:
             if edge.from_agent == edge.to_agent:
                 errors.append(
                     f"Self-loop edge not allowed: '{edge.from_agent}' -> '{edge.to_agent}'"
                 )
+
+        return errors
+
+    @staticmethod
+    def validate(config: ExperimentConfig) -> list[str]:
+        """Run all validation checks on the config.
+
+        Returns a list of error messages. Empty list means valid.
+        """
+        errors: list[str] = []
+
+        agent_names = {agent.name for agent in config.setup.agents}
+
+        # 1-4. Topology-level checks (shared with standalone SetupConfig YAMLs).
+        errors.extend(ConfigValidator.validate_setup(config.setup))
 
         # 5. All agents referenced in attack.target_agent exist
         for attack in config.attacks:

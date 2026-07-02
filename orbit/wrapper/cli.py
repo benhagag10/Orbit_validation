@@ -1172,7 +1172,15 @@ def validate_cmd(
     config_path: str,
     config_overrides_raw: tuple[str, ...],
 ) -> None:
-    """Validate a config file without running an experiment."""
+    """Validate a config file without running an experiment.
+
+    Handles both a full ExperimentConfig YAML and a standalone SetupConfig
+    (topology-only) YAML — the ``-T topology_file=…`` overrides that declare
+    ``agents:``/``edges:`` but no ``name``/``scenario`` — validating each against
+    the right schema instead of failing the latter on a "missing name".
+    """
+    import yaml
+
     from orbit.tasks.builder import resolve_scenario_shorthand
     from orbit.validation.validators import ConfigValidator
     from orbit.wrapper.yaml_loader import apply_config_overrides, load_experiment_config
@@ -1180,14 +1188,29 @@ def validate_cmd(
     config_overrides = _parse_config_overrides(config_overrides_raw)
 
     try:
-        config = load_experiment_config(config_path)
-        if config_overrides:
-            config = apply_config_overrides(config, config_overrides)
-        # Resolve scenario shorthand (e.g. a condition preset supplying the
-        # topology) so a condition-only config validates against its real
-        # topology, not an empty one — the same resolution the builder does.
-        config = resolve_scenario_shorthand(config)
-        errors = ConfigValidator.validate(config)
+        with open(config_path) as f:
+            raw = yaml.safe_load(f) or {}
+        is_setup_only = (
+            isinstance(raw, dict)
+            and "agents" in raw
+            and "name" not in raw
+            and "scenario" not in raw
+        )
+        if is_setup_only:
+            from orbit.configs.setup import SetupConfig
+
+            errors = ConfigValidator.validate_setup(SetupConfig(**raw))
+            kind = "SetupConfig topology file"
+        else:
+            config = load_experiment_config(config_path)
+            if config_overrides:
+                config = apply_config_overrides(config, config_overrides)
+            # Resolve scenario shorthand (e.g. a condition preset supplying the
+            # topology) so a condition-only config validates against its real
+            # topology, not an empty one — the same resolution the builder does.
+            config = resolve_scenario_shorthand(config)
+            errors = ConfigValidator.validate(config)
+            kind = "config"
     except Exception as e:
         click.echo(f"Error loading config: {e}", err=True)
         sys.exit(1)
@@ -1198,7 +1221,7 @@ def validate_cmd(
             click.echo(f"  - {err}", err=True)
         sys.exit(1)
     else:
-        click.echo(f"Config '{config_path}' is valid.")
+        click.echo(f"Config '{config_path}' is valid ({kind}).")
 
 
 @cli.command("verify-setup")
