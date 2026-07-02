@@ -331,7 +331,6 @@ def tau2(
     max_turns: int = 100,
     max_time_seconds: float = 600.0,
     data_path: str | None = None,
-    orchestrator: str = "v2",
 ) -> Task:
     """τ²-Bench dual-control tool-use benchmark.
 
@@ -443,4 +442,4 @@ def tau2(
         metrics=MetricsConfig(),
         metadata={"tau2_scenario_config": scenario_config.model_dump()},
     )
-    return build_scenario_task(config, TAU2_PLUGIN, orchestrator=orchestrator)
+    return build_scenario_task(config, TAU2_PLUGIN)

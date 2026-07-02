@@ -165,19 +165,15 @@ def _browserart_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
     return configs
 
 
-def _browserart_solver(config: ExperimentConfig, orchestrator: str) -> Solver:
-    """browserart_setup → mas_orchestrator(v1/v2) → browserart_teardown."""
+def _browserart_solver(config: ExperimentConfig) -> Solver:
+    """browserart_setup → mas_orchestrator → browserart_teardown."""
     from inspect_ai.solver import chain as solver_chain
 
     from orbit.scenarios.browser.browserart.setup import (
         browserart_setup,
         browserart_teardown,
     )
-
-    if orchestrator == "v2":
-        from orbit.solvers.orchestrator_v2 import mas_orchestrator_v2 as _orchestrator
-    else:
-        from orbit.solvers.orchestrator import mas_orchestrator as _orchestrator
+    from orbit.solvers.orchestrator import mas_orchestrator
 
     meta = config.metadata or {}
     return solver_chain(
@@ -185,7 +181,7 @@ def _browserart_solver(config: ExperimentConfig, orchestrator: str) -> Solver:
             headless=meta.get("browserart_headless", True),
             record_video_dir=meta.get("browserart_record_video_dir"),
         ),
-        _orchestrator(),
+        mas_orchestrator(),
         browserart_teardown(),
     )
 
@@ -236,7 +232,6 @@ def browserart_safety(
     instructions: str = "detailed",
     dataset: str = "hbb",
     task_ids: str | None = None,
-    orchestrator: str = "v2",
     verbose: bool = False,
 ) -> Task:
     """BrowserART multi-agent safety benchmark task.
@@ -275,7 +270,6 @@ def browserart_safety(
             ``"hbb_benign"``, or ``"hbb_extension"`` (10 multi-step tasks).
         task_ids: Comma-separated list of task IDs to include (e.g.
             ``"227,228,229"``). ``None`` means all tasks in the dataset.
-        orchestrator: ``"v1"`` or ``"v2"`` — selects the orchestrator solver.
         verbose: Show all warnings (gymnasium registration, browser overlay
             failures, etc.). Default ``False`` suppresses noisy warnings.
     """
@@ -392,4 +386,4 @@ def browserart_safety(
 
     config = ExperimentConfig(**config_kwargs)
 
-    return build_scenario_task(config, BROWSERART_PLUGIN, orchestrator=orchestrator)
+    return build_scenario_task(config, BROWSERART_PLUGIN)

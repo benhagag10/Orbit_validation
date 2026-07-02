@@ -102,7 +102,6 @@ def agentharm(
     max_turns: int = 10,
     max_time_seconds: float = 300.0,
     data_path: str | None = None,
-    orchestrator: str = "v2",
 ) -> Task:
     """AgentHarm harmful tool-use safety benchmark.
 
@@ -175,4 +174,4 @@ def agentharm(
             "agentharm_condition": condition,
         },
     )
-    return build_scenario_task(config, AGENTHARM_PLUGIN, orchestrator=orchestrator)
+    return build_scenario_task(config, AGENTHARM_PLUGIN)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -437,22 +438,6 @@ class TestMaxResamples:
         )
         assert config.max_resamples == 3
 
-    def test_max_resamples_helper(self):
-        from orbit.solvers.orchestrator import _max_resamples_for_defenses
-
-        d1 = MagicMock()
-        d1.config.max_resamples = 0
-        d2 = MagicMock()
-        d2.config.max_resamples = 3
-        d3 = MagicMock()
-        d3.config.max_resamples = 1
-        assert _max_resamples_for_defenses([d1, d2, d3]) == 3
-
-    def test_max_resamples_empty_list(self):
-        from orbit.solvers.orchestrator import _max_resamples_for_defenses
-
-        assert _max_resamples_for_defenses([]) == 0
-
 
 class TestDualLLMDefense:
     """Tests for the dual_llm defense (Q-LLM quarantines untrusted tool output)."""
@@ -865,3 +850,82 @@ class TestDualLLMDefense:
             await wrapped()
             assert record.call_count == 1
             assert record.call_args.kwargs["source"] == "tool:tool_fn"
+
+
+class TestDefenseInstanceCounters:
+    """Activation counting is DefenseLog-only (issues #71/#76).
+
+    Defense instances must not carry their own counters — the
+    orchestrator's ``_classify_block`` depends on DefenseLog being the
+    single source of truth, so double-counting stays impossible.
+    """
+
+    def test_monitor_has_no_instance_counters(self):
+        config = DefenseConfig(
+            name="mon", defense_type="monitor",
+            config={"blocked_patterns": ["bad"]},
+        )
+        defense = MonitorDefense(config)
+        assert not hasattr(defense, "activations")
+        assert not hasattr(defense, "true_positives")
+        assert not hasattr(defense, "false_positives")
+
+    @pytest.mark.asyncio
+    async def test_monitor_pre_deployment_and_message_check(self):
+        """MonitorDefense runs pre_deployment and monitor_message without error."""
+        config = DefenseConfig(
+            name="mon", defense_type="monitor",
+            config={"blocked_patterns": ["bad"]},
+        )
+        defense = MonitorDefense(config)
+        await defense.apply_pre_deployment({}, SimpleNamespace(messages=[]))
+
+        msg = SimpleNamespace(role="assistant", content="good message")
+        verdict = await defense.monitor_message(msg, agent_name="worker", turn=0)
+        assert verdict.allow
+
+
+class TestSecureToolWrapperVerdicts:
+    """SecureToolWrapper.on_tool_call blocking semantics."""
+
+    @pytest.mark.asyncio
+    async def test_tool_wrapper_blocks_dangerous_tool(self):
+        config = DefenseConfig(
+            name="tw", defense_type="tool_wrapper",
+            config={"blocked_tools": ["exec_shell"]},
+        )
+        defense = SecureToolWrapper(config)
+        await defense.apply_pre_deployment({}, SimpleNamespace(messages=[]))
+
+        verdict = await defense.on_tool_call(
+            "exec_shell", {"command": "ls"}, agent_name="worker"
+        )
+        assert verdict.allow is False
+
+    @pytest.mark.asyncio
+    async def test_tool_wrapper_allows_safe_tool(self):
+        config = DefenseConfig(
+            name="tw", defense_type="tool_wrapper",
+            config={"blocked_tools": ["exec_shell"]},
+        )
+        defense = SecureToolWrapper(config)
+        await defense.apply_pre_deployment({}, SimpleNamespace(messages=[]))
+
+        verdict = await defense.on_tool_call(
+            "read_file", {"path": "/tmp/data.txt"}, agent_name="worker"
+        )
+        assert verdict.allow is True
+
+    @pytest.mark.asyncio
+    async def test_tool_wrapper_blocks_dangerous_args(self):
+        config = DefenseConfig(
+            name="tw", defense_type="tool_wrapper",
+            config={},  # Uses default blocked_arg_patterns
+        )
+        defense = SecureToolWrapper(config)
+        await defense.apply_pre_deployment({}, SimpleNamespace(messages=[]))
+
+        verdict = await defense.on_tool_call(
+            "bash", {"command": "rm -rf /"}, agent_name="worker"
+        )
+        assert verdict.allow is False

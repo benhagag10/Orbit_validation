@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from orbit.configs.setup import AgentMemoryAccess
 from orbit.memory.tracker import MemoryTracker, extract_cot_from_response
 
@@ -194,3 +196,92 @@ class TestExtractCotFromResponse:
         cot, action = extract_cot_from_response("")
         assert cot is None
         assert action == ""
+
+
+class TestMemoryInjectionRecordingRoundTrip:
+    """End-to-end round-trip: inject context → agent acts → record → next injection."""
+
+    def test_two_turn_roundtrip(self):
+        """Simulate two turns: turn 1 records, turn 2 injects that data."""
+        from inspect_ai.model import ChatMessageUser
+
+        tracker = MemoryTracker()
+        access = AgentMemoryAccess(
+            agent_name="agent_a", own_action_history=True, own_cot=True,
+        )
+
+        # Turn 1: no injection (empty tracker), agent acts
+        ctx_t1 = tracker.build_context("agent_a", access)
+        assert ctx_t1 == ""
+
+        # Simulate agent producing a response with tool call and CoT
+        tc = SimpleNamespace(function="bash")
+        response = "```thinking\nLet me check the directory\n```\nRunning ls."
+        agent_msg = SimpleNamespace(role="assistant", content=response, tool_calls=[tc])
+
+        # Record from turn 1
+        tracker.record_action("agent_a", tc.function, "(executed)")
+        cot, _ = extract_cot_from_response(agent_msg.content)
+        if cot:
+            tracker.record_cot("agent_a", cot)
+
+        # Turn 2: injection should contain turn 1 data
+        ctx_t2 = tracker.build_context("agent_a", access)
+        assert ctx_t2 != ""
+        assert "bash" in ctx_t2
+        assert "check the directory" in ctx_t2
+        assert "Your Previous Actions" in ctx_t2
+        assert "Your Previous Reasoning" in ctx_t2
+
+        # Verify the injected message format
+        mem_msg = ChatMessageUser(content=f"[Memory Context]\n{ctx_t2}")
+        assert "[Memory Context]" in mem_msg.content
+
+    def test_three_turn_accumulation(self):
+        """Actions accumulate across turns."""
+        tracker = MemoryTracker()
+        access = AgentMemoryAccess(
+            agent_name="agent_a", own_action_history=True,
+        )
+
+        # Turn 1
+        tracker.record_action("agent_a", "bash", "listed files")
+        ctx = tracker.build_context("agent_a", access)
+        assert "bash" in ctx
+        assert ctx.count("Action:") == 1
+
+        # Turn 2
+        tracker.record_action("agent_a", "python", "computed result")
+        ctx = tracker.build_context("agent_a", access)
+        assert "bash" in ctx
+        assert "python" in ctx
+        assert ctx.count("Action:") == 2
+
+        # Turn 3
+        tracker.record_action("agent_a", "computer", "clicked button")
+        ctx = tracker.build_context("agent_a", access)
+        assert ctx.count("Action:") == 3
+
+    def test_multi_agent_roundtrip_with_shared_visibility(self):
+        """Two agents: agent_b can see agent_a's actions via shared flag."""
+        tracker = MemoryTracker()
+        access_a = AgentMemoryAccess(
+            agent_name="agent_a", own_action_history=True,
+        )
+        access_b = AgentMemoryAccess(
+            agent_name="agent_b", own_action_history=True,
+            shared_action_history=True,
+        )
+
+        # Turn 1: agent_a acts
+        tracker.record_action("agent_a", "bash", "ran ls")
+
+        # Turn 2: agent_b should see agent_a's actions
+        ctx_b = tracker.build_context("agent_b", access_b)
+        assert "agent_a" in ctx_b
+        assert "bash" in ctx_b
+        assert "Other Agents' Actions" in ctx_b
+
+        # agent_a doesn't see agent_b (no shared flag)
+        ctx_a = tracker.build_context("agent_a", access_a)
+        assert "Other Agents" not in ctx_a

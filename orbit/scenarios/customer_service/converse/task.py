@@ -220,7 +220,6 @@ def converse_safety(
     memory_poison_target_group: str | None = None,
     memory_poison_payload: str | None = None,
     memory_poison_mode: str = "append",
-    orchestrator: str = "v2",
 ) -> Task:
     """ConVerse contextual-safety benchmark task.
 
@@ -395,4 +394,4 @@ def converse_safety(
         metrics=MetricsConfig(),
         metadata=metadata,
     )
-    return build_scenario_task(config, CONVERSE_PLUGIN, orchestrator=orchestrator)
+    return build_scenario_task(config, CONVERSE_PLUGIN)

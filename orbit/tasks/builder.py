@@ -281,7 +281,6 @@ def build_scenario_task(
     config: ExperimentConfig,
     plugin: ScenarioPlugin | None = None,
     *,
-    orchestrator: str = "v2",
     variant: str = "default",
 ) -> Task:
     """Assemble the Inspect ``Task`` for ``config`` using its scenario plugin.
@@ -291,8 +290,6 @@ def build_scenario_task(
         plugin: The scenario plugin to use. If ``None``, it is looked up by
             ``config.scenario.name``; an unregistered name uses
             :data:`DEFAULT_PLUGIN`.
-        orchestrator: ``"v1"`` or ``"v2"`` — selects the orchestrator solver
-            when the plugin doesn't override ``build_solver``.
         variant: Baseline/variant label propagated into sample ids/metadata.
     """
     if plugin is None:
@@ -393,14 +390,10 @@ def build_scenario_task(
         setup = mas_environment_setup()
 
     if plugin.build_solver is not None:
-        solver = plugin.build_solver(config, orchestrator)
+        solver = plugin.build_solver(config)
     else:
-        if orchestrator == "v2":
-            from orbit.solvers.orchestrator_v2 import mas_orchestrator_v2
-            solver = mas_orchestrator_v2()
-        else:
-            from orbit.solvers.orchestrator import mas_orchestrator
-            solver = mas_orchestrator()
+        from orbit.solvers.orchestrator import mas_orchestrator
+        solver = mas_orchestrator()
 
     scorers = plugin.build_scorers(config) if plugin.build_scorers else default_scorers(config)
     sandbox = plugin.build_sandbox(config) if plugin.build_sandbox else default_sandbox(config)

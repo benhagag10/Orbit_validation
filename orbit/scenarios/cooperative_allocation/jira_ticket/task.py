@@ -80,7 +80,6 @@ def jira_ticket_allocation(
     defense_preset: str | None = None,
     max_turns: int = 10,
     max_time_seconds: float = 300.0,
-    orchestrator: str = "v2",
 ) -> Task:
     """JiraTicket developer task allocation scenario.
 
@@ -262,4 +261,4 @@ def jira_ticket_allocation(
         max_time_seconds=max_time_seconds,
     )
 
-    return build_scenario_task(config, JIRA_TICKET_PLUGIN, orchestrator=orchestrator)
+    return build_scenario_task(config, JIRA_TICKET_PLUGIN)

@@ -95,7 +95,6 @@ def code_ipi(
     defense_preset: str | None = None,
     max_turns: int = 30,
     max_time_seconds: float = 300.0,
-    orchestrator: str = "v2",
 ) -> Task:
     """Indirect Prompt Injection benchmark for coding agents.
 
@@ -117,7 +116,6 @@ def code_ipi(
         defense_preset: Named defense preset.
         max_turns: Maximum turns per agent.
         max_time_seconds: Maximum wall-clock time in seconds.
-        orchestrator: MAS orchestrator variant (``"v1"`` or ``"v2"``).
     """
     from orbit.configs.experiment import ExperimentConfig
     from orbit.configs.metrics import MetricsConfig
@@ -179,4 +177,4 @@ def code_ipi(
         metrics=MetricsConfig(),
         metadata={"code_ipi_scenario_config": scenario_config.model_dump()},
     )
-    return build_scenario_task(config, CODE_IPI_PLUGIN, orchestrator=orchestrator)
+    return build_scenario_task(config, CODE_IPI_PLUGIN)

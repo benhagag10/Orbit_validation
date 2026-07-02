@@ -55,7 +55,6 @@ def meeting_scheduling(
     defense_preset: str | None = None,
     max_turns: int = 10,
     max_time_seconds: float = 300.0,
-    orchestrator: str = "v2",
 ) -> Task:
     """MeetingScheduling coordination scenario.
 
@@ -220,4 +219,4 @@ def meeting_scheduling(
         max_time_seconds=max_time_seconds,
     )
 
-    return build_scenario_task(config, MEETING_SCHEDULING_PLUGIN, orchestrator=orchestrator)
+    return build_scenario_task(config, MEETING_SCHEDULING_PLUGIN)

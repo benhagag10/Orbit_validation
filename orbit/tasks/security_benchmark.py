@@ -30,7 +30,6 @@ def security_benchmark(
     config: ExperimentConfig | None = None,
     config_path: str | None = None,
     baseline: str = "none",
-    orchestrator: str = "v2",
 ) -> Task:
     """Create an Inspect Task for a security benchmark experiment.
 
@@ -71,6 +70,4 @@ def security_benchmark(
     config = apply_baseline(config, mode)
 
     # 3. Delegate to the single, scenario-agnostic builder.
-    return build_scenario_task(
-        config, orchestrator=orchestrator, variant=mode.value
-    )
+    return build_scenario_task(config, variant=mode.value)

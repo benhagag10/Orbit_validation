@@ -296,7 +296,6 @@ def osworld_safety(
     defense_preset: str | None = None,
     attack_preset: str | None = None,
     judge_model: str = "openai/gpt-4.1",
-    orchestrator: str = "v2",
 ) -> Task:
     """OSWorld multi-agent safety benchmark task.
 
@@ -342,7 +341,6 @@ def osworld_safety(
         defense_preset: Defense preset name (e.g. ``"basic"``).
         attack_preset: Attack preset name (e.g. ``"prompt_injection"``).
         judge_model: Model for the safety judge scorer.
-        orchestrator: ``"v1"`` or ``"v2"`` — selects the orchestrator solver.
     """
     scenario_config = OSWorldScenarioConfig(
         dataset=dataset,
@@ -385,7 +383,7 @@ def osworld_safety(
         defenses=defenses,
     )
     return build_scenario_task(
-        config, OSWORLD_SAFETY_PLUGIN, orchestrator=orchestrator
+        config, OSWORLD_SAFETY_PLUGIN
     )
 
 
@@ -454,7 +452,6 @@ def osworld_benchmark(
     attack_preset: str | None = None,
     defense_preset: str | None = None,
     judge_model: str = "openai/gpt-4.1",
-    orchestrator: str = "v2",
 ) -> Task:
     """OSWorld standard benchmark task for capability evaluation.
 
@@ -484,7 +481,6 @@ def osworld_benchmark(
         attack_preset: Attack preset for injection experiments.
         defense_preset: Defense preset name.
         judge_model: Model for safety judge (used in injection mode).
-        orchestrator: ``"v1"`` or ``"v2"`` — selects the orchestrator solver.
     """
     osworld_corpus = "small" if dataset == "osworld_small" else "all"
 
@@ -528,5 +524,5 @@ def osworld_benchmark(
         defenses=defenses,
     )
     return build_scenario_task(
-        config, OSWORLD_BENCHMARK_PLUGIN, orchestrator=orchestrator
+        config, OSWORLD_BENCHMARK_PLUGIN
     )

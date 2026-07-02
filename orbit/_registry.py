@@ -35,7 +35,6 @@ from orbit.tasks.security_benchmark import security_benchmark  # noqa: F401
 
 # Solvers (available via --solver flag)
 from orbit.solvers.orchestrator import mas_orchestrator  # noqa: F401
-from orbit.solvers.orchestrator_v2 import mas_orchestrator_v2  # noqa: F401
 
 # Scorers (available via inspect score --scorer)
 from orbit.scorers.security_scorer import security_scorer  # noqa: F401
