@@ -1173,6 +1173,7 @@ def validate_cmd(
     config_overrides_raw: tuple[str, ...],
 ) -> None:
     """Validate a config file without running an experiment."""
+    from orbit.tasks.builder import resolve_scenario_shorthand
     from orbit.validation.validators import ConfigValidator
     from orbit.wrapper.yaml_loader import apply_config_overrides, load_experiment_config
 
@@ -1182,6 +1183,10 @@ def validate_cmd(
         config = load_experiment_config(config_path)
         if config_overrides:
             config = apply_config_overrides(config, config_overrides)
+        # Resolve scenario shorthand (e.g. a condition preset supplying the
+        # topology) so a condition-only config validates against its real
+        # topology, not an empty one — the same resolution the builder does.
+        config = resolve_scenario_shorthand(config)
         errors = ConfigValidator.validate(config)
     except Exception as e:
         click.echo(f"Error loading config: {e}", err=True)

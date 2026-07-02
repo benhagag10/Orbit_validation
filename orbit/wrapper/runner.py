@@ -135,6 +135,13 @@ def dry_run(
     if config_overrides:
         config = apply_config_overrides(config, config_overrides)
 
+    # Reflect the same shorthand resolution the real run performs, so the
+    # preview reports resolved attacks/topology (e.g. a preset or condition)
+    # rather than the raw pre-resolve config.
+    from orbit.tasks.builder import resolve_scenario_shorthand
+
+    config = resolve_scenario_shorthand(config)
+
     models = _resolve_models(model, config.models)
     errors = ConfigValidator.validate(config)
 

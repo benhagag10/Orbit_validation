@@ -94,36 +94,62 @@ def _scenario_config(config: ExperimentConfig) -> BrowserARTScenarioConfig:
     )
 
 
-def _resolve_topology(
-    config: ExperimentConfig,
-) -> tuple[SetupConfig, ExecutionConfig | None]:
-    """Resolve (topology_template, execution_template) from the config.
+def _browserart_resolve(config: ExperimentConfig) -> ExperimentConfig:
+    """Resolve a ``browserart_condition`` shorthand into ``config.setup``.
 
-    Inline ``config.setup`` wins (the YAML/​-T factory is authoritative); a
-    named ``browserart_condition`` in metadata is the fallback; finally the
-    single-agent default.
+    Topology may be specified in exactly ONE of two ways: an inline
+    ``setup.agents`` topology (authored in the YAML or built by the ``-T``
+    factory), or a named ``metadata.browserart_condition`` preset. Declaring
+    BOTH is a construct-validity error — this is what silently collapsed a
+    ``star_4_specialists`` condition to the lone validator-placeholder agent
+    before (the topology dimension of the issue-#9 bug class). When only a
+    condition is given, it is materialised into ``config.setup`` here — on BOTH
+    entry points and BEFORE the dimension guard — and the trigger key is dropped
+    so a second ``resolve`` is a no-op (idempotent). Idempotent on the ``-T``
+    path, where the factory already built ``config.setup`` and set no condition
+    key.
     """
     meta = config.metadata or {}
+    cond = meta.get("browserart_condition")
+    if not cond:
+        return config
     if config.setup.agents:
-        execution = config.execution if config.execution.agent_groups else None
-        return config.setup, execution
-    condition = meta.get("browserart_condition")
-    if condition:
-        from orbit.scenarios.browser.browserart.condition_presets import get_condition
+        raise ValueError(
+            "browserart config declares BOTH an inline setup.agents topology and "
+            "metadata.browserart_condition — these are mutually exclusive. Use "
+            "exactly one: author the topology under setup:, OR name a "
+            f"browserart_condition and omit setup: (condition={cond!r}, "
+            f"agents={[a.name for a in config.setup.agents]})."
+        )
+    from orbit.scenarios.browser.browserart.condition_presets import get_condition
 
-        cs = get_condition(condition)
-        return cs.setup, cs.execution
-    return default_topology_template(), None
+    cs = get_condition(cond)
+    updates: dict = {"setup": cs.setup}
+    if cs.execution is not None:
+        updates["execution"] = cs.execution
+    updates["metadata"] = {
+        k: v for k, v in meta.items() if k != "browserart_condition"
+    }
+    updates["metadata"]["browserart_resolved_condition"] = cond
+    return config.model_copy(update=updates)
 
 
 def _browserart_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
-    """Fan the config out into one ExperimentConfig per BrowserART behavior."""
+    """Fan the config out into one ExperimentConfig per BrowserART behavior.
+
+    Topology comes from ``config.setup`` (populated inline or by
+    :func:`_browserart_resolve` from a condition); the single-agent default is
+    the fallback when neither was given.
+    """
     meta = config.metadata or {}
     _suppress_browserart_warnings(bool(meta.get("browserart_verbose", False)))
 
     scenario_config = _scenario_config(config)
 
-    topology_template, execution_template = _resolve_topology(config)
+    topology_template = config.setup if config.setup.agents else default_topology_template()
+    execution_template = (
+        config.execution if config.execution.agent_groups else None
+    )
 
     configs = build_experiment_configs(
         scenario_config=scenario_config,
@@ -171,6 +197,7 @@ def _browserart_scorers(config: ExperimentConfig) -> list[Scorer]:
 BROWSERART_PLUGIN = register_scenario(
     ScenarioPlugin(
         name="browserart",
+        resolve=_browserart_resolve,
         expand=_browserart_expand,
         build_setup=lambda config: None,  # setup folded into the solver chain
         build_solver=_browserart_solver,

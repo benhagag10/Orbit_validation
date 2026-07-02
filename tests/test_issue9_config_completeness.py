@@ -262,3 +262,122 @@ class TestShorthandResolvedOnOrbitRun:
         assert mem.agent_memory_access and all(
             a.shared_action_history for a in mem.agent_memory_access
         ), "osworld_condition=memory_shared_actions must restore shared-action access"
+
+
+class TestBaselineDoesNotReacquireStrippedDimensions:
+    """A plugin's ``resolve`` must not re-materialise a *preset* attack/defense
+    that a baseline intentionally stripped. Otherwise the ``benign``/``no_attack``
+    control silently runs WITH the attack — a contaminated reference the
+    attack-effect delta is measured against (a construct-validity defect the
+    dimension floor cannot see, since post-resolve and produced configs agree).
+    """
+
+    def test_baseline_gate_helpers(self):
+        from orbit.configs.baseline import BaselineMode
+        from orbit.tasks.builder import baseline_keeps_attacks, baseline_keeps_defenses
+
+        def cfg(mode):
+            return _exp("custom_scenario").model_copy(update={"baseline_mode": mode})
+
+        assert baseline_keeps_attacks(cfg(BaselineMode.NONE))
+        assert baseline_keeps_attacks(cfg(BaselineMode.NO_DEFENSE))
+        assert not baseline_keeps_attacks(cfg(BaselineMode.NO_ATTACK))
+        assert not baseline_keeps_attacks(cfg(BaselineMode.BENIGN))
+        assert baseline_keeps_defenses(cfg(BaselineMode.NONE))
+        assert baseline_keeps_defenses(cfg(BaselineMode.NO_ATTACK))
+        assert not baseline_keeps_defenses(cfg(BaselineMode.NO_DEFENSE))
+        assert not baseline_keeps_defenses(cfg(BaselineMode.BENIGN))
+
+    def test_swe_bench_preset_stripped_by_benign_baseline(self):
+        from orbit.baselines.baselines import apply_baseline
+        from orbit.configs.baseline import BaselineMode
+        from orbit.scenarios.registry import get_scenario
+
+        plugin = get_scenario("swe_bench")
+        if plugin is None or plugin.resolve is None:
+            pytest.skip("swe_bench plugin unavailable")
+        base = _exp(
+            "swe_bench",
+            setup=SetupConfig(agents=[AgentSpec(name="solver", role="worker")]),
+            attacks=[],
+            defenses=[],
+            metadata={"swe_bench_attack_preset": "codebase_injection"},
+        )
+        # baseline=none: the preset resolves into a real attack.
+        assert [a.attack_type for a in plugin.resolve(base).attacks] == [
+            "codebase_injection"
+        ]
+        # benign / no_attack: it must stay stripped (no re-injection).
+        for mode in (BaselineMode.BENIGN, BaselineMode.NO_ATTACK):
+            stripped = apply_baseline(base, mode)
+            assert plugin.resolve(stripped).attacks == [], (
+                f"{mode.value} baseline re-acquired the preset attack"
+            )
+
+
+class TestConditionSetupMutualExclusivity:
+    """Topology may come from an inline ``setup`` OR a ``*_condition`` preset,
+    never both. Declaring both is a construct-validity error (it silently
+    collapsed a condition to the lone validator placeholder before); a
+    condition-only config resolves to the preset's real topology.
+    """
+
+    def _plugin(self, name):
+        from orbit.scenarios.registry import get_scenario
+
+        plugin = get_scenario(name)
+        if plugin is None or plugin.resolve is None:
+            pytest.skip(f"{name} plugin unavailable")
+        return plugin
+
+    def test_browserart_condition_only_resolves_topology(self):
+        plugin = self._plugin("browserart")
+        c = _exp(
+            "browserart",
+            setup=SetupConfig(agents=[]),
+            attacks=[],
+            defenses=[],
+            metadata={"browserart_condition": "star_specialist"},
+        )
+        resolved = plugin.resolve(c)
+        assert len(resolved.setup.agents) > 1, (
+            "condition-only config must resolve to the multi-agent topology, "
+            "not collapse to a placeholder"
+        )
+
+    def test_browserart_condition_plus_setup_raises(self):
+        plugin = self._plugin("browserart")
+        c = _exp(
+            "browserart",
+            setup=SetupConfig(agents=[AgentSpec(name="placeholder", role="worker")]),
+            attacks=[],
+            defenses=[],
+            metadata={"browserart_condition": "star_specialist"},
+        )
+        with pytest.raises(ValueError, match="mutually exclusive"):
+            plugin.resolve(c)
+
+    def test_osworld_condition_plus_setup_raises(self):
+        plugin = self._plugin("osworld")
+        c = _exp(
+            "osworld",
+            setup=SetupConfig(agents=[AgentSpec(name="placeholder", role="worker")]),
+            attacks=[],
+            defenses=[],
+            metadata={"osworld_condition": "star_specialist", "osworld_dataset": "osharm"},
+        )
+        with pytest.raises(ValueError, match="mutually exclusive"):
+            plugin.resolve(c)
+
+    def test_resolve_is_idempotent(self):
+        plugin = self._plugin("browserart")
+        c = _exp(
+            "browserart",
+            setup=SetupConfig(agents=[]),
+            attacks=[],
+            defenses=[],
+            metadata={"browserart_condition": "star_specialist"},
+        )
+        once = plugin.resolve(c)
+        twice = plugin.resolve(once)  # must not raise (trigger key consumed)
+        assert [a.name for a in once.setup.agents] == [a.name for a in twice.setup.agents]

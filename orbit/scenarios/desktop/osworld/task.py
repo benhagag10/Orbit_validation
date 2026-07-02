@@ -228,16 +228,40 @@ def _osworld_resolve(config: ExperimentConfig) -> ExperimentConfig:
     non-shared memory — a P0 construct-validity failure). Idempotent on the
     ``-T`` path, where the factory already built setup/attacks/defenses.
     """
+    from orbit.tasks.builder import baseline_keeps_attacks, baseline_keeps_defenses
+
     meta = config.metadata or {}
     updates: dict = {}
     cond = meta.get("osworld_condition")
     if cond:
+        if config.setup.agents:
+            raise ValueError(
+                "osworld config declares BOTH an inline setup.agents topology and "
+                "metadata.osworld_condition — these are mutually exclusive. Use "
+                "exactly one: author the topology under setup:, OR name an "
+                f"osworld_condition and omit setup: (condition={cond!r}, "
+                f"agents={[a.name for a in config.setup.agents]})."
+            )
         from orbit.scenarios.desktop.osworld.condition_presets import get_condition_setup
         updates["setup"] = get_condition_setup(cond)
-    if not config.attacks and meta.get("osworld_attack_preset"):
+        # Mark the condition consumed so a second resolve() is a no-op (the
+        # builder and the validate/dry-run paths may both call resolve).
+        updates["metadata"] = {
+            k: v for k, v in meta.items() if k != "osworld_condition"
+        }
+        updates["metadata"]["osworld_resolved_condition"] = cond
+    if (
+        baseline_keeps_attacks(config)
+        and not config.attacks
+        and meta.get("osworld_attack_preset")
+    ):
         from orbit.scenarios.desktop.osworld.presets import get_attack_preset
         updates["attacks"] = get_attack_preset(meta["osworld_attack_preset"], condition=cond)
-    if not config.defenses and meta.get("osworld_defense_preset"):
+    if (
+        baseline_keeps_defenses(config)
+        and not config.defenses
+        and meta.get("osworld_defense_preset")
+    ):
         from orbit.scenarios.desktop.osworld.presets import get_defense_preset
         updates["defenses"] = get_defense_preset(meta["osworld_defense_preset"])
     return config.model_copy(update=updates) if updates else config
