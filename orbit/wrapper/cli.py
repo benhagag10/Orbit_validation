@@ -1887,9 +1887,12 @@ def _print_dry_run(info: dict[str, Any]) -> None:
     click.echo(f"  Epochs:       {info['epochs']}")
     click.echo(f"  Max turns:    {info['max_turns']}")
 
+    # Label this explicitly as *config* validation so it is not mistaken for a
+    # preflight pass — a dry-run reached here even if preflight FAILED and the
+    # user chose to continue (missing extra, no Docker, ...).
     if info["valid"]:
-        click.echo("  Validation:   PASSED")
+        click.echo("  Config validation: PASSED (config schema only — not preflight/environment)")
     else:
-        click.echo(f"  Validation:   FAILED ({len(info['validation_errors'])} error(s))")
+        click.echo(f"  Config validation: FAILED ({len(info['validation_errors'])} error(s))")
         for err in info["validation_errors"]:
             click.echo(f"    - {err}")
