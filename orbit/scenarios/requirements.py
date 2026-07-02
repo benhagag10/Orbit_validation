@@ -92,9 +92,8 @@ SCENARIO_REQUIREMENTS: dict[str, ScenarioRequirements] = {
         packages=("browsergym", "starlette"),
         needs_docker=True,  # browserart-service container
         other_system=(
-            "Playwright Chromium (uv run playwright install chromium)",
-            "browserart-service (scripts/browserart_service.sh up)",
-            "local mock websites on :8000",
+            "browserart-service (scripts/browserart_service.sh up); the "
+            "container bundles Playwright/Chromium and the mock websites",
         ),
         data_step="uv run python scripts/fetch_browserart_data.py",
         verify="browserart",

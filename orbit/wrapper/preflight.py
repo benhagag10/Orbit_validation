@@ -288,6 +288,12 @@ def detect_scenario_from_config(config_path: str) -> ScenarioKind:
                 return "swe-bench"
             if "osworld" in stype.lower() or "osharm" in stype.lower():
                 return "osworld"
+            if "bigcode" in stype.lower():
+                return "bigcodebench"
+            # Only jira_ticket needs the dcop extra (scipy); the other
+            # cooperative-allocation scenarios run on core, so don't warn there.
+            if "jira" in stype.lower():
+                return "dcop"
     except Exception:
         pass
     return "generic"

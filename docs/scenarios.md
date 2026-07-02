@@ -2,7 +2,7 @@
 
 Each scenario has its own dependencies. You only need to install the ones for the experiments you want to run. If a dependency is missing, you'll get a clear error message telling you exactly what to install (the exact `uv sync --extra <name>` command).
 
-The core install — `uv sync --extra dev` — runs most scenarios as-is. Only four scenarios need an optional pip extra. The table below is the single source of truth; it mirrors `[project.optional-dependencies]` in `pyproject.toml` and the central map in `orbit/scenarios/requirements.py`.
+The core install — `uv sync --extra dev` — runs most scenarios as-is. Only five scenarios need an optional pip extra. The table below is the single source of truth; it mirrors `[project.optional-dependencies]` in `pyproject.toml` and the central map in `orbit/scenarios/requirements.py`.
 
 ## Install matrix
 

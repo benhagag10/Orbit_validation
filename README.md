@@ -200,7 +200,7 @@ orbit/
 
 ## Scenario-Specific Setup
 
-The core install (`uv sync --extra dev`) runs most scenarios as-is. Four scenarios
+The core install (`uv sync --extra dev`) runs most scenarios as-is. Five scenarios
 need an optional pip extra; several also need Docker and/or a one-time data fetch.
 Install only what the scenarios you actually run require.
 
