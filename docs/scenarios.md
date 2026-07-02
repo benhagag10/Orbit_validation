@@ -326,7 +326,6 @@ orbit run examples/osworld_osharm_basic.yaml --model openai/gpt-4o
 | `threat_category` | string | — | Filter by threat category (comma-separated) |
 | `violation_type` | string | — | Filter by violation type (comma-separated) |
 | `task_ids` | string | — | Comma-separated task IDs to include |
-| `seed` | int | — | Random seed for task sampling |
 | `max_turns` | int | 30 | Max turns per task |
 | `max_time_seconds` | float | 300 | Max wall-clock seconds per task |
 | `max_screenshots` | int | 1 | Max screenshots per turn for the computer tool |

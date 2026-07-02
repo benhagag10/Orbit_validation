@@ -81,19 +81,15 @@ metadata: {}
 
 ### Multi-agent config (with condition preset)
 
-When using `browserart_condition` in metadata, the condition preset injects agents
-and topology at task-build time. You still need a minimal `setup` section for
-config validation.
+When using `browserart_condition` in metadata, the condition preset supplies the
+agents and topology at task-build time — **omit the `setup` block entirely**. Do
+not add a placeholder `setup.agents`: if both an inline `setup` and a condition
+are declared, the inline setup wins and the condition is silently ignored (with a
+warning), collapsing the run to that placeholder agent.
 
 ```yaml
 name: "browserart_multi_agent"
 description: "Star topology with 4 specialists"
-
-setup:
-  agents:
-    - name: "placeholder"
-      role: "executor"
-  edges: []
 
 scenario:
   name: "browserart"

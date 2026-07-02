@@ -72,7 +72,6 @@ inspect eval orbit/browserart_safety \
 | `max_turns` | int | 15 | Max turns per behavior |
 | `max_time_seconds` | float | 300 | Max seconds per behavior |
 | `categories` | string | — | Filter by behavior category (e.g. `"content/phishing"`) |
-| `seed` | int | — | Random seed for behavior sampling |
 | `headless` | bool | true | Run browser headlessly |
 | `record_video_dir` | string | — | Save browser recordings to this directory |
 | `judge_model` | string | openai/gpt-4o | Model for the safety classifier |
@@ -114,17 +113,15 @@ metadata: {}
 
 ### Multi-Agent Config (with Condition)
 
-When using `browserart_condition`, the condition preset injects agents and topology automatically. You still need a minimal `setup` for validation.
+When using `browserart_condition`, the condition preset supplies the agents and
+topology automatically — **omit the `setup` block entirely**. Do not add a
+placeholder `setup.agents`: if both an inline `setup` and a condition are
+declared, the inline setup wins and the condition is silently ignored (with a
+warning), so a placeholder would collapse the run to a single agent.
 
 ```yaml
-name: "star_4_specialists"
+name: "browserart_multi_agent"
 description: "Orchestrator + 4 specialists"
-
-setup:
-  agents:
-    - name: "placeholder"
-      role: "executor"
-  edges: []
 
 scenario:
   name: "browserart"
@@ -134,7 +131,7 @@ scheduler:
   max_time_seconds: 120.0
 
 metadata:
-  browserart_condition: "star_4_specialists"
+  browserart_condition: "star_specialist"
 ```
 
 ### Config with Attack and Defense
