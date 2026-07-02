@@ -392,6 +392,44 @@ class TestBaselineDoesNotReacquireStrippedDimensions:
             )
 
 
+class TestEpochsHonoredForPluginScenarios:
+    """A YAML ``epochs: N`` must reach the Task for every scenario, not only the
+    generic path — it was silently dropped for plugin scenarios (build_task_kwargs
+    returned no epochs), so ``epochs`` was a no-op on the ``orbit run`` path.
+    """
+
+    @staticmethod
+    def _epochs(task) -> int:
+        e = task.epochs
+        return e.epochs if hasattr(e, "epochs") else e
+
+    def test_generic_and_plugin_scenarios_get_epochs(self):
+        from orbit.scenarios.registry import ScenarioPlugin
+        from orbit.tasks.builder import build_scenario_task
+
+        config = _exp("custom_scenario").model_copy(update={"epochs": 4})
+        # Generic path.
+        assert self._epochs(build_scenario_task(config)) == 4
+        # A plugin whose build_task_kwargs sets unrelated knobs still gets epochs.
+        plugin = ScenarioPlugin(
+            name="custom_scenario", build_task_kwargs=lambda c: {"message_limit": 60}
+        )
+        task = build_scenario_task(config, plugin=plugin)
+        assert self._epochs(task) == 4
+        assert task.message_limit == 60
+
+    def test_plugin_can_override_epochs(self):
+        from inspect_ai import Epochs
+        from orbit.scenarios.registry import ScenarioPlugin
+        from orbit.tasks.builder import build_scenario_task
+
+        config = _exp("custom_scenario").model_copy(update={"epochs": 4})
+        plugin = ScenarioPlugin(  # tau2-style: pins its own epochs
+            name="custom_scenario", build_task_kwargs=lambda c: {"epochs": Epochs(1)}
+        )
+        assert self._epochs(build_scenario_task(config, plugin=plugin)) == 1
+
+
 class TestConditionSetupMutualExclusivity:
     """Topology may come from an inline ``setup`` OR a ``*_condition`` preset,
     never both. Declaring both is a construct-validity error (it silently

@@ -246,10 +246,13 @@ def default_scorers(config: ExperimentConfig) -> list[Scorer]:
 
 
 def _default_task_kwargs(config: ExperimentConfig) -> dict[str, Any]:
-    """Task-level knobs for the generic benchmark path."""
+    """Task-level knobs for the generic benchmark path.
+
+    (``epochs`` is seeded centrally in ``build_scenario_task`` for every
+    scenario, so it is not repeated here.)
+    """
     return {
         "max_messages": config.scheduler.max_turns * 10,
-        "epochs": config.epochs,
     }
 
 
@@ -375,7 +378,14 @@ def build_scenario_task(
 
     scorers = plugin.build_scorers(config) if plugin.build_scorers else default_scorers(config)
     sandbox = plugin.build_sandbox(config) if plugin.build_sandbox else default_sandbox(config)
-    task_kwargs = plugin.build_task_kwargs(config) if plugin.build_task_kwargs else {}
+
+    # `config.epochs` is honoured for EVERY scenario: seed it as the default and
+    # let a plugin's build_task_kwargs override (tau2 pins its own Epochs with
+    # pass^k reducers). Without this, a YAML `epochs: N` was silently a no-op for
+    # every plugin scenario — only the generic path passed it through.
+    task_kwargs: dict[str, Any] = {"epochs": config.epochs}
+    if plugin.build_task_kwargs:
+        task_kwargs.update(plugin.build_task_kwargs(config))
 
     return Task(
         dataset=MemoryDataset(samples) if samples else MemoryDataset([]),
