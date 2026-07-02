@@ -37,8 +37,9 @@ Wrapping a scenario in DCOP:
     1. Define variables (agent choices) and domains (possible values)
     2. Define constraints (inter-agent reward functions)
     3. Compute or estimate an optimal assignment
-    Subclass DCOPScenario, implement the abstract methods, and call build_task()
-    from your @task function.
+    Subclass DCOPScenario, implement the abstract methods, and register a
+    ScenarioPlugin (``register_scenario(make_dcop_plugin(...))``); your @task
+    factory then routes through ``build_scenario_task`` (see jira_ticket/task.py).
 
 Future direction (BaseScenario extraction):
     Methods marked [future-base] below will move to a BaseScenario parent class.
