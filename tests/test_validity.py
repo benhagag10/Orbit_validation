@@ -460,6 +460,48 @@ def test_swe_bench_coalition_pre_replication_names_invalid():
     assert any("unknown target_agent" in e.lower() for e in errors)
 
 
+def test_coalition_agents_non_list_is_flagged():
+    """A non-list coalition_agents (e.g. a bare string) is reported.
+
+    At runtime the attack iterates the value — a string collapses to its
+    characters, none of which name an agent — so the whole attack silently
+    no-ops. The shape error fires on both the offline (expanded) and runtime
+    (identity) validation paths.
+    """
+    config = _swe_bench_config(
+        agents=["solver"],
+        attacks=[
+            AttackConfig(
+                name="collusion",
+                attack_type="collusion",
+                properties={"coalition_agents": "solver_0"},
+            )
+        ],
+    )
+    for expand in (True, False):
+        errors = ConfigValidator.validate(config, expand_templates=expand)
+        assert any("must be a list" in e for e in errors)
+
+
+def test_coalition_agents_non_string_member_is_flagged():
+    """Non-string members are reported, not silently dropped; the valid
+    members are still checked against the runtime names."""
+    config = _swe_bench_config(
+        agents=["solver"],
+        attacks=[
+            AttackConfig(
+                name="collusion",
+                attack_type="collusion",
+                properties={"coalition_agents": ["solver_0", 7]},
+            )
+        ],
+    )
+    errors = ConfigValidator.validate(config, expand_templates=True)
+    assert any("non-string member" in e for e in errors)
+    # solver_0 is a real runtime agent, so no unknown-coalition error.
+    assert not any("unknown coalition" in e for e in errors)
+
+
 def test_runtime_validation_does_not_double_expand():
     """The built (already-expanded) config validates with identity by default.
 

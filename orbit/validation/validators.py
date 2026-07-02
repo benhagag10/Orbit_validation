@@ -119,7 +119,9 @@ class ConfigValidator:
                     f"Attack '{attack.name}' references unknown target_agent: "
                     f"'{attack.target_agent}'"
                 )
-            for member in _coalition_members(attack):
+            members, malformed = _coalition_members(attack)
+            errors.extend(malformed)
+            for member in members:
                 if member not in runtime_names:
                     errors.append(
                         f"Attack '{attack.name}' references unknown coalition "
@@ -194,19 +196,34 @@ class ConfigValidator:
         return errors
 
 
-def _coalition_members(attack: object) -> list[str]:
+def _coalition_members(attack: object) -> tuple[list[str], list[str]]:
     """Extract collusion coalition member names from an attack config.
 
     Collusion attacks list their coalition in
     ``attack.properties["coalition_agents"]`` (post-expansion names, e.g.
-    ``["solver_0", "solver_1"]``). Returns the string members, or an empty
-    list when absent or malformed.
+    ``["solver_0", "solver_1"]``). Returns ``(members, errors)``: the string
+    member names, plus one error per malformed shape. A non-list value or a
+    non-string member is reported rather than skipped — at runtime the attack
+    iterates the value and drops anything that is not a known agent name (a
+    bare string is iterated character-by-character), so a shape mistake is
+    exactly the silent no-op (issue #4) this validation exists to catch.
     """
     properties = getattr(attack, "properties", None) or {}
     members = properties.get("coalition_agents")
+    if members is None:
+        return [], []
+    name = getattr(attack, "name", "<unnamed>")
     if not isinstance(members, (list, tuple)):
-        return []
-    return [m for m in members if isinstance(m, str)]
+        return [], [
+            f"Attack '{name}' coalition_agents must be a list of agent "
+            f"names, got {type(members).__name__}: {members!r}"
+        ]
+    malformed = [
+        f"Attack '{name}' coalition_agents contains a non-string member: {m!r}"
+        for m in members
+        if not isinstance(m, str)
+    ]
+    return [m for m in members if isinstance(m, str)], malformed
 
 
 def _validate_dcop_roster(
