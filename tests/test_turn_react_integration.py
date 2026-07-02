@@ -1,10 +1,8 @@
-"""Tests for turn_react agent, SubmitRegistry, and lane execution integration.
+"""Tests for turn_react agent, SubmitRegistry, and scheduled execution.
 
-Tests the new components introduced for turn-based lane execution:
+Tests the components used by turn-based scheduled execution:
 - SubmitRegistry (mark, is_submitted, all_submitted)
 - make_submit_tool_with_registry (creates valid ToolDef)
-- build_lane_turn_agents (produces agents with submit tools)
-- LaneRunner with registry (completion detection, single-step output)
 - Environment explicit completion (metadata-based, all_agents_submitted)
 - Halt condition (pre-set halt_reason)
 """
