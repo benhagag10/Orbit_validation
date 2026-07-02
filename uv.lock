@@ -2978,14 +2978,16 @@ dependencies = [
     { name = "click" },
     { name = "httpx" },
     { name = "inspect-ai" },
-    { name = "matplotlib" },
     { name = "openai" },
     { name = "pydantic" },
-    { name = "pymupdf" },
     { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
+bigcodebench = [
+    { name = "datasets" },
+    { name = "inspect-evals" },
+]
 browserart = [
     { name = "anthropic" },
     { name = "browsergym" },
@@ -2998,6 +3000,10 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "scipy" },
+]
+figures = [
+    { name = "matplotlib" },
+    { name = "pymupdf" },
 ]
 langgraph = [
     { name = "langchain-openai" },
@@ -3018,18 +3024,20 @@ requires-dist = [
     { name = "anthropic", marker = "extra == 'browserart'", specifier = ">=0.30" },
     { name = "browsergym", marker = "extra == 'browserart'", specifier = ">=0.10.0" },
     { name = "click", specifier = ">=8.0" },
+    { name = "datasets", marker = "extra == 'bigcodebench'", specifier = ">=2.16" },
     { name = "docker", marker = "extra == 'swebench'", specifier = ">=7.0" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "inspect-ai", specifier = ">=0.3.74" },
+    { name = "inspect-evals", marker = "extra == 'bigcodebench'" },
     { name = "inspect-evals", extras = ["osworld"], marker = "extra == 'osworld'" },
     { name = "langchain-openai", marker = "extra == 'langgraph'" },
     { name = "langgraph", marker = "extra == 'langgraph'" },
     { name = "langsmith", marker = "extra == 'langgraph'" },
-    { name = "matplotlib", specifier = ">=3.10.9" },
+    { name = "matplotlib", marker = "extra == 'figures'", specifier = ">=3.10.9" },
     { name = "openai", specifier = ">=1.0" },
     { name = "orbit", extras = ["dcop"], marker = "extra == 'dev'" },
     { name = "pydantic", specifier = ">=2.0" },
-    { name = "pymupdf", specifier = ">=1.27.2.3" },
+    { name = "pymupdf", marker = "extra == 'figures'", specifier = ">=1.27.2.3" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21" },
     { name = "python-docx", marker = "extra == 'osworld'", specifier = ">=1.0" },
@@ -3038,7 +3046,7 @@ requires-dist = [
     { name = "starlette", marker = "extra == 'browserart'", specifier = ">=0.46" },
     { name = "swebench", marker = "extra == 'swebench'", specifier = ">=3.0" },
 ]
-provides-extras = ["dev", "langgraph", "browserart", "swebench", "dcop", "osworld"]
+provides-extras = ["dev", "langgraph", "browserart", "swebench", "bigcodebench", "dcop", "osworld", "figures"]
 
 [[package]]
 name = "orjson"

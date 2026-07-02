@@ -12,8 +12,6 @@ dependencies = [
     "click>=8.0",
     "pydantic>=2.0",
     "httpx>=0.27",
-    "matplotlib>=3.10.9",
-    "pymupdf>=1.27.2.3",
 ]
 
 [project.optional-dependencies]
@@ -39,12 +37,28 @@ swebench = [
     "swebench>=3.0",
     "docker>=7.0",
 ]
+bigcodebench = [
+    # BigCodeBench reuses inspect_evals' HuggingFace dataset loader
+    # (orbit/scenarios/coding/bigcodebench/dataset_builder.py). The base
+    # inspect-evals package (no [osworld]) is enough; it pulls `datasets`.
+    "inspect-evals",
+    "datasets>=2.16",
+]
 dcop = [
+    # Cooperative-allocation / DCOP. Only JiraTicket actually imports scipy
+    # (Hungarian-algorithm optimum); Hospital/MeetSched/Colosseum run on core.
     "scipy>=1.11",
 ]
 osworld = [
     "inspect-evals[osworld]",
     "python-docx>=1.0",
+]
+figures = [
+    # Paper / report figure generation under scripts/ (render_architecture*.py,
+    # generate_*_figure.py, analyze_*.py). Not imported by the orbit package
+    # itself, so kept out of the core install.
+    "matplotlib>=3.10.9",
+    "pymupdf>=1.27.2.3",
 ]
 
 [project.entry-points.inspect_ai]

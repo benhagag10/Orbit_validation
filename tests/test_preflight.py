@@ -90,10 +90,11 @@ class TestCheckBrowserart:
         names = [r.name for r in results]
         assert any("browsergym" in n.lower() for n in names)
 
-    def test_websites_check_present(self):
+    def test_service_check_present(self):
+        # browserart now talks to the persistent browserart-service (:7878)
+        # rather than host-served websites on :8000.
         results = check_browserart()
-        assert any("websites" in r.name.lower() or "port" in r.name.lower()
-                    for r in results)
+        assert any("service" in r.name.lower() for r in results)
 
     def test_browsergym_missing(self):
         with patch("orbit.wrapper.preflight.find_spec", return_value=None):
