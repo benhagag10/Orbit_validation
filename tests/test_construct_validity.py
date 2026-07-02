@@ -42,6 +42,7 @@ def _make_sample(
     attack_successes: int = 0,
     attack_encounters: int = 0,
     attack_pending: list[dict] | None = None,
+    attack_details: list[dict] | None = None,
     defense_activations: int = 0,
     defense_vaccinations: dict | None = None,
     defense_blocks: list[dict] | None = None,
@@ -76,7 +77,7 @@ def _make_sample(
         "AttackLog:successful_attempts": attack_successes,
         "AttackLog:any_success": attack_successes > 0,
         "AttackLog:pending_injections": attack_pending or [],
-        "AttackLog:attempt_details": [],
+        "AttackLog:attempt_details": attack_details or [],
         "AttackLog:encounters": attack_encounters,
         "AttackLog:executions": 0,
         "DefenseLog:total_activations": defense_activations,
@@ -572,15 +573,26 @@ class TestAttackPlacement:
         assert "3 attempt(s)" in result.detail
 
     def test_no_attacks_but_attempts_logged_fail(self):
-        """No attacks configured but AttackLog has attempts → FAIL (real drift)."""
+        """No attacks configured, attempts logged with no classifiable
+        attempt_details → FAIL (real drift; absence of scenario-probe evidence
+        is not innocence)."""
         sample = _make_sample(attack_attempts=1)
         result = check_attack_placement(sample)
         assert not result.passed
 
     def test_agentharm_no_attack_but_attempts_pass(self):
         """agentharm grades the harmful behavior into AttackLog with no injected
-        attack — that must NOT be flagged as a placement mismatch (#27)."""
-        sample = _make_sample(scenario_name="agentharm", attack_attempts=1, attack_successes=1)
+        attack — that must NOT be flagged as a placement mismatch (#27). The
+        scorer always appends a scenario-marked detail per attempt."""
+        sample = _make_sample(
+            scenario_name="agentharm",
+            attack_attempts=1,
+            attack_successes=1,
+            attack_details=[
+                {"scenario": "agentharm", "behavior_id": "b1",
+                 "harm_score": 1.0, "strict_success": 1.0},
+            ],
+        )
         result = check_attack_placement(sample)
         assert result.passed
         assert "agentharm" in result.detail
@@ -606,6 +618,51 @@ class TestAttackPlacement:
         result = check_attack_placement(sample)
         assert not result.passed
         assert "pending" in result.detail
+
+    def test_misuse_scenario_attempts_without_injection_config_pass(self):
+        """Misuse threat (e.g. agentharm) logs per-sample harm probes into
+        AttackLog without a configured injection attack. Those attempt_details
+        carry a 'scenario' marker and no 'attack' name, so they are not
+        mis-fired injections → PASS (regression: was a false FAIL)."""
+        sample = _make_sample(
+            attacks=[],
+            attack_attempts=3,
+            attack_details=[
+                {"scenario": "agentharm", "behavior_id": "b1", "harm_score": 0.0},
+                {"scenario": "agentharm", "behavior_id": "b2", "harm_score": 1.0},
+                {"scenario": "agentharm", "behavior_id": "b3", "harm_score": 0.0},
+            ],
+        )
+        result = check_attack_placement(sample)
+        assert result.passed
+        assert "misuse threat" in result.detail
+
+    def test_injection_attempt_without_config_still_fails(self):
+        """A real injection attempt (detail has an 'attack' name) with no
+        configured attack remains a genuine inconsistency → FAIL."""
+        sample = _make_sample(
+            attacks=[],
+            attack_attempts=1,
+            attack_details=[{"attack": "direct_injection", "phase": "runtime", "turn": 1}],
+        )
+        result = check_attack_placement(sample)
+        assert not result.passed
+        assert "injection attempt" in result.detail
+
+    def test_mixed_scenario_and_injection_details_still_fails(self):
+        """Injection-named details alongside scenario probes still FAIL —
+        misuse probes must not launder a genuine mis-fired injection."""
+        sample = _make_sample(
+            attacks=[],
+            attack_attempts=2,
+            attack_details=[
+                {"scenario": "agentharm", "behavior_id": "b1", "harm_score": 0.0},
+                {"attack": "direct_injection", "phase": "runtime", "turn": 1},
+            ],
+        )
+        result = check_attack_placement(sample)
+        assert not result.passed
+        assert "injection attempt" in result.detail
 
 
 # ── Defense Activation ───────────────────────────────────────────────

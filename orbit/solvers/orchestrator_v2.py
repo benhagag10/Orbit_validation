@@ -61,6 +61,26 @@ def _classify_block(
         defense_log.false_positives += 1
 
 
+def _track_invoked_agents(
+    runtime: RuntimeMetrics, executor: TurnExecutor, results: list,
+) -> None:
+    """Record agents that ran this turn into ``RuntimeMetrics.invoked_agents``.
+
+    ``TopologyExecutor`` may delegate to sub-agents via ``as_tool()`` /
+    ``direct_run`` within a single root turn; those sub-agents never appear as
+    their own :class:`AgentTurnResult`, so consult the executor's own
+    invoked-agent record first (root + delegated sub-agents, in order). Fall
+    back to the per-turn result name for ``ScheduledExecutor``, where each
+    agent is its own turn and ``invoked_agents`` defaults to empty.
+    """
+    for name in executor.invoked_agents:
+        if name not in runtime.invoked_agents:
+            runtime.invoked_agents.append(name)
+    for result in results:
+        if result.agent_name not in runtime.invoked_agents:
+            runtime.invoked_agents.append(result.agent_name)
+
+
 async def _check_tool_call_defenses(
     defenses: list[DefenseBase],
     tool_name: str,
@@ -571,9 +591,7 @@ def mas_orchestrator_v2() -> Solver:
             results = await executor.run(turn_state, turn)
 
             # ── 8e. Track invoked agents ─────────────────────────
-            for result in results:
-                if result.agent_name not in runtime.invoked_agents:
-                    runtime.invoked_agents.append(result.agent_name)
+            _track_invoked_agents(runtime, executor, results)
 
             # ── 8f. Defense monitoring with resampling ───────────
             for result in results:

@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
     from orbit.configs.experiment import ExperimentConfig
     from orbit.configs.setup import SetupConfig
+    from orbit.solvers.runtime_state import EnvironmentState
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,11 @@ class TopologyExecutor(TurnExecutor):
         self._root_names = find_root_agents(self._setup)
 
     async def run(self, state: TaskState, turn: int) -> list[AgentTurnResult]:
+        from inspect_ai.util import store_as
+
+        from orbit.solvers.runtime_state import EnvironmentState
+
+        env_state = store_as(EnvironmentState)
         msg_before = len(state.messages)
         configured_names = {s.name for s in self._setup.agents}
         last_agent = self._root_names[0] if self._root_names else "root"
@@ -71,12 +77,14 @@ class TopologyExecutor(TurnExecutor):
         if self._direct_seq:
             for name in self._direct_seq:
                 if name in self._agents:
+                    prev_len = len(state.messages)
                     result = await run(self._agents[name], state)
                     state.messages[:] = result.messages
                     state.output = result.output
                     last_agent = name
                     if name not in self._invoked:
                         self._invoked.append(name)
+                    self._attribute(env_state, state, prev_len, name, configured_names)
         else:
             result = await run(self._root, state)
             state.messages[:] = result.messages
@@ -90,6 +98,7 @@ class TopologyExecutor(TurnExecutor):
                         if tc.function in configured_names and tc.function not in self._invoked:
                             self._invoked.append(tc.function)
                             last_agent = tc.function
+            self._attribute(env_state, state, msg_before, root_name, configured_names)
 
         if state.output and state.output.completion:
             self._completed = True
@@ -101,6 +110,34 @@ class TopologyExecutor(TurnExecutor):
             messages_after=msg_after,
             submitted=self._completed,
         )]
+
+    def _attribute(
+        self,
+        env_state: EnvironmentState,
+        state: TaskState,
+        start: int,
+        default_agent: str,
+        configured_names: set[str],
+    ) -> None:
+        """Record message→agent attribution for messages added since ``start``.
+
+        Mirrors :meth:`AgentScheduler.sync_to_task_state` so the shared-state
+        topology path populates the same ``EnvironmentState.message_attribution``
+        the mesh path does. A tool-result message whose tool name is a sub-agent
+        wired via ``as_tool()`` is credited to that sub-agent; every other
+        message is credited to ``default_agent`` (the root, or the direct-run
+        agent that produced this turn).
+        """
+        for i in range(max(start, 0), len(state.messages)):
+            msg = state.messages[i]
+            agent = default_agent
+            if getattr(msg, "role", None) == "tool":
+                fn = getattr(msg, "function", None)
+                if fn in configured_names:
+                    agent = fn
+            env_state.message_attribution.append(
+                {"index": i, "agent": agent, "group": ""}
+            )
 
     def is_complete(self) -> bool:
         return self._completed
