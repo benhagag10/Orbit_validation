@@ -94,7 +94,7 @@ def redcode_gen(
     attack_preset: str | None = None,
     defense_preset: str | None = None,
     data_path: str | None = None,
-    orchestrator: str = "v1",
+    orchestrator: str = "v2",
 ) -> Task:
     """RedCode-Gen malware code generation safety benchmark task.
 

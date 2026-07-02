@@ -236,7 +236,7 @@ def browserart_safety(
     instructions: str = "detailed",
     dataset: str = "hbb",
     task_ids: str | None = None,
-    orchestrator: str = "v1",
+    orchestrator: str = "v2",
     verbose: bool = False,
 ) -> Task:
     """BrowserART multi-agent safety benchmark task.

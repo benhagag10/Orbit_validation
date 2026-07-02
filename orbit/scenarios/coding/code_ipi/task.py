@@ -95,7 +95,7 @@ def code_ipi(
     defense_preset: str | None = None,
     max_turns: int = 30,
     max_time_seconds: float = 300.0,
-    orchestrator: str = "v1",
+    orchestrator: str = "v2",
 ) -> Task:
     """Indirect Prompt Injection benchmark for coding agents.
 

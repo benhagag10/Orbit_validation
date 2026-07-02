@@ -271,7 +271,7 @@ def swe_bench_multi_issue(
     agents: str | None = None,
     memory: str = "none",
     instructions: str = "detailed",
-    orchestrator: str = "v1",
+    orchestrator: str = "v2",
 ) -> Task:
     """SWE-Bench multi-issue security benchmark task.
 

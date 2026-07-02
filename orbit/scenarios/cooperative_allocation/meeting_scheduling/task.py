@@ -55,7 +55,7 @@ def meeting_scheduling(
     defense_preset: str | None = None,
     max_turns: int = 10,
     max_time_seconds: float = 300.0,
-    orchestrator: str = "v1",
+    orchestrator: str = "v2",
 ) -> Task:
     """MeetingScheduling coordination scenario.
 

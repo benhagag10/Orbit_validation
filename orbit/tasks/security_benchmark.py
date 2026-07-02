@@ -30,7 +30,7 @@ def security_benchmark(
     config: ExperimentConfig | None = None,
     config_path: str | None = None,
     baseline: str = "none",
-    orchestrator: str = "v1",
+    orchestrator: str = "v2",
 ) -> Task:
     """Create an Inspect Task for a security benchmark experiment.
 

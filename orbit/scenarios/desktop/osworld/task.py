@@ -296,7 +296,7 @@ def osworld_safety(
     defense_preset: str | None = None,
     attack_preset: str | None = None,
     judge_model: str = "openai/gpt-4.1",
-    orchestrator: str = "v1",
+    orchestrator: str = "v2",
 ) -> Task:
     """OSWorld multi-agent safety benchmark task.
 
@@ -454,7 +454,7 @@ def osworld_benchmark(
     attack_preset: str | None = None,
     defense_preset: str | None = None,
     judge_model: str = "openai/gpt-4.1",
-    orchestrator: str = "v1",
+    orchestrator: str = "v2",
 ) -> Task:
     """OSWorld standard benchmark task for capability evaluation.
 

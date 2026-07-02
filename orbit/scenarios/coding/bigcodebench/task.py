@@ -89,7 +89,7 @@ def bigcodebench(
     attack_preset: str | None = None,
     defense_preset: str | None = None,
     version: str = "v0.1.2",
-    orchestrator: str = "v1",
+    orchestrator: str = "v2",
 ) -> Task:
     """BigCodeBench benign code generation baseline.
 

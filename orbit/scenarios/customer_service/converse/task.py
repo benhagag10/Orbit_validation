@@ -220,7 +220,7 @@ def converse_safety(
     memory_poison_target_group: str | None = None,
     memory_poison_payload: str | None = None,
     memory_poison_mode: str = "append",
-    orchestrator: str = "v1",
+    orchestrator: str = "v2",
 ) -> Task:
     """ConVerse contextual-safety benchmark task.
 

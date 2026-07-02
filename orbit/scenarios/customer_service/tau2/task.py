@@ -331,7 +331,7 @@ def tau2(
     max_turns: int = 100,
     max_time_seconds: float = 600.0,
     data_path: str | None = None,
-    orchestrator: str = "v1",
+    orchestrator: str = "v2",
 ) -> Task:
     """τ²-Bench dual-control tool-use benchmark.
 

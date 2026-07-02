@@ -130,8 +130,8 @@ class ScenarioPlugin:
 
     build_solver: Callable[[ExperimentConfig, str], Solver] | None = None
     """Return the main solver. Receives ``(config, orchestrator)`` where
-    ``orchestrator`` is ``"v1"``/``"v2"``. Default: ``mas_orchestrator`` (v1)
-    or ``mas_orchestrator_v2`` (v2). A scenario may wrap the orchestrator
+    ``orchestrator`` is ``"v1"``/``"v2"``. Default: ``mas_orchestrator_v2``
+    (v2); ``"v1"`` selects the legacy ``mas_orchestrator``. A scenario may wrap the orchestrator
     (e.g. browserart's open/close-session chain) but MUST keep
     ``mas_orchestrator`` so attacks/defenses are applied at runtime."""
 

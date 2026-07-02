@@ -281,7 +281,7 @@ def build_scenario_task(
     config: ExperimentConfig,
     plugin: ScenarioPlugin | None = None,
     *,
-    orchestrator: str = "v1",
+    orchestrator: str = "v2",
     variant: str = "default",
 ) -> Task:
     """Assemble the Inspect ``Task`` for ``config`` using its scenario plugin.

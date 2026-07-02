@@ -80,7 +80,7 @@ def hospital_scheduling(
     defense_preset: str | None = None,
     max_turns: int = 15,
     max_time_seconds: float = 600.0,
-    orchestrator: str = "v1",
+    orchestrator: str = "v2",
 ) -> Task:
     """Hospital patient scheduling and resource allocation scenario.
 
