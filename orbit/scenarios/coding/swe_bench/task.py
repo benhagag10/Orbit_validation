@@ -31,6 +31,7 @@ from orbit.scenarios.coding.swe_bench.config_builder import (
     replicated_agent_name,
 )
 from orbit.scenarios.coding.swe_bench.configs import SWEBenchScenarioConfig
+from orbit.scenarios.factory import scenario_config_from_metadata
 from orbit.scenarios.registry import ScenarioPlugin, register_scenario
 from orbit.scenarios.shorthand import ShorthandSpec
 from orbit.tasks.builder import build_scenario_task
@@ -99,20 +100,18 @@ def _scenario_config(config: ExperimentConfig) -> SWEBenchScenarioConfig:
 
     The -T factory serializes the resolved ``SWEBenchScenarioConfig`` under
     ``swe_bench_scenario_config``; YAML/​orbit-run configs use the individual
-    ``swe_bench_*`` keys. Both produce the same object here.
+    ``swe_bench_*`` keys, derived from the model's own fields (the alias keeps
+    the documented ``swe_bench_scheduling_mode`` key working).
     """
-    meta = config.metadata or {}
-    if "swe_bench_scenario_config" in meta:
-        return SWEBenchScenarioConfig(**meta["swe_bench_scenario_config"])
-    return SWEBenchScenarioConfig(
-        num_issues=meta.get("swe_bench_num_issues", 2),
-        seed=meta.get("swe_bench_seed"),
-        repos=meta.get("swe_bench_repos"),
-        task_ids=meta.get("swe_bench_task_ids"),
-        execution_mode=meta.get("swe_bench_scheduling_mode", "round_robin"),
-        max_turns_per_agent=config.scheduler.max_turns,
-        max_time_seconds=config.scheduler.max_time_seconds,
-        force_arch=meta.get("swe_bench_force_arch", ""),
+    return scenario_config_from_metadata(
+        config,
+        SWEBenchScenarioConfig,
+        prefix="swe_bench",
+        aliases={"execution_mode": "scheduling_mode"},
+        scheduler_fields={
+            "max_turns_per_agent": "max_turns",
+            "max_time_seconds": "max_time_seconds",
+        },
     )
 
 

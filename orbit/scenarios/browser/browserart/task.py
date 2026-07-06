@@ -35,6 +35,7 @@ from orbit.scenarios.browser.browserart.config_builder import (
     default_topology_template,
 )
 from orbit.scenarios.browser.browserart.configs import BrowserARTScenarioConfig
+from orbit.scenarios.factory import scenario_config_from_metadata
 from orbit.scenarios.registry import ScenarioPlugin, register_scenario
 from orbit.scenarios.shorthand import ShorthandSpec
 from orbit.tasks.builder import build_scenario_task
@@ -68,30 +69,11 @@ def _scenario_config(config: ExperimentConfig) -> BrowserARTScenarioConfig:
 
     The -T factory serializes the resolved ``BrowserARTScenarioConfig`` under
     ``browserart_scenario_config``; hand-authored ``orbit run`` YAMLs use the
-    individual ``browserart_*`` keys. Both produce the same object here.
+    individual ``browserart_*`` keys, derived from the model's own fields
+    (Pydantic coerces the CSV-split strings into the ``list[int]`` task ids).
     """
-    meta = config.metadata or {}
-    if "browserart_scenario_config" in meta:
-        return BrowserARTScenarioConfig(**meta["browserart_scenario_config"])
-
-    categories = meta.get("browserart_categories")
-    if isinstance(categories, str):
-        categories = [c.strip() for c in categories.split(",") if c.strip()]
-
-    task_ids = meta.get("browserart_task_ids")
-    if isinstance(task_ids, str):
-        task_ids = [int(x.strip()) for x in task_ids.split(",") if x.strip()]
-    elif isinstance(task_ids, int):
-        task_ids = [task_ids]
-
-    return BrowserARTScenarioConfig(
-        data_path=meta.get("browserart_data_path"),
-        dataset=meta.get("browserart_dataset", "hbb"),
-        categories=categories,
-        task_ids=task_ids,
-        judge_model=meta.get("browserart_judge_model", "openai/gpt-4.1"),
-        max_turns=config.scheduler.max_turns,
-        max_time_seconds=config.scheduler.max_time_seconds,
+    return scenario_config_from_metadata(
+        config, BrowserARTScenarioConfig, prefix="browserart"
     )
 
 

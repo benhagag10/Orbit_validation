@@ -32,6 +32,7 @@ from orbit.scenarios.desktop.osworld.config_builder import (
     default_topology_template,
 )
 from orbit.scenarios.desktop.osworld.configs import OSWorldScenarioConfig
+from orbit.scenarios.factory import scenario_config_from_metadata
 from orbit.scenarios.params import split_csv as _split
 from orbit.scenarios.registry import ScenarioPlugin, register_scenario
 from orbit.scenarios.shorthand import ShorthandSpec
@@ -58,22 +59,19 @@ def _scenario_config(
 
     The -T factory serializes the resolved ``OSWorldScenarioConfig`` under
     ``osworld_scenario_config``; YAML/​orbit-run configs use the individual
-    ``osworld_*`` keys.
+    ``osworld_*`` keys (derived from the model's own fields; the aliases keep
+    the documented singular key spellings working).
     """
-    meta = config.metadata or {}
-    if "osworld_scenario_config" in meta:
-        return OSWorldScenarioConfig(**meta["osworld_scenario_config"])
-    return OSWorldScenarioConfig(
-        dataset=meta.get("osworld_dataset", default_dataset),
-        apps=_split(meta.get("osworld_app")),
-        threat_categories=_split(meta.get("osworld_threat_category")),
-        violation_types=_split(meta.get("osworld_violation_type")),
-        task_ids=_split(meta.get("osworld_task_ids")),
-        judge_model=meta.get("osworld_judge_model", "openai/gpt-4.1"),
-        max_turns=config.scheduler.max_turns,
-        max_time_seconds=config.scheduler.max_time_seconds,
-        max_screenshots=meta.get("osworld_max_screenshots", 1),
-        computer_timeout=meta.get("osworld_computer_timeout", 180),
+    return scenario_config_from_metadata(
+        config,
+        OSWorldScenarioConfig,
+        prefix="osworld",
+        aliases={
+            "apps": "app",
+            "threat_categories": "threat_category",
+            "violation_types": "violation_type",
+        },
+        defaults={"dataset": default_dataset},
     )
 
 
