@@ -81,7 +81,7 @@ def _shorthand() -> ShorthandSpec:
     """browserart YAML shorthand — declarative, resolved by the shared kit.
 
     ``browserart_condition`` resolves to a ``ConditionSetup`` that may carry an
-    ``execution`` config (Path-C mesh/scheduled conditions) alongside the
+    ``execution`` config (mesh/scheduled execution conditions) alongside the
     topology — the shared resolver materialises both. Attack presets take the
     applied condition so the compromised-agent target matches the resolved
     roster; before the kit the YAML path had no preset reader at all.
@@ -268,7 +268,7 @@ def browserart_safety(
         if max_time_seconds == 300.0:  # default wasn't overridden
             max_time_seconds = 600.0
 
-    # ---- Resolve topology template (+ optional Path-C execution) ----
+    # ---- Resolve topology template (+ optional mesh/scheduled execution) ----
     execution_template: ExecutionConfig | None = None
     if condition is not None:
         from orbit.scenarios.browser.browserart.condition_presets import get_condition
