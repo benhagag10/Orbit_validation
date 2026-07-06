@@ -32,6 +32,7 @@ from orbit.scenarios.coding.swe_bench.config_builder import (
 )
 from orbit.scenarios.coding.swe_bench.configs import SWEBenchScenarioConfig
 from orbit.scenarios.registry import ScenarioPlugin, register_scenario
+from orbit.scenarios.shorthand import ShorthandSpec
 from orbit.tasks.builder import build_scenario_task
 
 if TYPE_CHECKING:
@@ -200,41 +201,34 @@ def _swe_bench_scorers(config: ExperimentConfig) -> list[Scorer]:
     return scorers
 
 
-def _swe_bench_resolve(config: ExperimentConfig) -> ExperimentConfig:
-    """Resolve swe-bench attack/defense *preset* shorthand into the config.
+def _shorthand() -> ShorthandSpec:
+    """swe_bench YAML shorthand — declarative, resolved by the shared kit.
 
-    On ``orbit run`` a YAML may declare ``attacks: []`` and carry the preset
-    name in ``metadata.swe_bench_attack_preset`` (the convention the deleted
-    runner dispatch used to resolve). This restores that resolution on the
-    shared builder path, using the same ``get_attack_preset`` primitive the
-    ``-T`` factory uses. Idempotent: a no-op when attacks/defenses are already
-    set (the ``-T`` path).
+    ``metadata.swe_bench_attack_preset`` / ``swe_bench_defense_preset`` use the
+    same ``presets`` primitives as the ``-T`` factory (the convention the
+    deleted runner dispatch used to resolve); ``metadata.swe_bench_condition``
+    resolves the same named topology presets as ``-T condition=...`` — new with
+    the kit, the YAML path previously had no condition reader at all.
     """
-    from orbit.tasks.builder import baseline_keeps_attacks, baseline_keeps_defenses
+    from orbit.scenarios.coding.swe_bench.condition_presets import get_condition_setup
+    from orbit.scenarios.coding.swe_bench.presets import (
+        get_attack_preset,
+        get_defense_preset,
+    )
 
-    meta = config.metadata or {}
-    updates: dict = {}
-    if (
-        baseline_keeps_attacks(config)
-        and not config.attacks
-        and meta.get("swe_bench_attack_preset")
-    ):
-        from orbit.scenarios.coding.swe_bench.presets import get_attack_preset
-        updates["attacks"] = get_attack_preset(meta["swe_bench_attack_preset"])
-    if (
-        baseline_keeps_defenses(config)
-        and not config.defenses
-        and meta.get("swe_bench_defense_preset")
-    ):
-        from orbit.scenarios.coding.swe_bench.presets import get_defense_preset
-        updates["defenses"] = get_defense_preset(meta["swe_bench_defense_preset"])
-    return config.model_copy(update=updates) if updates else config
+    return ShorthandSpec(
+        prefix="swe_bench",
+        condition=get_condition_setup,
+        attack_preset=get_attack_preset,
+        defense_preset=get_defense_preset,
+        default_setup=default_topology_template,
+    )
 
 
 SWE_BENCH_PLUGIN = register_scenario(
     ScenarioPlugin(
         name="swe_bench",
-        resolve=_swe_bench_resolve,
+        shorthand=_shorthand(),
         expand=_swe_bench_expand,
         expand_agent_names=_swe_bench_agent_names,
         build_setup=_swe_bench_setup,

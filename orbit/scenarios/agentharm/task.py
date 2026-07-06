@@ -21,7 +21,8 @@ from orbit.scenarios.agentharm.config_builder import (
     build_experiment_configs,
 )
 from orbit.scenarios.agentharm.configs import AgentHarmScenarioConfig
-from orbit.scenarios.registry import ScenarioPlugin, register_scenario
+from orbit.scenarios.registry import ScenarioPlugin, TopologySource, register_scenario
+from orbit.scenarios.shorthand import ShorthandSpec
 from orbit.tasks.builder import build_scenario_task
 
 if TYPE_CHECKING:
@@ -69,17 +70,35 @@ def _agentharm_scorers(config: ExperimentConfig) -> list[Scorer]:
     return [agentharm_scorer(_scenario_config(config).judge_model), security_scorer()]
 
 
+def _expected_roster(config: ExperimentConfig, condition: str) -> set[str] | None:
+    """Roster the agentharm condition will build (static per condition)."""
+    from orbit.scenarios.agentharm.condition_presets import get_condition_setup
+
+    try:
+        setup = get_condition_setup(condition)
+    except (KeyError, ValueError):
+        return None  # unknown condition — expand reports it authoritatively
+    return {agent.name for agent in setup.agents}
+
+
 AGENTHARM_PLUGIN = register_scenario(
     ScenarioPlugin(
         name="agentharm",
+        # agentharm builds its roster per behavior from agentharm_condition
+        # (SCENARIO topology source): the condition key is consumed by expand,
+        # and the shared resolver arbitrates any inline setup against the
+        # roster the condition actually builds (issue #32).
+        shorthand=ShorthandSpec(
+            prefix="agentharm",
+            expected_roster=_expected_roster,
+            default_condition="single_agent",
+        ),
         expand=_agentharm_expand,
         build_setup=lambda config: None,
         build_solver=None,  # default mas_orchestrator
         build_scorers=_agentharm_scorers,
         build_sandbox=lambda config: None,  # tools are mocked; no sandbox
-        # agentharm builds its roster from agentharm_condition, ignoring any
-        # inline setup — so it is exempt from the builder's topology floor.
-        threads_setup=False,
+        topology_source=TopologySource.SCENARIO,
     )
 )
 

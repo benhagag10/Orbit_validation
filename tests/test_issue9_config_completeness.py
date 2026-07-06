@@ -208,9 +208,11 @@ class TestBuilderEnforcesDimensionFloor:
 
 
 class TestBuilderEnforcesTopologyFloor:
-    """A ``threads_setup`` plugin (the default) may not collapse the agent count
-    or drop shared memory during expansion — the "star silently degenerates to a
-    single agent" failure. ``threads_setup=False`` scenarios are exempt but warn.
+    """A ``topology_source=CONFIG`` plugin (the default) may not collapse the
+    agent count or drop shared memory during expansion — the "star silently
+    degenerates to a single agent" failure. ``topology_source=SCENARIO``
+    scenarios are exempt; without a shorthand spec to arbitrate the inline
+    setup, the builder still warns.
     """
 
     def _collapsing_expand(self, c):
@@ -252,17 +254,17 @@ class TestBuilderEnforcesTopologyFloor:
         with pytest.raises(ScenarioExpansionError, match="shared memory"):
             build_scenario_task(config, plugin=plugin)
 
-    def test_threads_setup_false_is_exempt_and_warns(self, caplog):
+    def test_scenario_topology_source_is_exempt_and_warns(self, caplog):
         import logging
 
-        from orbit.scenarios.registry import ScenarioPlugin
+        from orbit.scenarios.registry import ScenarioPlugin, TopologySource
         from orbit.tasks.builder import build_scenario_task
 
         config = _exp("custom_scenario")  # 2 agents
         plugin = ScenarioPlugin(
             name="custom_scenario",
             expand=self._collapsing_expand,
-            threads_setup=False,
+            topology_source=TopologySource.SCENARIO,
         )
         with caplog.at_level(logging.WARNING, logger="orbit.tasks.builder"):
             task = build_scenario_task(config, plugin=plugin)  # must NOT raise
@@ -302,7 +304,13 @@ class TestExpandingPluginsPreserveDimensions:
             assert "prompt_vaccination" in [d.defense_type for d in exp.defenses]
 
     def test_tau2_threads_attacks_defenses(self):
-        task = self._build_or_skip(_exp("tau2_airline"))
+        # tau2 derives its roster from tau2_condition (SCENARIO topology
+        # source); an inline setup that doesn't mirror the condition's roster
+        # is now a hard conflict (issue #32), so this threading test declares
+        # none.
+        task = self._build_or_skip(
+            _exp("tau2_airline", setup=SetupConfig(agents=[], edges=[]))
+        )
         configs = _sample_configs(task)
         assert configs
         for exp in configs:
@@ -363,8 +371,11 @@ class TestBaselineDoesNotReacquireStrippedDimensions:
     """
 
     def test_baseline_gate_helpers(self):
+        from orbit.baselines.baselines import (
+            baseline_keeps_attacks,
+            baseline_keeps_defenses,
+        )
         from orbit.configs.baseline import BaselineMode
-        from orbit.tasks.builder import baseline_keeps_attacks, baseline_keeps_defenses
 
         def cfg(mode):
             return _exp("custom_scenario").model_copy(update={"baseline_mode": mode})
@@ -382,9 +393,10 @@ class TestBaselineDoesNotReacquireStrippedDimensions:
         from orbit.baselines.baselines import apply_baseline
         from orbit.configs.baseline import BaselineMode
         from orbit.scenarios.registry import get_scenario
+        from orbit.tasks.builder import resolve_scenario_shorthand
 
         plugin = get_scenario("swe_bench")
-        if plugin is None or plugin.resolve is None:
+        if plugin is None or plugin.shorthand is None:
             pytest.skip("swe_bench plugin unavailable")
         base = _exp(
             "swe_bench",
@@ -394,15 +406,44 @@ class TestBaselineDoesNotReacquireStrippedDimensions:
             metadata={"swe_bench_attack_preset": "codebase_injection"},
         )
         # baseline=none: the preset resolves into a real attack.
-        assert [a.attack_type for a in plugin.resolve(base).attacks] == [
+        assert [a.attack_type for a in resolve_scenario_shorthand(base).attacks] == [
             "codebase_injection"
         ]
-        # benign / no_attack: it must stay stripped (no re-injection).
+        # benign / no_attack: it must stay stripped (no re-injection), and the
+        # shared resolver records why the preset did not materialise.
         for mode in (BaselineMode.BENIGN, BaselineMode.NO_ATTACK):
             stripped = apply_baseline(base, mode)
-            assert plugin.resolve(stripped).attacks == [], (
+            resolved = resolve_scenario_shorthand(stripped)
+            assert resolved.attacks == [], (
                 f"{mode.value} baseline re-acquired the preset attack"
             )
+            assert (
+                resolved.metadata.get("swe_bench_baseline_stripped_attack_preset")
+                == "codebase_injection"
+            )
+
+    def test_custom_resolve_hook_cannot_contaminate_control(self):
+        """The central post-resolve re-strip: even a custom ``resolve`` hook
+        that materialises an attack into a ``no_attack`` control is re-stripped
+        by the shared pipeline — control purity is structural, not a per-plugin
+        gating convention."""
+        from orbit.baselines.baselines import apply_baseline
+        from orbit.configs.baseline import BaselineMode
+        from orbit.scenarios.registry import ScenarioPlugin
+        from orbit.tasks.builder import build_scenario_task
+
+        rogue = AttackConfig(
+            name="rogue", attack_type="indirect_injection", payload="p"
+        )
+        plugin = ScenarioPlugin(
+            name="custom_scenario",
+            resolve=lambda c: c.model_copy(update={"attacks": [rogue]}),
+        )
+        control = apply_baseline(
+            _exp("custom_scenario", attacks=[], defenses=[]), BaselineMode.NO_ATTACK
+        )
+        task = build_scenario_task(control, plugin=plugin)
+        assert _sample_configs(task)[0].attacks == []
 
 
 class TestEpochsHonoredForPluginScenarios:
@@ -445,22 +486,29 @@ class TestEpochsHonoredForPluginScenarios:
 
 class TestConditionSetupResolution:
     """Topology comes from an inline ``setup`` OR a ``*_condition`` preset — both
-    single-source forms work. If BOTH are declared the inline setup wins and the
-    condition is ignored with a warning (silence there collapsed a condition to
-    the lone validator placeholder before); a condition-only config resolves to
-    the preset's real topology.
+    single-source forms work. If BOTH are declared, the explicit condition WINS
+    (issue #32, uniform across scenarios): silently when the inline roster
+    matches the condition's roster (redundant documentation), as a hard
+    ``ShorthandConflictError`` when the rosters materially differ (a stray
+    inline setup silently relabeling a condition sweep is the mislabeled-control
+    failure), downgradable to a warning with ``ORBIT_LENIENT=1``.
     """
 
-    def _plugin(self, name):
+    def _require_spec(self, name):
         from orbit.scenarios.registry import get_scenario
 
         plugin = get_scenario(name)
-        if plugin is None or plugin.resolve is None:
+        if plugin is None or plugin.shorthand is None:
             pytest.skip(f"{name} plugin unavailable")
         return plugin
 
+    def _resolve(self, config):
+        from orbit.tasks.builder import resolve_scenario_shorthand
+
+        return resolve_scenario_shorthand(config)
+
     def test_browserart_condition_only_resolves_topology(self):
-        plugin = self._plugin("browserart")
+        self._require_spec("browserart")
         c = _exp(
             "browserart",
             setup=SetupConfig(agents=[]),
@@ -468,16 +516,40 @@ class TestConditionSetupResolution:
             defenses=[],
             metadata={"browserart_condition": "star_specialist"},
         )
-        resolved = plugin.resolve(c)
+        resolved = self._resolve(c)
         assert len(resolved.setup.agents) > 1, (
             "condition-only config must resolve to the multi-agent topology, "
             "not collapse to a placeholder"
         )
+        assert resolved.metadata.get("browserart_resolved_condition") == "star_specialist"
+        assert "browserart_condition" not in resolved.metadata
 
-    def test_browserart_condition_plus_setup_prefers_setup_and_warns(self, caplog):
+    def test_condition_plus_differing_setup_is_an_error(self, monkeypatch):
+        from orbit.scenarios.shorthand import ShorthandConflictError
+
+        monkeypatch.delenv("ORBIT_LENIENT", raising=False)
+        for scenario, meta in (
+            ("browserart", {"browserart_condition": "star_specialist"}),
+            ("osworld", {"osworld_condition": "star_specialist", "osworld_dataset": "osharm"}),
+        ):
+            self._require_spec(scenario)
+            c = _exp(
+                scenario,
+                setup=SetupConfig(agents=[AgentSpec(name="only_me", role="worker")]),
+                attacks=[],
+                defenses=[],
+                metadata=meta,
+            )
+            with pytest.raises(ShorthandConflictError, match="rosters differ"):
+                self._resolve(c)
+
+    def test_condition_plus_differing_setup_lenient_condition_wins(
+        self, caplog, monkeypatch
+    ):
         import logging
 
-        plugin = self._plugin("browserart")
+        monkeypatch.setenv("ORBIT_LENIENT", "1")
+        self._require_spec("browserart")
         c = _exp(
             "browserart",
             setup=SetupConfig(agents=[AgentSpec(name="only_me", role="worker")]),
@@ -486,29 +558,40 @@ class TestConditionSetupResolution:
             metadata={"browserart_condition": "star_specialist"},
         )
         with caplog.at_level(logging.WARNING):
-            resolved = plugin.resolve(c)
-        # Inline setup wins; the condition is ignored (with a warning).
-        assert [a.name for a in resolved.setup.agents] == ["only_me"]
-        assert any("IGNORING the condition" in r.message for r in caplog.records)
+            resolved = self._resolve(c)
+        # The condition wins (the run is labeled by its condition), loudly.
+        assert len(resolved.setup.agents) > 1
+        assert resolved.metadata.get("browserart_resolved_condition") == "star_specialist"
+        assert any("rosters differ" in r.message for r in caplog.records)
 
-    def test_osworld_condition_plus_setup_prefers_setup_and_warns(self, caplog):
+    def test_condition_plus_matching_setup_is_silent(self, caplog):
         import logging
 
-        plugin = self._plugin("osworld")
+        from orbit.scenarios.browser.browserart.condition_presets import (
+            get_condition_setup,
+        )
+
+        self._require_spec("browserart")
+        # Inline roster mirrors the condition's roster (names match): redundant
+        # documentation, not a conflict — resolves silently to the condition.
+        mirrored = get_condition_setup("star_specialist")
         c = _exp(
-            "osworld",
-            setup=SetupConfig(agents=[AgentSpec(name="only_me", role="worker")]),
+            "browserart",
+            setup=mirrored,
             attacks=[],
             defenses=[],
-            metadata={"osworld_condition": "star_specialist", "osworld_dataset": "osharm"},
+            metadata={"browserart_condition": "star_specialist"},
         )
         with caplog.at_level(logging.WARNING):
-            resolved = plugin.resolve(c)
-        assert [a.name for a in resolved.setup.agents] == ["only_me"]
-        assert any("IGNORING the condition" in r.message for r in caplog.records)
+            resolved = self._resolve(c)
+        assert resolved.metadata.get("browserart_resolved_condition") == "star_specialist"
+        assert {a.name for a in resolved.setup.agents} == {
+            a.name for a in mirrored.agents
+        }
+        assert not [r for r in caplog.records if "condition" in r.message.lower()]
 
     def test_resolve_is_idempotent(self):
-        plugin = self._plugin("browserart")
+        self._require_spec("browserart")
         c = _exp(
             "browserart",
             setup=SetupConfig(agents=[]),
@@ -516,9 +599,9 @@ class TestConditionSetupResolution:
             defenses=[],
             metadata={"browserart_condition": "star_specialist"},
         )
-        once = plugin.resolve(c)
-        twice = plugin.resolve(once)  # must not raise (trigger key consumed)
-        assert [a.name for a in once.setup.agents] == [a.name for a in twice.setup.agents]
+        once = self._resolve(c)
+        twice = self._resolve(once)  # must not raise (trigger key consumed)
+        assert once == twice
 
 
 class TestCentralConfigValidationSurfaced:

@@ -43,7 +43,8 @@ from orbit.scenarios.customer_service.tau2.scorer import (
 )
 from orbit.scenarios.customer_service.tau2.scorer import pass_hat_k, tau2_scorer
 from orbit.scenarios.customer_service.tau2.state import DomainState
-from orbit.scenarios.registry import ScenarioPlugin, register_scenario
+from orbit.scenarios.registry import ScenarioPlugin, TopologySource, register_scenario
+from orbit.scenarios.shorthand import ShorthandSpec
 from orbit.scorers.security_scorer import security_scorer
 from orbit.tasks.builder import build_scenario_task
 
@@ -301,12 +302,28 @@ def _tau2_scorers(config: ExperimentConfig) -> list:
     ]
 
 
+def _expected_roster(config: ExperimentConfig, condition: str) -> set[str] | None:
+    """Roster the tau2 condition will build (domain-dependent specialists)."""
+    from orbit.scenarios.customer_service.tau2.topologies import expected_agent_names
+
+    return expected_agent_names(condition, _scenario_config(config).domain)
+
+
 # Default to 1 epoch with pass^1 / pass^2 / pass^4 reducers wired in. Running
 # with ``--epochs N`` overrides the count but preserves the reducer list, so
 # ``--epochs 4`` yields directly paper-comparable pass^4 numbers.
 TAU2_PLUGIN = register_scenario(
     ScenarioPlugin(
         name="tau2",
+        # tau2 builds its roster per task from tau2_condition (SCENARIO
+        # topology source): the condition key is consumed by expand, and the
+        # shared resolver arbitrates any inline setup against the roster the
+        # condition actually builds (issue #32) instead of warning every run.
+        shorthand=ShorthandSpec(
+            prefix="tau2",
+            expected_roster=_expected_roster,
+            default_condition="dual_control",
+        ),
         expand=_tau2_expand,
         build_setup=_tau2_setup,
         build_solver=None,  # default mas_orchestrator
@@ -315,9 +332,8 @@ TAU2_PLUGIN = register_scenario(
         build_task_kwargs=lambda config: {
             "epochs": Epochs(1, [pass_hat_k(1), pass_hat_k(2), pass_hat_k(4)])
         },
-        # tau2 builds its roster from the per-task tau2_condition, ignoring any
-        # inline setup — so it is exempt from the builder's topology floor.
-        threads_setup=False,
+        topology_source=TopologySource.SCENARIO,
+        alias_prefixes=("tau2_",),  # tau2_airline / tau2_retail / ... -> tau2
     )
 )
 

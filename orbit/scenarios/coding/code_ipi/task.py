@@ -21,7 +21,8 @@ from orbit.scenarios.coding.code_ipi.config_builder import (
 )
 from orbit.scenarios.coding.code_ipi.configs import CodeIPIScenarioConfig
 from orbit.scenarios.registry import ScenarioPlugin, register_scenario
-from orbit.tasks.builder import build_scenario_task, split_csv
+from orbit.scenarios.params import split_csv
+from orbit.tasks.builder import build_scenario_task
 
 if TYPE_CHECKING:
     from inspect_ai.scorer import Scorer
