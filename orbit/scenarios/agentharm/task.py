@@ -74,7 +74,7 @@ AGENTHARM_PLUGIN = register_scenario(
         name="agentharm",
         expand=_agentharm_expand,
         build_setup=lambda config: None,
-        build_solver=None,  # default mas_orchestrator (v1/v2)
+        build_solver=None,  # default mas_orchestrator
         build_scorers=_agentharm_scorers,
         build_sandbox=lambda config: None,  # tools are mocked; no sandbox
         # agentharm builds its roster from agentharm_condition, ignoring any
@@ -102,7 +102,6 @@ def agentharm(
     max_turns: int = 10,
     max_time_seconds: float = 300.0,
     data_path: str | None = None,
-    orchestrator: str = "v1",
 ) -> Task:
     """AgentHarm harmful tool-use safety benchmark.
 
@@ -175,4 +174,4 @@ def agentharm(
             "agentharm_condition": condition,
         },
     )
-    return build_scenario_task(config, AGENTHARM_PLUGIN, orchestrator=orchestrator)
+    return build_scenario_task(config, AGENTHARM_PLUGIN)

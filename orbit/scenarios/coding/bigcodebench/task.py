@@ -89,7 +89,6 @@ def bigcodebench(
     attack_preset: str | None = None,
     defense_preset: str | None = None,
     version: str = "v0.1.2",
-    orchestrator: str = "v1",
 ) -> Task:
     """BigCodeBench benign code generation baseline.
 
@@ -110,7 +109,6 @@ def bigcodebench(
         attack_preset: Attack preset name (e.g. ``"jailbreak"``).
         defense_preset: Defense preset name (e.g. ``"prompt_vaccination"``).
         version: HuggingFace dataset version (e.g. ``"v0.1.2"``).
-        orchestrator: MAS orchestrator variant (``"v1"`` or ``"v2"``).
     """
     from orbit.configs.experiment import ExperimentConfig
     from orbit.configs.metrics import MetricsConfig
@@ -168,4 +166,4 @@ def bigcodebench(
         metrics=MetricsConfig(),
         metadata={"bigcodebench_scenario_config": scenario_config.model_dump()},
     )
-    return build_scenario_task(config, BIGCODEBENCH_PLUGIN, orchestrator=orchestrator)
+    return build_scenario_task(config, BIGCODEBENCH_PLUGIN)

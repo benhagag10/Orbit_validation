@@ -193,7 +193,7 @@ CONVERSE_PLUGIN = register_scenario(
         name="converse",
         expand=_converse_expand,
         build_setup=lambda config: converse_setup(),
-        build_solver=None,  # default mas_orchestrator (v1/v2)
+        build_solver=None,  # default mas_orchestrator
         build_scorers=_converse_scorers,
         build_sandbox=lambda config: None,
     )
@@ -220,7 +220,6 @@ def converse_safety(
     memory_poison_target_group: str | None = None,
     memory_poison_payload: str | None = None,
     memory_poison_mode: str = "append",
-    orchestrator: str = "v1",
 ) -> Task:
     """ConVerse contextual-safety benchmark task.
 
@@ -395,4 +394,4 @@ def converse_safety(
         metrics=MetricsConfig(),
         metadata=metadata,
     )
-    return build_scenario_task(config, CONVERSE_PLUGIN, orchestrator=orchestrator)
+    return build_scenario_task(config, CONVERSE_PLUGIN)

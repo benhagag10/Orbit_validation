@@ -260,7 +260,8 @@ def build_experiment_config(
         all_edges.extend(edges)
 
         # Only create agent_groups for multi-issue groups. Single-issue runs
-        # through Path A (standard react agent, no scheduling overhead).
+        # through the shared-state TopologyExecutor (standard react agent,
+        # no scheduling overhead).
         if len(group.issues) > 1:
             group_agent_names = [a.name for a in agents]
             agent_groups.append(
@@ -277,9 +278,9 @@ def build_experiment_config(
     multi_issue = len(group.issues) > 1
 
     # Compute max_turns budget.
-    # Single-issue: Path A with react() — one turn = full agent loop,
+    # Single-issue: TopologyExecutor with react() — one turn = full agent loop,
     #   so max_turns_per_agent is the turn budget directly.
-    # Multi-issue with turn_react (Path C):
+    # Multi-issue with turn_react (ScheduledExecutor):
     #   superstep: all agents run each turn → max_turns = per-agent budget
     #   round_robin: turns cycle → scale by issue count
     scheduling_mode = scenario_config.execution_mode

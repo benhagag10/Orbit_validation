@@ -130,7 +130,7 @@ USER_SIM_SYSTEM_PROMPT = """{guidelines}
 </scenario>"""
 
 
-# Role-flip note appended to the user-sim system prompt. Orbit's Path C
+# Role-flip note appended to the user-sim system prompt. Orbit's scheduler
 # passes peer messages as user-role ChatMessageUser into the user-sim's
 # local react loop. This instruction lets the LLM interpret those
 # incoming messages correctly without a message-transform layer — the
@@ -149,7 +149,7 @@ USER_SIM_ROLE_FLIP_NOTE = (
 # ``AssistantMessage(content="Hi! How can I help you today?")`` to the
 # trajectory as ``DEFAULT_FIRST_AGENT_MESSAGE`` so that the user
 # simulator's first turn is always a *response* to a greeting rather
-# than a cold open. Orbit's Path C ``AgentScheduler`` does not have a
+# than a cold open. Orbit's ``AgentScheduler`` does not have a
 # hook to seed per-agent assistant-role messages before the loop
 # starts, so we match upstream's dynamics at the prompt level: tell
 # the user simulator that the service agent has already greeted it

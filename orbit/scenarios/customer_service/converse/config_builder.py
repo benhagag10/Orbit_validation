@@ -154,7 +154,7 @@ def build_experiment_config(
 
     final_defenses: list[DefenseConfig] = list(defenses or [])
 
-    # Agent group covers everyone in the setup — Path C round-robin by default.
+    # Agent group covers everyone in the setup — scheduled round-robin by default.
     all_agent_names = [a.name for a in wired.agents]
     execution = ExecutionConfig(
         scheduling_mode="round_robin",

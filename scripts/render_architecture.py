@@ -43,12 +43,12 @@ ASCII_ART = r"""
   +===================================================================+
   |                      mas_orchestrator @solver                      |
   |                                                                    |
-  |   _get_execution_path()                                            |
+  |   _build_executor()                                                |
   |        |                                                           |
-  |        +---> Path A: react() agents, single topology               |
+  |        +---> TopologyExecutor: react() agents, shared state        |
   |        |         handoff / tool / direct_run                       |
   |        |                                                           |
-  |        +---> Path C: turn_react() agents, AgentScheduler           |
+  |        +---> ScheduledExecutor: turn_react() + AgentScheduler      |
   |                  SubmitRegistry, round_robin / superstep           |
   |                                                                    |
   |   +-----+    +-----+    +-----+    +-----+                        |

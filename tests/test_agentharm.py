@@ -287,7 +287,7 @@ class TestConfigBuilder:
             assert "orchestrator" in agent_names
             assert "comms_specialist" in agent_names
 
-    def test_mesh_condition_wires_execution_path_c(self):
+    def test_mesh_condition_wires_scheduled_execution(self):
         cfg = AgentHarmScenarioConfig(split="harmful")
         behaviors = load_behaviors(cfg)[:1]
         cfgs = build_experiment_configs(

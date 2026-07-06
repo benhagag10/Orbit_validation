@@ -271,7 +271,6 @@ def swe_bench_multi_issue(
     agents: str | None = None,
     memory: str = "none",
     instructions: str = "detailed",
-    orchestrator: str = "v1",
 ) -> Task:
     """SWE-Bench multi-issue security benchmark task.
 
@@ -289,7 +288,6 @@ def swe_bench_multi_issue(
             shared_actions, full). Only used with ``agents``.
         instructions: Instruction detail level (detailed, relaxed).
             Only used with ``agents``.
-        orchestrator: MAS orchestrator variant (``"v1"`` or ``"v2"``).
     """
     from orbit.configs.experiment import ExperimentConfig
     from orbit.configs.metrics import MetricsConfig
@@ -393,4 +391,4 @@ def swe_bench_multi_issue(
         metadata={"swe_bench_scenario_config": scenario_config.model_dump()},
     )
 
-    return build_scenario_task(config, SWE_BENCH_PLUGIN, orchestrator=orchestrator)
+    return build_scenario_task(config, SWE_BENCH_PLUGIN)

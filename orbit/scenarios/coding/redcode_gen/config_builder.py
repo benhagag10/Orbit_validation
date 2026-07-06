@@ -60,7 +60,7 @@ def _build_execution_config(
     topology_template: SetupConfig,
     max_turns: int,
 ) -> tuple[ExecutionConfig, int]:
-    """Build execution config, detecting topology type for Path C routing.
+    """Build execution config, detecting topology type for scheduled-executor routing.
 
     Returns (execution_config, effective_max_turns).  For round-robin
     topologies, max_turns is scaled by agent count since each global

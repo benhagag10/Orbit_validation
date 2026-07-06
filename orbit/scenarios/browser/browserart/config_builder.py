@@ -51,7 +51,7 @@ def default_topology_template() -> SetupConfig:
 
     All browserart conditions drive the persistent browserart-service via
     the scenario tool registry. The default (no ``--condition``) is the
-    single-agent baseline — Path A with one ``react()`` loop.
+    single-agent baseline — the shared-state path with one ``react()`` loop.
     """
     return SetupConfig(
         agents=[
@@ -100,7 +100,7 @@ def build_experiment_config(
         scenario_config: BrowserART scenario configuration.
         attacks: Attack configurations.
         defenses: Defense configurations.
-        execution: Optional ``ExecutionConfig`` (e.g. Path C scheduling for
+        execution: Optional ``ExecutionConfig`` (e.g. scheduled execution for
             mesh conditions). Falls back to the default single-path config.
     """
     from orbit.scenarios.browser.browserart.configs import BrowserARTScenarioConfig
@@ -192,7 +192,7 @@ def build_experiment_configs(
         defenses: Defense configurations.
         behaviors: Pre-loaded behaviors.  If *None*, loads from config.
         execution: Optional ``ExecutionConfig`` propagated to every config
-            (e.g. Path C scheduling from a mesh condition preset).
+            (e.g. scheduled execution from a mesh condition preset).
     """
     from orbit.scenarios.browser.browserart.configs import BrowserARTScenarioConfig
     from orbit.scenarios.browser.browserart.dataset_builder import (

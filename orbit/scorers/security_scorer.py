@@ -56,14 +56,8 @@ def _compute_detection_latency_from_timeline(
     first_detection_turn: int | None = None
 
     for ts in env_state.timeline:
-        # Support both new flat format and legacy lane_executions format
         injections = ts.get("attack_injections", [])
         activations = ts.get("defense_activations", [])
-
-        # Legacy lane_executions format (from deprecated Path B)
-        for le in ts.get("lane_executions", []):
-            injections = injections or le.get("attack_injections", [])
-            activations = activations or le.get("defense_activations", [])
 
         if injections and first_injection_turn is None:
             first_injection_turn = ts["turn"]
@@ -194,7 +188,7 @@ def security_scorer() -> Scorer:
 
         # Detection Latency (turns): gap between first injection and first detection
         if not metrics_config or metrics_config.detection_latency:
-            # Try timeline-based computation first (richer data from lanes)
+            # Try timeline-based computation first (richer than log-level counts)
             env_state = store_as(EnvironmentState)
             latency = _compute_detection_latency_from_timeline(
                 env_state, attack_log, defense_log

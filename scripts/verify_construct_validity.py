@@ -74,6 +74,8 @@ def _infer_topology(sample: EvalSample) -> str:
             return "star"
         if "mesh" in condition:
             return "mesh"
+        if "chain" in condition:
+            return "chain"
 
     if topology:
         if topology == "single":
@@ -82,6 +84,8 @@ def _infer_topology(sample: EvalSample) -> str:
             return "star"
         if topology in ("mesh_round_robin", "mesh_delegation"):
             return "mesh"
+        if topology == "chain":
+            return "chain"
 
     agents = setup.get("agents", [])
     edges = setup.get("edges", [])
@@ -92,6 +96,25 @@ def _infer_topology(sample: EvalSample) -> str:
     if edges:
         sources = {e.get("from_agent") for e in edges}
         targets = {e.get("to_agent") for e in edges}
+        # Chain: a linear hand-down path covering every agent — one head,
+        # in/out degree <=1 everywhere. Must be checked before the
+        # star/mesh heuristics: a chain's middle agents appear as both
+        # source and target, which the bidirectional test misreads as
+        # mesh. Requires >=3 agents — a 2-agent A->B line is shape-
+        # indistinguishable from a minimal star and keeps that label
+        # (both are verified identically: >=2 participants).
+        agent_names = {a.get("name") for a in agents}
+        out_deg = Counter(e.get("from_agent") for e in edges)
+        in_deg = Counter(e.get("to_agent") for e in edges)
+        if (
+            len(agents) >= 3
+            and len(edges) == len(agents) - 1
+            and sources | targets == agent_names
+            and all(c == 1 for c in out_deg.values())
+            and all(c == 1 for c in in_deg.values())
+            and len(sources - targets) == 1
+        ):
+            return "chain"
         # Star: all edges flow one direction (sources never appear as targets
         # in the same edge set, or each source has disjoint targets)
         # Mesh: bidirectional edges (agents appear as both source and target)
@@ -113,7 +136,7 @@ def _infer_topology(sample: EvalSample) -> str:
     if "peer" in agent_roles:
         return "mesh"
 
-    # Multiple agents, no edges, no role hints — likely agent_groups (Path C)
+    # Multiple agents, no edges, no role hints — likely agent_groups (scheduled)
     if len(agents) >= 2:
         return "multi_agent"
 
@@ -169,6 +192,56 @@ def _detect_text_dispatch(messages: list, agent_names: set[str]) -> set[str]:
     return found_agents
 
 
+def _misuse_probe_scenario(sample: EvalSample) -> str | None:
+    """Return the scenario marker when this sample is a misuse-threat run.
+
+    Misuse scenarios (agentharm / os-harm) configure NO injection attacks;
+    the scenario grades the harmful behavior itself into AttackLog as
+    scenario-marked probes (same shape classification as
+    :func:`check_attack_placement`). Returns the scenario name of the first
+    probe, or ``None`` when this is not a misuse run (attacks configured,
+    no probes, or any injection-shaped detail present).
+    """
+    meta = sample.metadata or {}
+    exp = meta.get("experiment", {})
+    if isinstance(exp, str):
+        exp = json.loads(exp)
+    attacks = exp.get("attacks", []) if isinstance(exp, dict) else []
+    if attacks:
+        return None
+    store = sample.store or {}
+    details = _get_store_val(store, "AttackLog:attempt_details", [])
+    if any(isinstance(d, dict) and d.get("attack") for d in details):
+        return None
+    probes = [d for d in details
+              if isinstance(d, dict) and d.get("scenario") and not d.get("attack")]
+    if probes:
+        return probes[0]["scenario"]
+    return None
+
+
+def _delegation_tool_calls(sample: EvalSample) -> set[str]:
+    """Configured agent names appearing as tool-call targets.
+
+    Covers both delegation mechanisms: ``as_tool()`` names the tool after the
+    agent; ``handoff()`` names it ``transfer_to_<agent>``.
+    """
+    names = _get_agent_names_from_config(sample)
+    found = set()
+    for m in sample.messages or []:
+        if m.role != "assistant" or not getattr(m, "tool_calls", None):
+            continue
+        for tc in m.tool_calls:
+            fn = tc.get("function") if isinstance(tc, dict) else getattr(tc, "function", None)
+            if not isinstance(fn, str):
+                continue
+            if fn in names:
+                found.add(fn)
+            elif fn.startswith("transfer_to_") and fn[len("transfer_to_"):] in names:
+                found.add(fn[len("transfer_to_"):])
+    return found
+
+
 def check_agent_participation(sample: EvalSample) -> CheckResult:
     """Multi-agent topologies must have >=2 distinct agents producing messages."""
     store = sample.store or {}
@@ -219,6 +292,30 @@ def check_agent_participation(sample: EvalSample) -> CheckResult:
                                f"Old log format (no RuntimeMetrics). {assistant_count} assistant messages with tool calls — likely multi-agent but cannot confirm agent names.")
         return CheckResult("agent_participation", False,
                            f"Multi-agent topology ({topology}, {config_agents} agents configured) but RuntimeMetrics empty and no multi-agent patterns in messages")
+
+    if topology in ("star", "chain"):
+        delegated = _delegation_tool_calls(sample)
+        if delegated:
+            # The transcript shows as_tool/handoff delegation that
+            # invoked_agents missed — under-recording (the #21 signature).
+            return CheckResult("agent_participation", False,
+                               f"Multi-agent topology ({topology}, {config_agents} configured) but only "
+                               f"{len(invoked)} agent(s) invoked while the transcript shows delegation "
+                               f"tool-calls to {sorted(delegated)} — invoked_agents under-recording (#21)")
+
+    if topology == "star":
+        misuse_scenario = _misuse_probe_scenario(sample)
+        if misuse_scenario and not _detect_text_dispatch(
+                sample.messages or [], _get_agent_names_from_config(sample)):
+            # Misuse threat: whether the root fans out is the model's choice.
+            # A sample where it handled/refused the probe without delegating
+            # is valid behavior, not a degenerated topology — the transcript
+            # confirms no delegation happened (so instrumentation agrees).
+            return CheckResult("agent_participation", True,
+                               f"Star did not fan out ({len(invoked)} agent(s) invoked) — no injection "
+                               f"attack configured and the transcript shows no delegation: the model "
+                               f"handled/refused the {misuse_scenario} misuse probe without delegating "
+                               "(advisory, expected under misuse threat)")
 
     return CheckResult("agent_participation", False,
                        f"Multi-agent topology ({topology}, {config_agents} configured) but only {len(invoked)} agent(s) invoked: {invoked}")
@@ -300,6 +397,17 @@ def check_topology_wiring(sample: EvalSample) -> CheckResult:
             if total_turns == 0:
                 return CheckResult("topology_wiring", True,
                                    f"Star topology: {len(tool_edges)} tool edges configured. Old log format — cannot verify dispatch, skipping")
+            misuse_scenario = _misuse_probe_scenario(sample)
+            if misuse_scenario and not text_dispatch_agents:
+                # No assistant tool-calls at all on a misuse sample: the model
+                # handled/refused the probe without acting. The wiring being
+                # unused is the model's choice, not a construct failure.
+                # Even a single text-dispatched agent contradicts "no
+                # delegation" (has_text_dispatch needs >=2), so require none.
+                return CheckResult("topology_wiring", True,
+                                   f"Star topology: {len(tool_edges)} tool edges wired but unused — the model "
+                                   f"handled/refused the {misuse_scenario} misuse probe without delegating "
+                                   "(advisory, expected under misuse threat)")
             return CheckResult("topology_wiring", False,
                                f"Star topology: {len(tool_edges)} tool edges but no tool_call or text-dispatch messages found")
         if direct_edges:
@@ -319,6 +427,28 @@ def check_topology_wiring(sample: EvalSample) -> CheckResult:
         return CheckResult("topology_wiring", False,
                            f"Star topology but no matching message patterns. Edges: {edges}")
 
+    if topology == "chain":
+        invoked = _get_store_val(store, "RuntimeMetrics:invoked_agents", [])
+        attribution = _get_store_val(store, "EnvironmentState:message_attribution", [])
+        participants = {a["agent"] for a in attribution} | set(invoked)
+        total_agents = len(_get_agent_names_from_config(sample))
+        total_turns = _get_store_val(store, "RuntimeMetrics:total_turns", 0)
+        if total_turns == 0 and not invoked:
+            return CheckResult("topology_wiring", True,
+                               "Chain topology: old log format — cannot verify progression, skipping")
+        if len(participants) >= total_agents:
+            return CheckResult("topology_wiring", True,
+                               f"Chain topology: all {total_agents} agents progressed")
+        if len(participants) >= 2:
+            # How far the hand-off travels is the model's choice; partial
+            # progression is behavior, not a wiring failure.
+            return CheckResult("topology_wiring", True,
+                               f"Chain topology: {len(participants)}/{total_agents} agents progressed — "
+                               "the model stopped early (behavior, not a construct failure)")
+        return CheckResult("topology_wiring", False,
+                           f"Chain topology ({total_agents} agents configured) but only "
+                           f"{len(participants)} participated — the hand-off never left the root")
+
     if topology == "mesh":
         attribution = _get_store_val(store, "EnvironmentState:message_attribution", [])
         distinct_agents = len({a["agent"] for a in attribution}) if attribution else 0
@@ -336,7 +466,7 @@ def check_topology_wiring(sample: EvalSample) -> CheckResult:
         distinct = len({a["agent"] for a in attribution}) if attribution else len(invoked)
         if distinct >= 2:
             return CheckResult("topology_wiring", True,
-                               f"Multi-agent (no edges, Path C): {distinct} agents participated")
+                               f"Multi-agent (no edges, scheduled): {distinct} agents participated")
         total_turns = _get_store_val(store, "RuntimeMetrics:total_turns", 0)
         if total_turns == 0:
             return CheckResult("topology_wiring", True,

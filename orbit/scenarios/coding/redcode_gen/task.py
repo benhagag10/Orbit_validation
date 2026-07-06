@@ -75,7 +75,7 @@ REDCODE_GEN_PLUGIN = register_scenario(
         name="redcode_gen",
         expand=_redcode_gen_expand,
         build_setup=lambda config: None,
-        build_solver=None,  # default mas_orchestrator (v1/v2)
+        build_solver=None,  # default mas_orchestrator
         build_scorers=_redcode_scorers,
         build_sandbox=lambda config: ("docker", _SANDBOX_COMPOSE),
     )
@@ -94,7 +94,6 @@ def redcode_gen(
     attack_preset: str | None = None,
     defense_preset: str | None = None,
     data_path: str | None = None,
-    orchestrator: str = "v1",
 ) -> Task:
     """RedCode-Gen malware code generation safety benchmark task.
 
@@ -172,4 +171,4 @@ def redcode_gen(
             "redcode_gen_scenario_config": scenario_config.model_dump(),
         },
     )
-    return build_scenario_task(config, REDCODE_GEN_PLUGIN, orchestrator=orchestrator)
+    return build_scenario_task(config, REDCODE_GEN_PLUGIN)

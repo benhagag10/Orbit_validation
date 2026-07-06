@@ -278,7 +278,7 @@ class CollusionAttack(AttackBase):
                     logger.warning(
                         "Cannot inject secret_channel tool into agent %s: "
                         "agent.tools is not a mutable list. Consider using "
-                        "Path C (agent_groups) which wires tools at build time.",
+                        "the scheduled path (agent_groups) which wires tools at build time.",
                         agent_name,
                     )
 

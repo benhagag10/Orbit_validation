@@ -34,7 +34,7 @@ def _build_execution_config(
     topology: SetupConfig,
     max_turns: int,
 ) -> tuple[ExecutionConfig, int]:
-    """Wire mesh conditions into Path C (AgentScheduler).
+    """Wire mesh conditions into the ScheduledExecutor (AgentScheduler).
 
     Mirrors the pattern used by other scenarios: topology_type in
     {``mesh_round_robin``, ``mesh_delegation``} routes through an

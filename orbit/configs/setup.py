@@ -120,7 +120,7 @@ class AgentSpec(BaseModel, frozen=True):
     The attack config's compromise_mode determines how the compromise works."""
 
     max_messages: int = 50
-    """Maximum messages for this agent. Enforced per-agent in Path C
+    """Maximum messages for this agent. Enforced per-agent under the ScheduledExecutor
     (AgentScheduler): agents that reach this limit are skipped for
     subsequent turns. Inspect's global max_messages is set separately
     at the Task level."""
@@ -131,7 +131,7 @@ class AgentSpec(BaseModel, frozen=True):
 
     submit: bool | None = None
     """Whether this agent should be built with a terminal ``submit`` tool
-    when running under ``AgentScheduler`` (Path C).
+    when running under ``AgentScheduler`` (the scheduled path).
 
     - ``True``: ``turn_react`` wires in the registry-backed submit tool;
       calling it marks the agent done and removes it from the rotation.

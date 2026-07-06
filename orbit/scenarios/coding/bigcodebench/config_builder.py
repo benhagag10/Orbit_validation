@@ -60,7 +60,7 @@ def _build_execution_config(
     topology_template: SetupConfig,
     max_turns: int,
 ) -> tuple[ExecutionConfig, int]:
-    """Build execution config, detecting topology type for Path C routing.
+    """Build execution config, detecting topology type for scheduled-executor routing.
 
     Mirrors the redcode_gen behaviour: round-robin topologies get a
     scaled ``max_turns`` so each agent gets roughly the originally

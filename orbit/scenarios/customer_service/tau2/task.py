@@ -309,7 +309,7 @@ TAU2_PLUGIN = register_scenario(
         name="tau2",
         expand=_tau2_expand,
         build_setup=_tau2_setup,
-        build_solver=None,  # default mas_orchestrator (v1/v2)
+        build_solver=None,  # default mas_orchestrator
         build_scorers=_tau2_scorers,
         build_sandbox=lambda config: None,
         build_task_kwargs=lambda config: {
@@ -331,7 +331,6 @@ def tau2(
     max_turns: int = 100,
     max_time_seconds: float = 600.0,
     data_path: str | None = None,
-    orchestrator: str = "v1",
 ) -> Task:
     """τ²-Bench dual-control tool-use benchmark.
 
@@ -443,4 +442,4 @@ def tau2(
         metrics=MetricsConfig(),
         metadata={"tau2_scenario_config": scenario_config.model_dump()},
     )
-    return build_scenario_task(config, TAU2_PLUGIN, orchestrator=orchestrator)
+    return build_scenario_task(config, TAU2_PLUGIN)

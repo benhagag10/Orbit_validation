@@ -188,6 +188,7 @@ def build_topology_agents(
     setup: SetupConfig,
     model_wrapper: Callable[[str, Model], Model] | None = None,
     tool_wrappers: dict[str, "ToolWrapperFn"] | None = None,
+    agent_wrapper: Callable[[str, Agent], Agent] | None = None,
 ) -> dict[str, Agent]:
     """Build all agents with topology wiring already applied.
 
@@ -207,6 +208,11 @@ def build_topology_agents(
             When set, every base tool and topology tool on that agent is
             replaced with the wrapped version before the agent is built.
             Used by defenses like dual_llm to intercept tool results.
+        agent_wrapper: Optional callable (agent_name, agent) -> agent applied
+            to each agent as it is built. The registry name/description are
+            set on the *wrapped* agent afterwards, so handoff()/as_tool()
+            tool schemas are unaffected. Used by TopologyExecutor to observe
+            agent invocations at the execution boundary.
 
     Returns:
         Dict mapping agent name -> fully-wired Agent instance.
@@ -249,8 +255,11 @@ def build_topology_agents(
         if resolved_model is not None:
             kwargs["model"] = resolved_model
 
+        agent: Agent = react(**kwargs)
+        if agent_wrapper is not None:
+            agent = agent_wrapper(spec.name, agent)
         return agent_with(
-            react(**kwargs), name=spec.name,
+            agent, name=spec.name,
             description=spec.specialty or spec.role,
         )
 
@@ -471,50 +480,3 @@ def get_direct_run_sequence(setup: SetupConfig) -> list[str]:
         current = next_map.get(current)
 
     return sequence
-
-
-def build_lane_agents(
-    setup: SetupConfig,
-    lane_agents: list[str],
-    model_wrapper: Callable[[str, Model], Model] | None = None,
-    tool_wrappers: dict[str, "ToolWrapperFn"] | None = None,
-) -> dict[str, Agent]:
-    """Build agents for a specific lane (subset of global graph).
-
-    Filters the global setup to only include agents and edges within
-    the lane, then delegates to build_topology_agents().
-
-    Args:
-        setup: The full SetupConfig with all agents and edges.
-        lane_agents: List of agent names belonging to this lane.
-        model_wrapper: Optional model wrapper (see build_topology_agents).
-        tool_wrappers: Optional per-agent tool wrappers (see
-            build_topology_agents).
-
-    Returns:
-        Dict mapping agent name -> Agent for agents in this lane.
-    """
-    lane_set = set(lane_agents)
-
-    # Filter agents to only those in the lane
-    filtered_agents = [
-        spec for spec in setup.agents if spec.name in lane_set
-    ]
-
-    # Filter edges to only intra-lane edges
-    filtered_edges = [
-        edge for edge in setup.edges
-        if edge.from_agent in lane_set and edge.to_agent in lane_set
-    ]
-
-    # Create a subset SetupConfig
-    lane_setup = setup.model_copy(update={
-        "agents": filtered_agents,
-        "edges": filtered_edges,
-    })
-
-    return build_topology_agents(
-        lane_setup,
-        model_wrapper=model_wrapper,
-        tool_wrappers=tool_wrappers,
-    )
