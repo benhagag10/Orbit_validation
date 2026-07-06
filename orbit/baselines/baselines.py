@@ -46,3 +46,25 @@ def apply_baseline(
         updates["defenses"] = []
 
     return config.model_copy(update=updates)
+
+
+def baseline_keeps_attacks(config: ExperimentConfig) -> bool:
+    """Whether ``config``'s baseline mode retains attacks.
+
+    Shorthand resolution materialises attack *presets* into ``config.attacks``.
+    That must NOT happen when a baseline intentionally stripped attacks
+    (``no_attack``/``benign``) — otherwise the "control" run silently
+    re-acquires the attack and the attack-effect delta is measured against a
+    contaminated reference. Keyed on ``baseline_mode`` (set once by
+    :func:`apply_baseline` and carried through ``model_copy``), so it is
+    correct regardless of whether the baseline was applied before or after
+    resolution. Consumed centrally by the shared shorthand resolver — never by
+    individual scenario hooks (issue #16).
+    """
+    return config.baseline_mode not in (BaselineMode.NO_ATTACK, BaselineMode.BENIGN)
+
+
+def baseline_keeps_defenses(config: ExperimentConfig) -> bool:
+    """Whether ``config``'s baseline mode retains defenses (see
+    :func:`baseline_keeps_attacks`)."""
+    return config.baseline_mode not in (BaselineMode.NO_DEFENSE, BaselineMode.BENIGN)

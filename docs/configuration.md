@@ -114,10 +114,14 @@ metadata: {}
 ### Multi-Agent Config (with Condition)
 
 When using `browserart_condition`, the condition preset supplies the agents and
-topology automatically — **omit the `setup` block entirely**. Do not add a
-placeholder `setup.agents`: if both an inline `setup` and a condition are
-declared, the inline setup wins and the condition is silently ignored (with a
-warning), so a placeholder would collapse the run to a single agent.
+topology automatically — **omit the `setup` block entirely**. If you declare
+both an inline `setup` and a condition, the **condition wins**: a `setup.agents`
+roster that *differs* from the condition's raises a `ShorthandConflictError`
+(set `ORBIT_LENIENT=1` to downgrade it to a warning), while a roster that
+*matches* the condition is treated as redundant documentation and silently
+dropped in favour of the condition. Declaring exactly one topology source keeps
+the config unambiguous. (This precedence reversed with the scenario authoring
+kit — inline setup no longer overrides a condition.)
 
 ```yaml
 name: "browserart_multi_agent"
@@ -333,6 +337,56 @@ scheduler:
   max_retries_per_turn: 0
 ```
 
+### Scenario Shorthand (metadata keys)
+
+Most scenarios accept a uniform set of **shorthand** keys in the `metadata`
+block, so an `orbit run` YAML can select a topology, an attack bundle, or a
+defense bundle by name instead of writing them out inline. Each key is prefixed
+by the scenario name:
+
+| Key | Selects |
+|-----|---------|
+| `<prefix>_condition` | a named topology/memory condition preset |
+| `<prefix>_attack_preset` | a named attack bundle |
+| `<prefix>_defense_preset` | a named defense bundle |
+
+They are resolved identically on every entry point (the `orbit run` builder,
+`orbit validate`, and `--dry-run`) by the shared resolver in
+`orbit/scenarios/shorthand.py`. Which scenarios support which keys:
+
+| Scenario (prefix) | `_condition` | `_attack_preset` | `_defense_preset` |
+|-------------------|:-:|:-:|:-:|
+| `browserart` | ✅ | ✅ | ✅ |
+| `swe_bench` | ✅ | ✅ | ✅ |
+| `osworld` / `osworld_benchmark` | ✅ | ✅ | ✅ |
+| `redcode_gen` | ✅ | ✅ | ✅ |
+| `code_ipi` | ✅ | ✅ | ✅ |
+| `bigcodebench` | ✅ | ✅ | ✅ |
+| `converse` | ✅ | — | ✅ |
+| `tau2` (`tau2_airline`, …) | native† | — | ✅ |
+| `agentharm` | native† | — | ✅ |
+
+† τ²-Bench and AgentHarm derive their roster natively from the condition (they
+are `topology_source=SCENARIO` scenarios): `tau2_condition` / `agentharm_condition`
+select the scenario's own per-task roster rather than materialising a topology
+preset. Neither ships attack presets; `tau2_defense_preset` /
+`agentharm_defense_preset` resolve like the other scenarios' defense presets.
+
+**Conflict rules** (uniform across scenarios):
+
+- **`<prefix>_condition` vs an inline `setup`** — the **condition wins**. A
+  differing inline roster raises `ShorthandConflictError`; a matching roster is
+  dropped as redundant documentation. Set `ORBIT_LENIENT=1` to downgrade the
+  conflict to a warning.
+- **`<prefix>_attack_preset` / `_defense_preset` vs an inline `attacks` /
+  `defenses` list** — the **inline list wins** and the preset is ignored with a
+  warning. Declare exactly one.
+- A preset is never applied to a dimension your `baseline_mode` strips, so a
+  `no_attack` / `benign` control cannot re-acquire an attack through a preset.
+
+See [Adding a New Scenario](adding-a-scenario.md#shorthand-and-the-conflict-policy)
+for the full policy and the breadcrumb keys the resolver records.
+
 ### BrowserART Metadata Fields
 
 These go in the `metadata` section and are specific to the BrowserART scenario.
@@ -340,7 +394,7 @@ These go in the `metadata` section and are specific to the BrowserART scenario.
 | Field | Type | Description |
 |-------|------|-------------|
 | `browserart_categories` | list | Filter by category (e.g. `["content/phishing"]`) |
-| `browserart_condition` | string | Condition preset name. See [Conditions](conditions.md). Declare either this or an inline `setup:`; if both are given, the inline `setup:` wins and the condition is ignored (with a warning). |
+| `browserart_condition` | string | Condition preset name. See [Conditions](conditions.md). Declare either this or an inline `setup:`; if both are given the **condition wins** — a differing inline roster raises `ShorthandConflictError` (`ORBIT_LENIENT=1` downgrades to a warning), a matching one is dropped as redundant. |
 | `browserart_headless` | bool | Run browser headlessly (default: true) |
 | `browserart_record_video_dir` | string | Directory for video recordings |
 | `browserart_data_path` | string | Override path to hbb.json |
@@ -355,6 +409,7 @@ These go in the `metadata` section and are specific to the SWE-Bench scenario.
 | `swe_bench_repos` | list | Repository filter (e.g. `["django/django"]`) |
 | `swe_bench_seed` | int | Random seed for group sampling |
 | `swe_bench_scheduling_mode` | string | Execution mode: `"round_robin"` or `"superstep"` |
+| `swe_bench_condition` | string | Named topology/memory condition (e.g. `"star_specialist"`, `"memory_full"`) — the same presets as `-T condition=...`. |
 | `swe_bench_attack_preset` | string | Attack preset: `"self_replication"`, `"sabotage"` |
 | `swe_bench_defense_preset` | string | Defense preset: `"file_monitor"`, `"diff_monitor"`, `"full"` |
 

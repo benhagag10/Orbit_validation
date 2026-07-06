@@ -332,8 +332,8 @@ class TestStageClassification:
 class TestConditionPresets:
     """Test condition presets and tool decomposition."""
 
-    def test_mesh_round_robin_uses_path_c(self):
-        """mesh_round_robin should produce agent_groups for Path C scheduling."""
+    def test_mesh_round_robin_uses_scheduled_executor(self):
+        """mesh_round_robin should produce agent_groups for scheduled execution."""
         from orbit.scenarios.coding.redcode_gen.condition_presets import get_condition_setup
         setup = get_condition_setup("mesh_round_robin")
         task = RedCodeGenTask(
@@ -361,8 +361,8 @@ class TestConditionPresets:
         config = build_experiment_config(task, topology_template=setup, scenario_config=sc)
         assert config.scheduler.max_turns == 5 * len(setup.agents)
 
-    def test_non_mesh_does_not_use_path_c(self):
-        """star_specialist should NOT populate agent_groups (uses Path A)."""
+    def test_non_mesh_does_not_use_scheduled_executor(self):
+        """star_specialist should NOT populate agent_groups (topology path)."""
         from orbit.scenarios.coding.redcode_gen.condition_presets import get_condition_setup
         setup = get_condition_setup("star_specialist")
         task = RedCodeGenTask(

@@ -21,6 +21,7 @@ from orbit.scenarios.coding.bigcodebench.config_builder import (
 )
 from orbit.scenarios.coding.bigcodebench.configs import BigCodeBenchScenarioConfig
 from orbit.scenarios.registry import ScenarioPlugin, register_scenario
+from orbit.scenarios.shorthand import ShorthandSpec
 from orbit.tasks.builder import build_scenario_task
 
 if TYPE_CHECKING:
@@ -67,9 +68,40 @@ def _bigcodebench_scorers(config: ExperimentConfig) -> list[Scorer]:
     return [bigcodebench_scorer(), security_scorer()]
 
 
+def _shorthand() -> ShorthandSpec:
+    """BigCodeBench YAML shorthand — declarative, resolved by the shared kit.
+
+    BigCodeBench's ``condition_presets`` / ``presets`` are thin re-exports of
+    RedCode-Gen's (same generic coding-team topologies and defenses), so the
+    shorthand surface matches ``redcode_gen``: ``metadata.bigcodebench_condition``
+    resolves the named ICML topology presets and the ``*_preset`` keys reuse the
+    ``-T`` factory's primitives. New with the kit — the YAML path previously had
+    no condition/preset reader at all.
+    """
+    from orbit.scenarios.coding.bigcodebench.condition_presets import (
+        get_condition_setup,
+    )
+    from orbit.scenarios.coding.bigcodebench.config_builder import (
+        default_topology_template,
+    )
+    from orbit.scenarios.coding.bigcodebench.presets import (
+        get_attack_preset,
+        get_defense_preset,
+    )
+
+    return ShorthandSpec(
+        prefix="bigcodebench",
+        condition=get_condition_setup,
+        attack_preset=get_attack_preset,
+        defense_preset=get_defense_preset,
+        default_setup=default_topology_template,
+    )
+
+
 BIGCODEBENCH_PLUGIN = register_scenario(
     ScenarioPlugin(
         name="bigcodebench",
+        shorthand=_shorthand(),
         expand=_bigcodebench_expand,
         build_setup=lambda config: None,
         build_solver=None,
@@ -89,7 +121,6 @@ def bigcodebench(
     attack_preset: str | None = None,
     defense_preset: str | None = None,
     version: str = "v0.1.2",
-    orchestrator: str = "v1",
 ) -> Task:
     """BigCodeBench benign code generation baseline.
 
@@ -110,7 +141,6 @@ def bigcodebench(
         attack_preset: Attack preset name (e.g. ``"jailbreak"``).
         defense_preset: Defense preset name (e.g. ``"prompt_vaccination"``).
         version: HuggingFace dataset version (e.g. ``"v0.1.2"``).
-        orchestrator: MAS orchestrator variant (``"v1"`` or ``"v2"``).
     """
     from orbit.configs.experiment import ExperimentConfig
     from orbit.configs.metrics import MetricsConfig
@@ -168,4 +198,4 @@ def bigcodebench(
         metrics=MetricsConfig(),
         metadata={"bigcodebench_scenario_config": scenario_config.model_dump()},
     )
-    return build_scenario_task(config, BIGCODEBENCH_PLUGIN, orchestrator=orchestrator)
+    return build_scenario_task(config, BIGCODEBENCH_PLUGIN)

@@ -1,0 +1,29 @@
+# Kit smoke config (issue #16 verification): agentharm via YAML shorthand —
+# scenario-native condition + the new tau2/agentharm-style defense preset key.
+# Not part of the shipped example set; used by the pre-release live smoke.
+name: "kit_smoke_agentharm"
+description: "AgentHarm star_specialist via shorthand + defense preset (kit smoke)"
+
+scenario:
+  name: "agentharm"
+
+setup:
+  agents: []
+
+metadata:
+  agentharm_condition: "star_specialist"
+  agentharm_defense_preset: "prompt_vaccination"
+  agentharm_scenario_config:
+    split: "harmful"
+    partition: "test_public"
+    task_ids: ["1-1", "2-1"]
+    max_turns: 6
+    max_time_seconds: 180.0
+    judge_model: "openai/gpt-4o-mini"
+
+scheduler:
+  max_turns: 6
+  max_time_seconds: 180.0
+
+models:
+  - "openai/gpt-4o-mini"

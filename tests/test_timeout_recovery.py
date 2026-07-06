@@ -2,7 +2,8 @@
 
 Validates that when the orchestrator is interrupted mid-loop (by Inspect's
 per-sample time limit or any BaseException), the try/finally blocks in
-_run_single_path (Path A) and _run_scheduled_path (Path C) commit partial
+the orchestrator's topology (shared-state) and scheduled (isolated-state)
+execution paths commit partial
 metrics and agent messages before the exception propagates.
 
 The tests exercise the real ExperimentScheduler.run_loop and orchestrator
@@ -55,14 +56,14 @@ def _make_task_state():
 
 
 # ---------------------------------------------------------------------------
-# Path A: _run_single_path timeout recovery
+# Topology path: timeout recovery
 # ---------------------------------------------------------------------------
 
 
-class TestPathATimeoutRecovery:
-    """Path A try/finally commits partial metrics on interruption.
+class TestTopologyPathTimeoutRecovery:
+    """The topology path's try/finally commits partial metrics on interruption.
 
-    Path A uses react() agents where messages are already written to
+    The topology path uses react() agents where messages are already written to
     state.messages during each turn. The critical piece that was being
     lost is RuntimeMetrics (total_turns, wall_clock_seconds) from
     _finalize_metrics not running on timeout.
@@ -95,7 +96,7 @@ class TestPathATimeoutRecovery:
 
         state = _make_task_state()
 
-        # Replicate the Path A try/finally pattern from orchestrator
+        # Replicate the orchestrator's try/finally pattern
         with pytest.raises(KeyboardInterrupt):
             try:
                 state = await scheduler.run_loop(execute_turn, state)
@@ -111,7 +112,7 @@ class TestPathATimeoutRecovery:
 
     @pytest.mark.asyncio
     async def test_messages_survive_timeout(self):
-        """Path A writes messages to state during execute_turn, so they
+        """The topology path writes messages to state during the turn, so they
         should already be present even when the loop is interrupted."""
         state = _make_task_state()
         initial_msg_count = len(state.messages)
@@ -182,14 +183,14 @@ class TestPathATimeoutRecovery:
 
 
 # ---------------------------------------------------------------------------
-# Path C: _run_scheduled_path timeout recovery
+# Scheduled path: timeout recovery
 # ---------------------------------------------------------------------------
 
 
-class TestPathCTimeoutRecovery:
-    """Path C try/finally syncs agent messages and commits partial metrics.
+class TestScheduledPathTimeoutRecovery:
+    """The scheduled path's try/finally syncs agent messages and commits partial metrics.
 
-    Path C uses isolated per-agent AgentState objects. Messages only
+    The scheduled path uses isolated per-agent AgentState objects. Messages only
     reach state.messages via sync_to_task_state(). On timeout,
     sync_to_task_state must run in the finally block.
     """
@@ -282,7 +283,7 @@ class TestPathCTimeoutRecovery:
                 raise KeyboardInterrupt("simulated timeout")
             return state
 
-        # Replicate the Path C try/finally pattern
+        # Replicate the scheduled-path try/finally pattern
         with pytest.raises(KeyboardInterrupt):
             try:
                 task_state = await experiment_scheduler.run_loop(
@@ -315,7 +316,7 @@ class TestPathCTimeoutRecovery:
 
     @pytest.mark.asyncio
     async def test_normal_completion_syncs_correctly(self, monkeypatch):
-        """try/finally does not break normal Path C completion."""
+        """try/finally does not break normal scheduled-path completion."""
         agent_scheduler, call_counts, registry, task_state = (
             self._make_agent_scheduler(monkeypatch)
         )
@@ -387,7 +388,7 @@ class TestPathCTimeoutRecovery:
 
     @pytest.mark.asyncio
     async def test_messages_empty_without_sync(self, monkeypatch):
-        """Without sync_to_task_state, Path C messages stay in isolated
+        """Without sync_to_task_state, scheduled-path messages stay in isolated
         agent states and task_state.messages only has the initial prompt.
         This test documents the bug that the fix addresses."""
         agent_scheduler, _, _, task_state = (

@@ -1,17 +1,17 @@
-"""End-to-end Path C test for the dual_llm defense.
+"""End-to-end scheduled-executor test for the dual_llm defense.
 
-Path C is the scheduled execution path used when ``agent_groups`` is
+The ScheduledExecutor path runs when ``agent_groups`` is
 populated: agents run via Inspect's ``turn_react()`` under
 ``AgentScheduler``, each with isolated ``AgentState.messages``. Path
 A's ``test_dual_llm_e2e.py`` covers the single-topology react() flow
-already; this file pins the same invariants for Path C.
+already; this file pins the same invariants for the scheduled path.
 
 Invariants verified:
 1. Tool wrapping fires inside the per-agent ``turn_react`` loop.
 2. ``apply_pre_turn`` walks per-agent ``AgentState.messages`` and
    rewrites runtime-injected ``untrusted_observation`` tagged
-   messages — this is the path C-specific code path that diverges
-   from path A (path A walks shared ``state.messages``).
+   messages — this is the scheduled-executor code path that diverges
+   from the topology path (which walks shared ``state.messages``).
 3. ``DefenseLog`` records both ``tool:`` and ``runtime_observation``
    interceptions.
 """
@@ -47,7 +47,7 @@ def _register_test_tool(monkeypatch) -> None:
 
 
 def _make_p_llm_callable():
-    """Tool call → submit. Identical state machine to the path A test."""
+    """Tool call → submit. Identical state machine to the topology-path test."""
     state: dict[str, bool] = {"called_leak": False}
 
     def p_outputs(input_msgs, tools, tool_choice, config):
@@ -57,12 +57,12 @@ def _make_p_llm_callable():
         if not has_tool_result and not state["called_leak"]:
             state["called_leak"] = True
             return ModelOutput.for_tool_call(
-                model="mockllm/p_pathc",
+                model="mockllm/p_sched",
                 tool_name="leak_secret",
                 tool_arguments={"key": "admin"},
             )
         return ModelOutput.for_tool_call(
-            model="mockllm/p_pathc",
+            model="mockllm/p_sched",
             tool_name="submit",
             tool_arguments={"answer": "done"},
         )
@@ -85,8 +85,8 @@ def _make_q_llm_callable():
                     if isinstance(text, str):
                         captured.append(text)
         return ModelOutput.from_content(
-            model="mockllm/q_pathc",
-            content="QUARANTINED-PATHC: secret not disclosed",
+            model="mockllm/q_sched",
+            content="QUARANTINED-SCHED: secret not disclosed",
             stop_reason="stop",
         )
 
@@ -95,10 +95,10 @@ def _make_q_llm_callable():
 
 
 def _make_experiment_config() -> ExperimentConfig:
-    """One agent in a single-agent group → forces Path C (scheduled)."""
+    """One agent in a single-agent group → forces the ScheduledExecutor."""
     return ExperimentConfig(
         name="dual_llm_path_c_e2e",
-        description="dual_llm e2e test (Path C / scheduled)",
+        description="dual_llm e2e test (scheduled executor)",
         setup=SetupConfig(
             agents=[
                 AgentSpec(
@@ -129,7 +129,7 @@ def _make_experiment_config() -> ExperimentConfig:
                 name="dual_llm",
                 defense_type="dual_llm",
                 target_agents=["alice"],
-                model_override="mockllm/q_pathc",
+                model_override="mockllm/q_sched",
             ),
         ],
         execution=ExecutionConfig(
@@ -148,16 +148,16 @@ def _make_experiment_config() -> ExperimentConfig:
 
 
 def test_dual_llm_path_c_full_pipeline(monkeypatch, tmp_path):
-    """Same invariants as the Path A e2e, but driven through Path C."""
+    """Same invariants as the shared-state e2e, but driven through the scheduler."""
     _register_test_tool(monkeypatch)
 
     q_callable = _make_q_llm_callable()
     p_callable = _make_p_llm_callable()
     q_model = get_model(
-        "mockllm/q_pathc", custom_outputs=q_callable, memoize=False,
+        "mockllm/q_sched", custom_outputs=q_callable, memoize=False,
     )
     p_model = get_model(
-        "mockllm/p_pathc", custom_outputs=p_callable, memoize=False,
+        "mockllm/p_sched", custom_outputs=p_callable, memoize=False,
     )
 
     import inspect_ai.model as inspect_model
@@ -168,9 +168,9 @@ def test_dual_llm_path_c_full_pipeline(monkeypatch, tmp_path):
 
     def patched_get_model(model=None, **kwargs):
         if isinstance(model, str):
-            if model == "mockllm/q_pathc":
+            if model == "mockllm/q_sched":
                 return q_model
-            if model == "mockllm/p_pathc":
+            if model == "mockllm/p_sched":
                 return p_model
         return real_get_model(model, **kwargs)
 
@@ -201,18 +201,18 @@ def test_dual_llm_path_c_full_pipeline(monkeypatch, tmp_path):
     ), "Q-LLM never saw the raw payload"
 
     # 2. The raw payload doesn't appear anywhere in the synced message
-    #    history. Path C syncs per-agent state into state.messages via
+    #    history. The scheduled path syncs per-agent state into state.messages via
     #    sync_to_task_state at end-of-turn; that sync is what we read
     #    here.
     history_blob = "\n".join(
         str(getattr(m, "content", "")) for m in sample.messages
     )
     assert "PWNED-DUAL-LLM-TEST" not in history_blob, (
-        "Raw payload leaked into the synced history under Path C"
+        "Raw payload leaked into the synced history under the scheduled path"
     )
 
     # 3. The Q-LLM's quarantine summary made it through.
-    assert "QUARANTINED-PATHC" in history_blob, (
+    assert "QUARANTINED-SCHED" in history_blob, (
         "Q-LLM summary did not reach the synced message history"
     )
 
@@ -225,9 +225,9 @@ def test_dual_llm_path_c_full_pipeline(monkeypatch, tmp_path):
     )
     sources = {d.get("source", "") for d in detections}
     assert any(s.startswith("tool:") for s in sources), (
-        f"No tool-wrap interception (Path C). sources={sources!r}"
+        f"No tool-wrap interception (scheduled path). sources={sources!r}"
     )
     assert "runtime_observation" in sources, (
-        f"No runtime_observation interception (Path C — apply_pre_turn "
+        f"No runtime_observation interception (scheduled path — apply_pre_turn "
         f"didn't walk per-agent AgentState). sources={sources!r}"
     )

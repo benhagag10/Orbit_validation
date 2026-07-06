@@ -916,6 +916,40 @@ _PRESET_BUILDERS = {
 }
 
 
+def expected_agent_names(condition: str, domain: str) -> set[str] | None:
+    """The agent names a condition's plan will build, derived offline.
+
+    Consumed by the shared shorthand resolver to arbitrate an inline
+    ``setup.agents`` block against the roster the condition actually runs
+    (issue #32) — no task load, no policy render. Returns ``None`` for an
+    unknown condition (the resolver falls back to a warning; ``expand``
+    reports the bad name authoritatively). Kept adjacent to the plan builders
+    it mirrors, and pinned to their real output by
+    ``TestExpectedAgentNamesMatchPlans`` so the names cannot drift.
+    """
+    rosters: dict[str, set[str]] = {
+        "solo": {"assistant"},
+        "dual_control": {"assistant", "user_sim"},
+        "supervisor_specialist": {
+            "supervisor",
+            "user_sim",
+            *(f"{role}_specialist" for role in specialist_roles(domain)),
+        },
+        "tiered_escalation": {"front_line", "manager", "user_sim"},
+        "mesh_committee": {
+            "user_sim",
+            *(f"peer_{i + 1}" for i in range(MESH_COMMITTEE_DEFAULT_SIZE)),
+        },
+        "dual_control_review": {"drafter", "reviewer", "user_sim"},
+        "cross_domain_handoff": {
+            "triage",
+            "user_sim",
+            *(f"{d}_specialist" for d in _CROSS_DOMAIN_ACTIVE_DOMAINS),
+        },
+    }
+    return rosters.get(condition)
+
+
 def build_topology(
     name: TopologyName,
     task: "Tau2Task",
@@ -964,5 +998,6 @@ __all__ = [
     "TopologyName",
     "TopologyPlan",
     "build_topology",
+    "expected_agent_names",
     "MESH_COMMITTEE_DEFAULT_SIZE",
 ]

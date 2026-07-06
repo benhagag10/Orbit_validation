@@ -26,7 +26,9 @@ from orbit.scenarios.customer_service.converse.configs import (
     ConverseScenarioConfig,
 )
 from orbit.scenarios.customer_service.converse.dataset_builder import build_samples
+from orbit.scenarios.params import csv_tuple
 from orbit.scenarios.registry import ScenarioPlugin, register_scenario
+from orbit.scenarios.shorthand import ShorthandSpec
 from orbit.solvers.runtime_state import MemoryPoisonLog
 from orbit.tasks.builder import build_scenario_task
 
@@ -41,28 +43,6 @@ _VALID_ATTACK_MODES: tuple[ConverseAttackMode, ...] = (
     "security",
     "both",
 )
-
-
-def _parse_csv(value: object) -> tuple[str, ...] | None:
-    """Normalize a multi-value ``-T`` argument into a tuple of strings.
-
-    Accepts ``None``, ``str`` ("privacy,security"), ``int``/``float``, or
-    ``list`` (["privacy", "security"]). Inspect's ``-T`` flag coerces a
-    comma-separated command-line value into a Python list — e.g.
-    ``-T attack_modes=privacy,security`` arrives as ``["privacy",
-    "security"]`` — so we tolerate every shape rather than ``str.split``-
-    crashing with ``'list' object has no attribute 'split'``.
-    """
-    if value is None or value == "":
-        return None
-    if isinstance(value, (list, tuple)):
-        parts = tuple(str(v).strip() for v in value if str(v).strip())
-        return parts or None
-    if isinstance(value, (int, float)):
-        return (str(value),)
-    parts = tuple(v.strip() for v in str(value).split(",") if v.strip())
-    return parts or None
-
 
 @solver
 def converse_setup() -> Solver:
@@ -149,9 +129,9 @@ def _scenario_config(config: ExperimentConfig) -> ConverseScenarioConfig:
     if "converse_scenario_config" in meta:
         return ConverseScenarioConfig(**meta["converse_scenario_config"])
     return ConverseScenarioConfig(
-        domains=_parse_csv(meta.get("converse_domains")),  # type: ignore[arg-type]
-        persona_ids=_parse_csv(meta.get("converse_persona_ids")),
-        attack_modes=_parse_csv(meta.get("converse_attack_modes")) or ("benign",),  # type: ignore[arg-type]
+        domains=csv_tuple(meta.get("converse_domains")),  # type: ignore[arg-type]
+        persona_ids=csv_tuple(meta.get("converse_persona_ids")),
+        attack_modes=csv_tuple(meta.get("converse_attack_modes")) or ("benign",),  # type: ignore[arg-type]
         judge_model=meta.get("converse_judge_model", "openai/gpt-4.1"),
         max_turns=config.scheduler.max_turns,
         max_time_seconds=config.scheduler.max_time_seconds,
@@ -188,12 +168,34 @@ def _converse_scorers(config: ExperimentConfig) -> list:
     ]
 
 
+def _shorthand() -> ShorthandSpec:
+    """ConVerse YAML shorthand — declarative, resolved by the shared kit.
+
+    ``metadata.converse_condition`` resolves the same named topology presets as
+    ``-T condition=...`` (default ``paper_star``, the factory default);
+    ``converse_defense_preset`` uses the same ``presets`` primitive as the
+    ``-T`` factory. ConVerse ships no attack-preset registry (per-sample paper
+    attacks are built automatically), so ``attack_preset`` stays ``None`` and a
+    ``converse_attack_preset`` key is left untouched. New with the kit — the YAML
+    path previously had no condition/preset reader at all.
+    """
+    from orbit.scenarios.customer_service.converse.presets import get_defense_preset
+
+    return ShorthandSpec(
+        prefix="converse",
+        condition=get_condition_setup,
+        defense_preset=get_defense_preset,
+        default_setup=lambda: get_condition_setup("paper_star"),
+    )
+
+
 CONVERSE_PLUGIN = register_scenario(
     ScenarioPlugin(
         name="converse",
+        shorthand=_shorthand(),
         expand=_converse_expand,
         build_setup=lambda config: converse_setup(),
-        build_solver=None,  # default mas_orchestrator (v1/v2)
+        build_solver=None,  # default mas_orchestrator
         build_scorers=_converse_scorers,
         build_sandbox=lambda config: None,
     )
@@ -220,7 +222,6 @@ def converse_safety(
     memory_poison_target_group: str | None = None,
     memory_poison_payload: str | None = None,
     memory_poison_mode: str = "append",
-    orchestrator: str = "v1",
 ) -> Task:
     """ConVerse contextual-safety benchmark task.
 
@@ -260,7 +261,7 @@ def converse_safety(
         memory_poison_mode: ``append`` (default), ``prepend`` or ``replace``.
     """
     # --- Parse parameters ------------------------------------------------
-    modes_tuple = _parse_csv(attack_modes) or ("benign",)
+    modes_tuple = csv_tuple(attack_modes) or ("benign",)
     for mode in modes_tuple:
         if mode not in _VALID_ATTACK_MODES:
             raise ValueError(
@@ -269,11 +270,11 @@ def converse_safety(
 
     scenario_config = ConverseScenarioConfig(
         data_path=data_path,
-        domains=_parse_csv(domains),  # type: ignore[arg-type]
-        persona_ids=_parse_csv(persona_ids),
+        domains=csv_tuple(domains),  # type: ignore[arg-type]
+        persona_ids=csv_tuple(persona_ids),
         attack_modes=modes_tuple,  # type: ignore[arg-type]
-        data_categories=_parse_csv(data_categories),  # type: ignore[arg-type]
-        security_categories=_parse_csv(security_categories),
+        data_categories=csv_tuple(data_categories),  # type: ignore[arg-type]
+        security_categories=csv_tuple(security_categories),
         judge_model=judge_model,
         max_turns=max_turns,
         max_time_seconds=max_time_seconds,
@@ -395,4 +396,4 @@ def converse_safety(
         metrics=MetricsConfig(),
         metadata=metadata,
     )
-    return build_scenario_task(config, CONVERSE_PLUGIN, orchestrator=orchestrator)
+    return build_scenario_task(config, CONVERSE_PLUGIN)

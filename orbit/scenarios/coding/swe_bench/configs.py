@@ -198,7 +198,7 @@ class SWEBenchScenarioConfig(BaseModel, frozen=True):
     """Configuration for the SWE-Bench multi-agent scenario.
 
     Controls which instances are loaded, how they're grouped, filtering
-    criteria, and execution parameters for the multi-lane experiment.
+    criteria, and execution parameters for the multi-agent experiment.
     """
 
     dataset: str = "princeton-nlp/SWE-bench_Verified"

@@ -58,7 +58,7 @@ def make_dcop_plugin(
         name=name,
         expand=None,  # one problem -> one sample
         build_setup=None,  # mas_environment_setup seeds DCOP + domain state
-        build_solver=None,  # default mas_orchestrator (v1/v2)
+        build_solver=None,  # default: the shared mas_orchestrator
         build_scorers=_dcop_scorers(scenario_scorer_factory),
         # The -T factories historically built samples with the default
         # "{name}_{variant}" id (build_sample(config)).

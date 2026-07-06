@@ -539,3 +539,22 @@ class TestScenarioFamily:
     def test_family_set_explicitly(self):
         cfg = ScenarioConfig(name="swe_bench", family="coding")
         assert cfg.family == "coding"
+
+
+class TestSchedulerConfigRetries:
+    """max_retries_per_turn config field."""
+
+    def test_default_retries_is_zero(self):
+        config = SchedulerConfig()
+        assert config.max_retries_per_turn == 0
+
+    def test_custom_retries(self):
+        config = SchedulerConfig(max_retries_per_turn=3)
+        assert config.max_retries_per_turn == 3
+
+    def test_retries_in_yaml_roundtrip(self):
+        """Verify the field survives serialization."""
+        config = SchedulerConfig(max_retries_per_turn=2)
+        data = config.model_dump()
+        restored = SchedulerConfig(**data)
+        assert restored.max_retries_per_turn == 2

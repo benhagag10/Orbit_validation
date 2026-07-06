@@ -20,7 +20,7 @@ from orbit.scenarios.cooperative_allocation.dcop.models import DCOPExecutionConf
 class AgentGroup(BaseModel, frozen=True):
     """A named group of agents that work together on a task.
 
-    Used by Path C (AgentScheduler) to group agents by goal (e.g., one
+    Used by the ScheduledExecutor (AgentScheduler) to group agents by goal (e.g., one
     group per SWE-bench issue). Each group's agents share a goal but
     maintain isolated AgentState.
     """
@@ -99,8 +99,8 @@ class ExecutionConfig(BaseModel, frozen=True):
     """Top-level execution configuration for multi-agent experiments.
 
     Controls how agents are grouped and scheduled. If no agent_groups
-    are specified, the orchestrator uses single-topology execution
-    (Path A) for backward compatibility.
+    are specified, the orchestrator uses shared-state topology execution
+    (TopologyExecutor).
     """
 
     scheduling_mode: Literal["round_robin", "superstep", "interleaved"] = "round_robin"

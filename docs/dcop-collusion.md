@@ -86,7 +86,7 @@ YAML / CLI params
 
 Within the Task:
   setup_solver --> initializes scenario state + DCOPState + blackboards
-  orchestrator --> runs agents via AgentScheduler (Path C)
+  orchestrator --> runs agents via AgentScheduler (scheduled path)
                    + phase controller (planning/execution)
                    + attack injection + defense monitoring
   scorers     --> scenario scorer (domain rewards)

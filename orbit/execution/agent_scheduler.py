@@ -4,8 +4,8 @@ AgentScheduler -- centralized turn-based scheduling for multi-agent execution.
 Manages per-agent isolated AgentState, round-robin or superstep scheduling,
 observation injection, and completion tracking via SubmitRegistry.
 
-This is the core of Path C, replacing the lane-based Path B for scenarios
-where all agents share a single sandbox (e.g., multi-issue SWE-bench).
+This is the core of the ScheduledExecutor (isolated-state) path, used for
+scenarios where all agents share a single sandbox (e.g., multi-issue SWE-bench).
 
 Interaction with Inspect:
     - Creates AgentState instances (inspect_ai.agent) per agent

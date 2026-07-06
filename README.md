@@ -235,6 +235,17 @@ See [Scenario Requirements](docs/scenarios.md) for full per-scenario setup.
 
 ---
 
+## Documentation
+
+- [Architecture](docs/architecture.md) — data flow, orchestrator, scenario plugins
+- [Configuration](docs/configuration.md) — CLI flags, `-T` params, and the full YAML schema
+- [Conditions](docs/conditions.md) — multi-agent condition presets
+- [Scenarios](docs/scenarios.md) — per-scenario setup and requirements
+- [Evaluation](docs/evaluation.md) — scorers, metrics, and construct validity
+- [Adding a New Scenario](docs/adding-a-scenario.md) — authoring guide for the scenario plugin kit
+
+---
+
 ## License
 
 Orbit is licensed under the [Apache License 2.0](LICENSE). See [`NOTICE`](NOTICE) for third-party attribution and per-scenario license obligations.

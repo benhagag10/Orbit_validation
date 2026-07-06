@@ -453,7 +453,7 @@ class TestConditionAgentGroups:
 
     @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
     def test_single_issue_no_groups(self, condition: str):
-        """Single-issue groups should have no AgentGroups (Path A)."""
+        """Single-issue groups should have no AgentGroups (topology path)."""
         from orbit.scenarios.coding.swe_bench.config_builder import (
             build_experiment_config,
         )

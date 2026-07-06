@@ -260,14 +260,14 @@ class DualLLMDefense(DefenseBase):
         side so this hook can sanitise them before the P-LLM consumes
         them.
 
-        Path A walks ``state.messages``. Path C walks per-target-agent
+        The topology path walks ``state.messages``; the scheduled path walks per-target-agent
         ``AgentState.messages`` from ``agent_states``.
         """
         if self._q_llm is None:
             return
 
         if agent_states:
-            # Path C: per-agent isolated states. Only rewrite messages
+            # Scheduled path: per-agent isolated states. Only rewrite messages
             # in target agents' states (untrusted content sitting in a
             # non-target agent's state will never be seen by the P-LLM
             # we're protecting, so leave it alone).
@@ -282,7 +282,7 @@ class DualLLMDefense(DefenseBase):
                     agent_label=agent_name,
                 )
         else:
-            # Path A: shared state.messages.
+            # Topology path: shared state.messages.
             await self._rewrite_messages_in_list(
                 state.messages,
                 source_label="runtime_observation",

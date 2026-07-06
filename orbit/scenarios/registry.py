@@ -29,11 +29,11 @@ Because there is exactly one consumer per scenario and it sees the entire
 ``ExperimentConfig``, the builder can enforce that config sections are not
 silently dropped. Concretely it enforces, centrally, for every scenario:
 
-    * attacks/defenses: ``resolve`` may only ADD declared types, ``expand`` may
-      only preserve/transform-within-type them (never drop) — the exact class of
-      bug in issue #9, made a hard error;
-    * topology/memory: a ``threads_setup`` plugin (the default) may not reduce
-      the agent count or drop shared memory during expansion.
+    * attacks/defenses: shorthand resolution may only ADD declared types,
+      ``expand`` may only preserve/transform-within-type them (never drop) —
+      the exact class of bug in issue #9, made a hard error;
+    * topology/memory: a ``topology_source=CONFIG`` plugin (the default) may
+      not reduce the agent count or drop shared memory during expansion.
 
 These are *floors*, not full equality: a plugin can still add agents or change
 an attack's payload. Adding a new scenario is "register a plugin", not
@@ -45,6 +45,7 @@ from __future__ import annotations
 import importlib
 import logging
 from dataclasses import dataclass
+from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
@@ -52,8 +53,28 @@ if TYPE_CHECKING:
     from inspect_ai.solver import Solver
 
     from orbit.configs.experiment import ExperimentConfig
+    from orbit.scenarios.shorthand import ShorthandSpec
 
 logger = logging.getLogger(__name__)
+
+
+class TopologySource(str, Enum):
+    """Where a scenario's runtime topology comes from (issue #33).
+
+    ``CONFIG`` (the default): the topology is ``config.setup`` — authored
+    inline or materialised from a ``{prefix}_condition`` preset — and the
+    builder enforces the topology floor (expansion may not reduce the agent
+    count or drop shared memory).
+
+    ``SCENARIO``: the scenario *derives* its roster from a scenario-native
+    selector (tau2/agentharm build per-task rosters from their condition) and
+    deliberately ignores ``config.setup``; the builder skips the floor and the
+    shared resolver arbitrates a declared inline setup against the roster the
+    condition will actually build.
+    """
+
+    CONFIG = "config"
+    SCENARIO = "scenario"
 
 
 class ScenarioImportError(ImportError):
@@ -91,17 +112,24 @@ class ScenarioPlugin:
     name: str
     """The ``scenario.name`` this plugin handles."""
 
+    shorthand: ShorthandSpec | None = None
+    """Declarative YAML-shorthand surface (``{prefix}_condition`` /
+    ``{prefix}_attack_preset`` / ``{prefix}_defense_preset`` metadata keys) —
+    see :class:`orbit.scenarios.shorthand.ShorthandSpec`. Resolved by the
+    shared resolver on BOTH entry points (builder, ``orbit validate``,
+    ``--dry-run``) with uniform conflict/baseline handling, so shorthand
+    declared in an ``orbit run`` YAML is resolved exactly as the ``-T`` factory
+    resolves it and nothing can be silently dropped. Default: no shorthand."""
+
     resolve: Callable[[ExperimentConfig], ExperimentConfig] | None = None
-    """Resolve scenario-specific *shorthand* into the canonical config, BEFORE
-    dataset expansion. e.g. a preset name in ``config.metadata``
-    (``swe_bench_attack_preset``) -> ``config.attacks``; a named
-    ``osworld_condition`` -> ``config.setup``. The shared builder calls this on
-    BOTH entry points, so shorthand declared in an ``orbit run`` YAML is resolved
-    exactly as the ``inspect eval -T`` factory resolves it — closing the gap
-    where the deleted runner dispatch was the only resolver (and making the
-    resolved attacks/defenses visible to the dimension-preserving invariant).
-    MUST be idempotent: no-op when the config is already resolved (e.g. when
-    ``config.attacks`` is already populated). Default: no resolution."""
+    """Escape hatch for *custom* shorthand resolution that
+    :class:`~orbit.scenarios.shorthand.ShorthandSpec` cannot express, run AFTER
+    the spec-driven resolver and BEFORE dataset expansion. Prefer declaring a
+    ``shorthand`` spec — every current scenario's resolution is spec-expressible
+    and hand-rolled hooks are where the issue-#9 shorthand-drop bugs lived.
+    MUST be idempotent: no-op when the config is already resolved. The central
+    baseline re-strip runs after this hook, so a preset materialised into a
+    baseline-stripped dimension is removed again. Default: no resolution."""
 
     expand: Callable[[ExperimentConfig], list[ExperimentConfig]] | None = None
     """Fan one config out into per-sample configs (dataset expansion). The
@@ -128,12 +156,11 @@ class ScenarioPlugin:
     If this hook itself is ``None``, the shared default
     (``mas_environment_setup``) is used."""
 
-    build_solver: Callable[[ExperimentConfig, str], Solver] | None = None
-    """Return the main solver. Receives ``(config, orchestrator)`` where
-    ``orchestrator`` is ``"v1"``/``"v2"``. Default: ``mas_orchestrator`` (v1)
-    or ``mas_orchestrator_v2`` (v2). A scenario may wrap the orchestrator
-    (e.g. browserart's open/close-session chain) but MUST keep
-    ``mas_orchestrator`` so attacks/defenses are applied at runtime."""
+    build_solver: Callable[[ExperimentConfig], Solver] | None = None
+    """Return the main solver. Default: the shared ``mas_orchestrator``.
+    A scenario may wrap the orchestrator (e.g. browserart's
+    open/close-session chain) but MUST keep ``mas_orchestrator`` so
+    attacks/defenses are applied at runtime."""
 
     build_scorers: Callable[[ExperimentConfig], list[Scorer]] | None = None
     """Return the scorer list. Default: the generic security/integrity
@@ -155,15 +182,21 @@ class ScenarioPlugin:
     scenarios. If False, ids fall back to ``{name}_{variant}`` (the generic
     benchmark convention)."""
 
-    threads_setup: bool = True
-    """Whether ``expand`` threads ``config.setup`` (topology/memory) into every
-    produced config. When True (the default and the case for almost every
-    scenario), the builder enforces a topology floor: a produced config may not
-    have FEWER agents than the resolved config, nor drop shared memory. Set
-    False only for a scenario that *derives* its topology from a scenario-native
-    selector and deliberately ignores the inline ``setup`` (tau2/agentharm build
-    the roster from their ``*_condition``); the builder then skips the floor and
-    warns if an ignored inline ``setup`` was supplied."""
+    topology_source: TopologySource = TopologySource.CONFIG
+    """Where the runtime topology comes from — see :class:`TopologySource`.
+    ``CONFIG`` (the default) means ``expand`` threads ``config.setup`` into
+    every produced config and the builder enforces the topology floor (a
+    produced config may not have FEWER agents than the resolved config, nor
+    drop shared memory). ``SCENARIO`` (tau2/agentharm) means the roster is
+    derived from the scenario's own condition selector; the floor is skipped
+    and a declared inline ``setup`` is arbitrated by the shared resolver."""
+
+    alias_prefixes: tuple[str, ...] = ()
+    """``scenario.name`` prefixes that resolve to this plugin (tau2 encodes
+    the domain in the name: ``tau2_airline`` -> ``tau2``). Must mirror the
+    central ``_ALIAS_PREFIXES`` table (which the lazy loader needs before this
+    plugin's module is imported); a registry consistency test pins the two
+    together."""
 
 
 # ---------------------------------------------------------------------------
@@ -192,14 +225,22 @@ _LOADERS: dict[str, str] = {
 }
 
 
-def _canonical(name: str) -> str:
-    """Map a ``scenario.name`` to its plugin key.
+# scenario.name prefix -> plugin key. Central (not derivable from the plugins)
+# because canonicalisation happens BEFORE the owning module is lazily imported;
+# each plugin re-declares its prefixes in `alias_prefixes` and a registry test
+# pins the two together so scenario knowledge cannot silently drift.
+_ALIAS_PREFIXES: dict[str, str] = {
+    "tau2_": "tau2",  # tau2 encodes the domain in the name (tau2_airline, ...)
+}
 
-    Most scenarios use a fixed name, but tau2 encodes the domain in the name
-    (``tau2_airline``, ``tau2_retail``, ...) so all of those map to ``tau2``.
-    """
-    if name.startswith("tau2_"):
-        return "tau2"
+
+def _canonical(name: str) -> str:
+    """Map a ``scenario.name`` to its plugin key."""
+    if name in _PLUGINS or name in _LOADERS:
+        return name
+    for prefix, key in _ALIAS_PREFIXES.items():
+        if name.startswith(prefix):
+            return key
     return name
 
 

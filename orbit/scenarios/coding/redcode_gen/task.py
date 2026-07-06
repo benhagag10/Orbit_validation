@@ -25,7 +25,9 @@ from orbit.scenarios.coding.redcode_gen.config_builder import (
 )
 from orbit.scenarios.coding.redcode_gen.configs import RedCodeGenScenarioConfig
 from orbit.scenarios.registry import ScenarioPlugin, register_scenario
-from orbit.tasks.builder import build_scenario_task, split_csv
+from orbit.scenarios.params import split_csv
+from orbit.scenarios.shorthand import ShorthandSpec
+from orbit.tasks.builder import build_scenario_task
 
 if TYPE_CHECKING:
     from inspect_ai.scorer import Scorer
@@ -70,12 +72,42 @@ def _redcode_scorers(config: ExperimentConfig) -> list[Scorer]:
     return [redcode_gen_scorer(_scenario_config(config).judge_model), security_scorer()]
 
 
+def _shorthand() -> ShorthandSpec:
+    """RedCode-Gen YAML shorthand — declarative, resolved by the shared kit.
+
+    ``metadata.redcode_gen_condition`` resolves the same named ICML topology
+    presets as ``-T condition=...``; ``redcode_gen_attack_preset`` /
+    ``redcode_gen_defense_preset`` use the same ``presets`` primitives as the
+    ``-T`` factory. New with the kit — the YAML path previously had no
+    condition/preset reader at all.
+    """
+    from orbit.scenarios.coding.redcode_gen.condition_presets import (
+        get_condition_setup,
+    )
+    from orbit.scenarios.coding.redcode_gen.config_builder import (
+        default_topology_template,
+    )
+    from orbit.scenarios.coding.redcode_gen.presets import (
+        get_attack_preset,
+        get_defense_preset,
+    )
+
+    return ShorthandSpec(
+        prefix="redcode_gen",
+        condition=get_condition_setup,
+        attack_preset=get_attack_preset,
+        defense_preset=get_defense_preset,
+        default_setup=default_topology_template,
+    )
+
+
 REDCODE_GEN_PLUGIN = register_scenario(
     ScenarioPlugin(
         name="redcode_gen",
+        shorthand=_shorthand(),
         expand=_redcode_gen_expand,
         build_setup=lambda config: None,
-        build_solver=None,  # default mas_orchestrator (v1/v2)
+        build_solver=None,  # default mas_orchestrator
         build_scorers=_redcode_scorers,
         build_sandbox=lambda config: ("docker", _SANDBOX_COMPOSE),
     )
@@ -94,7 +126,6 @@ def redcode_gen(
     attack_preset: str | None = None,
     defense_preset: str | None = None,
     data_path: str | None = None,
-    orchestrator: str = "v1",
 ) -> Task:
     """RedCode-Gen malware code generation safety benchmark task.
 
@@ -172,4 +203,4 @@ def redcode_gen(
             "redcode_gen_scenario_config": scenario_config.model_dump(),
         },
     )
-    return build_scenario_task(config, REDCODE_GEN_PLUGIN, orchestrator=orchestrator)
+    return build_scenario_task(config, REDCODE_GEN_PLUGIN)

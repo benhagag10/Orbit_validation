@@ -192,7 +192,7 @@ class TestConditionProperties:
 
 
 class TestPathCWiring:
-    """Mesh conditions must supply an ExecutionConfig that routes to Path C."""
+    """Mesh conditions must supply an ExecutionConfig that routes to the ScheduledExecutor."""
 
     MESH_CONDITIONS = [
         "mesh_round_robin",
@@ -242,7 +242,7 @@ class TestPathCWiring:
                 assert agent.specialty, f"{condition}: {agent.name} no specialty"
 
     @pytest.mark.parametrize("condition", NON_MESH_CONDITIONS)
-    def test_non_mesh_uses_path_a(self, condition):
+    def test_non_mesh_uses_topology_path(self, condition):
         cs = get_condition(condition)
         assert cs.execution is None, (
             f"{condition}: non-mesh condition must not populate agent_groups"

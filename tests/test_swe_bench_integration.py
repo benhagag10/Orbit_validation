@@ -234,7 +234,7 @@ class TestBuildExperimentConfig:
         )
         group = _make_group(1)
         config = build_experiment_config(group)
-        # Single issue → Path A: no groups
+        # Single issue → topology path: no groups
         assert len(config.execution.agent_groups) == 0
         assert len(config.setup.agents) == 1
         assert config.scheduler.max_turns == 30  # default max_turns_per_agent
@@ -249,7 +249,7 @@ class TestBuildExperimentConfig:
         assert config.execution.agent_groups[1].name == "issue_1"
         assert config.execution.agent_groups[0].agents == ["solver_0"]
         assert config.execution.agent_groups[1].agents == ["solver_1"]
-        # Using Path C (agent_groups), not Path B (lanes)
+        # Using agent_groups (the scheduled, isolated-state path)
 
     def test_agent_groups_multi_agent(
         self,
@@ -308,7 +308,7 @@ class TestBuildExperimentConfig:
         from orbit.scenarios.coding.swe_bench.config_builder import (
             build_experiment_config,
         )
-        # Default mode is round_robin: one lane per turn, so
+        # Default mode is round_robin: one group per turn, so
         # max_turns = max_turns_per_agent * n_issues
         sc = SWEBenchScenarioConfig(max_turns_per_agent=20)
         config = build_experiment_config(
@@ -1054,7 +1054,7 @@ class TestEndToEndConfigFlow:
         assert config.attacks[0].attack_type == "self_replicating_injection"
 
     def test_multi_agent_topology_with_three_issues(self) -> None:
-        """3-issue group with supervisor+workers → 9 agents, 6 edges, 3 lanes."""
+        """3-issue group with supervisor+workers → 9 agents, 6 edges, 3 agent groups."""
         from orbit.scenarios.coding.swe_bench.config_builder import (
             build_experiment_config,
         )

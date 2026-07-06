@@ -60,8 +60,9 @@ class ExperimentConfig(BaseModel, frozen=True):
     # --- Execution control ---
 
     execution: ExecutionConfig = Field(default_factory=ExecutionConfig)
-    """Multi-lane execution configuration (lanes, environment, conflict policy).
-    If not specified, defaults produce single-lane sequential execution."""
+    """Execution control (agent groups, scheduling, observation). Empty
+    agent_groups runs the shared-state TopologyExecutor path; populated
+    agent_groups runs the scheduled, isolated-state ScheduledExecutor path."""
 
     scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
     """System-level experiment controller settings."""

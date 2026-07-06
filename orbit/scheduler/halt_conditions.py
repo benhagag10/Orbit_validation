@@ -44,7 +44,7 @@ def check_halt(
     config = scheduler.config
 
     # 0. Already halted (set externally, e.g. by orchestrator when
-    #    all lanes completed or a critical conflict occurred)
+    #    all agents completed or a critical conflict occurred)
     if scheduler.halt_reason:
         return True
 

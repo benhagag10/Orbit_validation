@@ -1181,6 +1181,7 @@ def validate_cmd(
     """
     import yaml
 
+    from orbit.scenarios.shorthand import ShorthandConflictError
     from orbit.tasks.builder import resolve_scenario_shorthand
     from orbit.validation.validators import ConfigValidator
     from orbit.wrapper.yaml_loader import apply_config_overrides, load_experiment_config
@@ -1208,12 +1209,18 @@ def validate_cmd(
             # Resolve scenario shorthand (e.g. a condition preset supplying the
             # topology) so a condition-only config validates against its real
             # topology, not an empty one — the same resolution the builder does.
+            # A ShorthandConflictError here (condition vs inline setup, dangling
+            # preset target — issues #31/#32) IS a validation failure.
             config = resolve_scenario_shorthand(config)
             # expand_templates: validate attack/defense targets against the
             # runtime agent names (swe_bench replicates solver -> solver_0…),
             # not the raw template — issues #7/#4.
             errors = ConfigValidator.validate(config, expand_templates=True)
             kind = "config"
+    except ShorthandConflictError as e:
+        click.echo("Validation FAILED (1 error(s)):", err=True)
+        click.echo(f"  - {e}", err=True)
+        sys.exit(1)
     except Exception as e:
         click.echo(f"Error loading config: {e}", err=True)
         sys.exit(1)

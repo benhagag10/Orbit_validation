@@ -98,7 +98,7 @@ Scorers read StoreModels and return Score objects
 | **DefenseLog** | `total_activations`, `blocks[]`, `detections[]`, `false_positives`, `true_positives` | Each defense monitor/on_tool_call |
 | **RuntimeMetrics** | `total_turns`, `wall_clock_seconds`, `total_tokens`, `invoked_agents`, `unhandled_errors` | Per-turn + finalization |
 | **BaselineMetrics** | `wall_clock_seconds`, `task_output`, `task_completed` | `_finalize_metrics()` (benign runs only) |
-| **EnvironmentState** | `turn`, `message_attribution[]`, `timeline[]` | Per-turn (Path C agent scheduler) |
+| **EnvironmentState** | `turn`, `message_attribution[]`, `timeline[]` | Per-turn (agent scheduler) |
 | **AgentCompromiseLog** | `scores{}`, `justifications{}`, `steps[]` | MASJudgeScorer subclasses (single judge call) |
 | **SubgoalTracker** | `phase`, `total_steps`, `attack_steps` | MASJudgeScorer subclasses (from step classification) |
 | **CollusionLog** | `coalition_agents`, `channel_messages[]`, `per_agent_reward{}`, `optimal_total_reward` | Collusion attack + scenario scorers |

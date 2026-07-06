@@ -110,12 +110,13 @@ def _assert_topology_preserved(
 
     The attack/defense floor does not cover topology, yet "star silently
     degenerates to a single agent" is the worst construct-validity failure this
-    project has. For a ``threads_setup`` plugin (the default), a produced config
-    may not have FEWER agents than the resolved config, nor turn a declared
-    ``memory.shared=True`` into ``False``. This is a floor: adding agents is
-    fine (agent expansion happens later in the orchestrator). Scenarios that
-    derive topology from a native selector (``threads_setup=False``:
-    tau2/agentharm) are exempt — the builder warns instead.
+    project has. For a ``topology_source=CONFIG`` plugin (the default), a
+    produced config may not have FEWER agents than the resolved config, nor
+    turn a declared ``memory.shared=True`` into ``False``. This is a floor:
+    adding agents is fine (agent expansion happens later in the orchestrator).
+    Scenarios that derive topology from a native selector
+    (``topology_source=SCENARIO``: tau2/agentharm) are exempt — the shared
+    resolver arbitrates their inline setup instead.
     """
     want_agents = len(resolved.setup.agents)
     want_shared = resolved.setup.memory.shared
@@ -126,9 +127,10 @@ def _assert_topology_preserved(
             raise ScenarioExpansionError(
                 f"Scenario plugin {plugin_name!r} collapsed the topology while "
                 f"expanding sample {i} ({cfg.name!r}): {want_agents} agent(s) "
-                f"declared, {len(cfg.setup.agents)} produced. A threads_setup "
-                f"plugin's expand() must thread config.setup into every produced "
-                f"config. See orbit.scenarios.registry.ScenarioPlugin.threads_setup."
+                f"declared, {len(cfg.setup.agents)} produced. A "
+                f"topology_source=CONFIG plugin's expand() must thread "
+                f"config.setup into every produced config. See "
+                f"orbit.scenarios.registry.ScenarioPlugin.topology_source."
             )
         if want_shared and not cfg.setup.memory.shared:
             raise ScenarioExpansionError(
@@ -138,58 +140,64 @@ def _assert_topology_preserved(
             )
 
 
-def split_csv(value: object) -> list[str] | None:
-    """Normalise a comma-string or list into a list of strings (or ``None``).
+def _resolve_config(
+    config: ExperimentConfig, plugin: ScenarioPlugin | None
+) -> ExperimentConfig:
+    """The single resolution pipeline every entry point runs (issue #16).
 
-    Scenario metadata may hold a selection filter as a comma-separated string
-    (``"a,b"``) or an already-parsed list. Plugins use this to read either.
+    1. Normalise the declared baseline: ``apply_baseline`` keyed on the
+       config's OWN ``baseline_mode``, so a YAML that declares a control run
+       is stripped consistently no matter which entry point built it.
+       Idempotent (``apply_baseline`` re-applies the same mode).
+    2. Resolve the plugin's declarative :class:`ShorthandSpec` (condition /
+       attack / defense preset metadata keys) via the shared resolver, with
+       uniform conflict + baseline gating.
+    3. Run the plugin's custom ``resolve`` escape hatch, if any.
+    4. Re-apply the baseline: control-run purity is structural — even a custom
+       hook that materialises a preset into a stripped dimension is re-stripped
+       here, centrally, instead of every plugin remembering a gating convention.
+
+    The attack/defense floor is snapshotted AFTER step 1 (the normalised
+    config) and asserted after step 4, so resolution may only ADD declared
+    types, never strip one.
     """
-    if value is None:
-        return None
-    if isinstance(value, list):
-        return [str(v).strip() for v in value if str(v).strip()]
-    return [v.strip() for v in str(value).split(",") if v.strip()]
+    from orbit.baselines.baselines import apply_baseline
 
+    config = apply_baseline(config, config.baseline_mode)
+    if plugin is None:
+        return config
+    floor = config
+    if plugin.shorthand is not None:
+        from orbit.scenarios.registry import TopologySource
+        from orbit.scenarios.shorthand import resolve_shorthand
 
-def baseline_keeps_attacks(config: ExperimentConfig) -> bool:
-    """Whether ``config``'s baseline mode retains attacks.
-
-    A plugin's ``resolve`` hook materialises attack *preset shorthand* into
-    ``config.attacks``. That must NOT happen when a baseline intentionally
-    stripped attacks (``no_attack``/``benign``) — otherwise the "control" run
-    silently re-acquires the attack and the attack-effect delta is measured
-    against a contaminated reference. ``resolve`` hooks gate preset injection on
-    this. Keyed on ``baseline_mode`` (set once by ``apply_baseline`` and carried
-    through ``model_copy``), so it is correct regardless of whether the baseline
-    was applied before or after ``resolve``.
-    """
-    from orbit.configs.baseline import BaselineMode
-
-    return config.baseline_mode not in (BaselineMode.NO_ATTACK, BaselineMode.BENIGN)
-
-
-def baseline_keeps_defenses(config: ExperimentConfig) -> bool:
-    """Whether ``config``'s baseline mode retains defenses (see
-    :func:`baseline_keeps_attacks`)."""
-    from orbit.configs.baseline import BaselineMode
-
-    return config.baseline_mode not in (BaselineMode.NO_DEFENSE, BaselineMode.BENIGN)
+        config = resolve_shorthand(
+            config,
+            plugin.shorthand,
+            scenario_topology=plugin.topology_source is TopologySource.SCENARIO,
+        )
+    if plugin.resolve is not None:
+        config = plugin.resolve(config)
+    config = apply_baseline(config, config.baseline_mode)
+    _assert_experiment_dimensions_preserved(
+        floor, [config], plugin.name, stage="resolving"
+    )
+    return config
 
 
 def resolve_scenario_shorthand(config: ExperimentConfig) -> ExperimentConfig:
-    """Apply the scenario plugin's ``resolve`` hook to ``config`` (or a no-op).
+    """Resolve ``config``'s scenario shorthand exactly as the builder will.
 
     Materialises scenario *shorthand* (a ``*_condition`` topology preset, an
-    ``*_attack_preset`` name) into the canonical config, exactly as the shared
-    builder does before dataset expansion. Callers that inspect or validate a
-    config *before* it reaches the builder — ``orbit validate`` and
-    ``orbit run --dry-run`` — use this so a condition-only YAML reports and
-    validates against its resolved topology rather than an empty one. Idempotent
-    (``resolve`` hooks strip the shorthand they consume)."""
-    plugin = get_scenario(config.scenario.name)
-    if plugin is not None and plugin.resolve is not None:
-        return plugin.resolve(config)
-    return config
+    ``*_attack_preset`` name) into the canonical config and normalises the
+    declared baseline — the same pipeline ``build_scenario_task`` runs before
+    dataset expansion. Callers that inspect or validate a config *before* it
+    reaches the builder — ``orbit validate`` and ``orbit run --dry-run`` — use
+    this so a condition-only YAML reports and validates against its resolved
+    topology rather than an empty one. Idempotent (the resolver strips the
+    shorthand keys it consumes)."""
+    plugin = get_scenario(config.scenario.name if config.scenario else None)
+    return _resolve_config(config, plugin)
 
 
 # ---------------------------------------------------------------------------
@@ -207,11 +215,10 @@ def default_sandbox(config: ExperimentConfig) -> tuple[str, str] | str | None:
 
 
 def default_scorers(config: ExperimentConfig) -> list[Scorer]:
-    """The generic scorer list, including DCOP/collusion wiring.
+    """The generic scorer list for scenarios without a plugin ``build_scorers``.
 
-    IMPORTANT: Scorer ordering matters. Scenario-specific scorers populate
-    CollusionLog and DCOPState, so they must run BEFORE collusion_scorer and
-    dcop_scorer which read from those stores.
+    IMPORTANT: Scorer ordering matters — collusion_scorer reads the
+    CollusionLog that earlier scorers populate, so it stays last.
     """
     from orbit.scorers.collusion_scorer import collusion_scorer
     from orbit.scorers.security_scorer import security_scorer
@@ -219,26 +226,11 @@ def default_scorers(config: ExperimentConfig) -> list[Scorer]:
 
     scorers: list[Scorer] = [security_scorer(), integrity_scorer()]
 
-    # Add scenario-specific scorers FIRST (they populate CollusionLog/DCOPState).
-    # DCOP-compatible scenarios (jira_ticket, hospital, meeting_scheduling) get
-    # both their domain-specific scorer AND the generic dcop_scorer.
-    scenario_name = config.scenario.name
-    if scenario_name == "jira_ticket":
-        from orbit.scenarios.cooperative_allocation.jira_ticket.scorer import jira_ticket_scorer
-        scorers.append(jira_ticket_scorer())
-    elif scenario_name == "hospital":
-        from orbit.scenarios.cooperative_allocation.hospital.scorer import hospital_scorer
-        scorers.append(hospital_scorer())
-    elif scenario_name == "meeting_scheduling":
-        from orbit.scenarios.cooperative_allocation.meeting_scheduling.scorer import meeting_scheduling_scorer
-        scorers.append(meeting_scheduling_scorer())
-
-    # Add DCOP scorer AFTER scenario scorer (reads DCOPState populated above).
-    if scenario_name in ("jira_ticket", "hospital", "meeting_scheduling"):
-        from orbit.scenarios.cooperative_allocation.dcop.scorer import dcop_scorer
-        scorers.append(dcop_scorer())
-
-    # Add collusion scorer LAST (reads CollusionLog populated by scenario scorer).
+    # Add collusion scorer LAST (reads CollusionLog populated by scenario
+    # scorers, which plugin-backed scenarios provide via build_scorers — the
+    # DCOP trio's per-scenario branches that used to live here were unreachable,
+    # since every registered scenario resolves to its plugin before this
+    # generic fallback is consulted).
     has_collusion = any(a.attack_type == "collusion" for a in config.attacks)
     if has_collusion:
         scorers.append(collusion_scorer())
@@ -264,7 +256,7 @@ DEFAULT_PLUGIN = ScenarioPlugin(
     name="__default__",
     expand=None,  # [config]
     build_setup=None,  # mas_environment_setup()
-    build_solver=None,  # mas_orchestrator (v1/v2)
+    build_solver=None,  # mas_orchestrator
     build_scorers=default_scorers,
     build_sandbox=default_sandbox,
     build_task_kwargs=_default_task_kwargs,
@@ -281,7 +273,6 @@ def build_scenario_task(
     config: ExperimentConfig,
     plugin: ScenarioPlugin | None = None,
     *,
-    orchestrator: str = "v1",
     variant: str = "default",
 ) -> Task:
     """Assemble the Inspect ``Task`` for ``config`` using its scenario plugin.
@@ -291,8 +282,6 @@ def build_scenario_task(
         plugin: The scenario plugin to use. If ``None``, it is looked up by
             ``config.scenario.name``; an unregistered name uses
             :data:`DEFAULT_PLUGIN`.
-        orchestrator: ``"v1"`` or ``"v2"`` — selects the orchestrator solver
-            when the plugin doesn't override ``build_solver``.
         variant: Baseline/variant label propagated into sample ids/metadata.
     """
     if plugin is None:
@@ -316,18 +305,11 @@ def build_scenario_task(
             )
             plugin = DEFAULT_PLUGIN
 
-    # 0. Resolve scenario-specific shorthand (preset/condition metadata keys)
-    # into the canonical config. Runs on BOTH entry points, so a preset declared
-    # in an `orbit run` YAML is resolved exactly as the `-T` factory resolves it.
-    # Guarded against dropping a declared type: the floor is snapshotted from the
-    # PRE-resolve config, so resolve may only ADD (materialise shorthand), never
-    # strip. Idempotent: a no-op when the config is already resolved.
-    if plugin.resolve is not None:
-        pre_resolve = config
-        config = plugin.resolve(config)
-        _assert_experiment_dimensions_preserved(
-            pre_resolve, [config], plugin.name, stage="resolving"
-        )
+    # 0. Resolve scenario shorthand (preset/condition metadata keys) into the
+    # canonical config and normalise the baseline — the single pipeline shared
+    # with `orbit validate` / `--dry-run`, guarded so resolution may only ADD
+    # (materialise shorthand), never strip a declared type. Idempotent.
+    config = _resolve_config(config, plugin)
 
     # 1. Dataset expansion (threads config.setup/attacks/defenses through).
     configs = plugin.expand(config) if plugin.expand else [config]
@@ -339,13 +321,17 @@ def build_scenario_task(
     # scenario — see the helper's docstring.
     _assert_experiment_dimensions_preserved(config, configs, plugin.name)
 
-    # 1b. Topology floor: a threads_setup plugin (the default) may not collapse
-    # the agent count or drop shared memory during expansion. Scenarios that
-    # derive topology from a native selector (tau2/agentharm) are exempt, but we
-    # warn if they were handed an inline setup that will be ignored.
-    if plugin.threads_setup:
+    # 1b. Topology floor: a topology_source=CONFIG plugin (the default) may not
+    # collapse the agent count or drop shared memory during expansion. Scenarios
+    # that derive topology from a native selector (SCENARIO: tau2/agentharm) are
+    # exempt — their inline-setup-vs-condition arbitration happened in the
+    # shared resolver (spec-declared, issue #32); plugins without a spec still
+    # get the legacy ignored-setup warning here.
+    from orbit.scenarios.registry import TopologySource
+
+    if plugin.topology_source is TopologySource.CONFIG:
         _assert_topology_preserved(config, configs, plugin.name)
-    elif config.setup.agents:
+    elif plugin.shorthand is None and config.setup.agents:
         logger.warning(
             "Scenario %r derives its topology from its own condition selector; "
             "the inline setup.agents (%s) is IGNORED. Remove it, or select the "
@@ -393,14 +379,10 @@ def build_scenario_task(
         setup = mas_environment_setup()
 
     if plugin.build_solver is not None:
-        solver = plugin.build_solver(config, orchestrator)
+        solver = plugin.build_solver(config)
     else:
-        if orchestrator == "v2":
-            from orbit.solvers.orchestrator_v2 import mas_orchestrator_v2
-            solver = mas_orchestrator_v2()
-        else:
-            from orbit.solvers.orchestrator import mas_orchestrator
-            solver = mas_orchestrator()
+        from orbit.solvers.orchestrator import mas_orchestrator
+        solver = mas_orchestrator()
 
     scorers = plugin.build_scorers(config) if plugin.build_scorers else default_scorers(config)
     sandbox = plugin.build_sandbox(config) if plugin.build_sandbox else default_sandbox(config)

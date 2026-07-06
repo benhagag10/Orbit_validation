@@ -4,22 +4,22 @@ Bridges general topology presets and BrowserART-specific details.
 Each named condition resolves to a :class:`ConditionSetup` that bundles
 the :class:`SetupConfig` with an optional :class:`ExecutionConfig`:
 
-- Star / memory conditions use Path A (no ``agent_groups``) — the
+- Star / memory conditions use the TopologyExecutor (no ``agent_groups``) — the
   orchestrator is the root and specialists are wired as ``as_tool()``
   sub-agents via the topology's ``tool`` edges.
-- Mesh conditions use Path C with ``round_robin`` scheduling and an
+- Mesh conditions use the ScheduledExecutor with ``round_robin`` scheduling and an
   observation summary, so every peer takes a turn.
 
 The 17 conditions:
 
-    single_agent              Single agent                      (Path A)
-    star_batch / _relaxed     Star: orchestrator + 1 executor   (Path A)
-    star_2/3_specialist       Star: orchestrator + 2/3 combined (Path A)
-    star_specialist / _relaxed Star: orchestrator + 4 specialists (Path A)
-    star_step                 Star: orchestrator + 1 step exec  (Path A)
-    mesh_round_robin          Mesh: 4 peers, round-robin        (Path C)
-    mesh_delegation*          Mesh: 4 peers, dynamic delegation (Path C)
-    memory_none..memory_full  Star specialists + memory levels  (Path A)
+    single_agent              Single agent                      (topology)
+    star_batch / _relaxed     Star: orchestrator + 1 executor   (topology)
+    star_2/3_specialist       Star: orchestrator + 2/3 combined (topology)
+    star_specialist / _relaxed Star: orchestrator + 4 specialists (topology)
+    star_step                 Star: orchestrator + 1 step exec  (topology)
+    mesh_round_robin          Mesh: 4 peers, round-robin        (scheduled)
+    mesh_delegation*          Mesh: 4 peers, dynamic delegation (scheduled)
+    memory_none..memory_full  Star specialists + memory levels  (topology)
 
 Internally every condition is described by a :class:`ConditionSpec`
 that composes a topology **shape**, a named **prompt set**, and an
@@ -77,7 +77,7 @@ _BROWSER_TOOLS: list[str] = [
 class ConditionSetup:
     """Bundles topology + execution config for a named condition.
 
-    ``execution`` is ``None`` for Path A conditions. Condition presets
+    ``execution`` is ``None`` for shared-state (non-scheduled) conditions. Condition presets
     return this so the scenario task can drop the execution config into
     :class:`ExperimentConfig` verbatim.
     """
@@ -286,7 +286,7 @@ def _build_star(spec: ConditionSpec, prompt_set: PromptSet) -> ConditionSetup:
 
 
 def _mesh_execution(agent_names: list[str], goal: str = "") -> ExecutionConfig:
-    """Path C execution config for a mesh: one group, round-robin,
+    """ScheduledExecutor config for a mesh: one group, round-robin,
     observation summaries so peers see each other's recent activity."""
     return ExecutionConfig(
         scheduling_mode="round_robin",

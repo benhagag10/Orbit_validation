@@ -1,6 +1,6 @@
 """End-to-end PR 3 smoke test for multi-agent BrowserART conditions.
 
-Drives ``star_specialist`` (Path A) and ``mesh_round_robin`` (Path C)
+Drives ``star_specialist`` (topology path) and ``mesh_round_robin`` (scheduled path)
 against the live browserart-service with a deterministic MockLLM. The
 MockLLM dispatches canned tool calls based on which tools are exposed
 on the current turn:
@@ -16,7 +16,7 @@ on the current turn:
   appears, then ``submit`` on subsequent turns.
 
 The goal is to validate the whole pipeline actually runs end-to-end:
-``browserart_setup`` → ``mas_orchestrator`` (Path A or Path C) →
+``browserart_setup`` → ``mas_orchestrator`` →
 ``browserart_teardown``, with real HTTP traffic against the live
 service.
 
