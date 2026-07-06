@@ -195,6 +195,94 @@ class TestTopologyExecutor:
         attr = {e["index"]: e["agent"] for e in env_state.message_attribution}
         assert attr == {0: "orchestrator", 1: "orchestrator", 2: "worker", 3: "orchestrator"}
 
+    def test_delegate_target_maps_both_mechanisms(self):
+        """as_tool() tools are named after the agent; handoff() tools are
+        named transfer_to_<agent>. Ordinary tools map to no agent."""
+        from orbit.execution.topology_executor import _delegate_target
+        names = {"orchestrator", "implementer"}
+        assert _delegate_target("implementer", names) == "implementer"
+        assert _delegate_target("transfer_to_implementer", names) == "implementer"
+        assert _delegate_target("transfer_to_stranger", names) is None
+        assert _delegate_target("bash", names) is None
+
+    def test_attribute_credits_handoff_messages(self, single_agent_setup):
+        """A handoff sub-agent's turn is credited to that sub-agent: the
+        transfer_to_* tool result and the '[name] ...' prefixed assistant
+        messages Inspect merges back both map to the delegate, mirroring
+        as_tool()'s function-name match. Bracket prefixes are imitable
+        content, so they only attribute to agents the execution-boundary
+        observer recorded; unknown prefixes stay with the producing agent."""
+        from orbit.execution.topology_executor import TopologyExecutor
+        executor = TopologyExecutor(single_agent_setup)
+        executor._invoked = ["orchestrator", "worker", "helper"]
+        env_state = SimpleNamespace(message_attribution=[])
+        state = SimpleNamespace(messages=[
+            SimpleNamespace(role="assistant", content="delegating"),
+            SimpleNamespace(role="tool", function="transfer_to_worker", content=""),
+            SimpleNamespace(role="assistant", content="[worker] doing the thing"),
+            SimpleNamespace(role="assistant", content="[worker] [helper] nested"),
+            SimpleNamespace(role="assistant", content="[stranger] not configured"),
+            SimpleNamespace(role="user", content="The worker agent has completed its work."),
+        ])
+        executor._attribute(
+            env_state, state, 0, "orchestrator", {"orchestrator", "worker", "helper"}
+        )
+        attr = {e["index"]: e["agent"] for e in env_state.message_attribution}
+        assert attr == {
+            0: "orchestrator", 1: "worker", 2: "worker",
+            3: "helper", 4: "orchestrator", 5: "orchestrator",
+        }
+
+    def test_attribute_ignores_imitated_prefix_of_never_ran_agent(self, single_agent_setup):
+        """A '[worker] ...' prefix on a run where the observer never saw
+        worker execute is model imitation (or injected content), not a
+        handoff — it must stay attributed to the producing agent."""
+        from orbit.execution.topology_executor import TopologyExecutor
+        executor = TopologyExecutor(single_agent_setup)
+        executor._invoked = ["orchestrator"]
+        env_state = SimpleNamespace(message_attribution=[])
+        state = SimpleNamespace(messages=[
+            SimpleNamespace(role="assistant", content="[worker] pretending to be worker"),
+        ])
+        executor._attribute(
+            env_state, state, 0, "orchestrator", {"orchestrator", "worker"}
+        )
+        assert env_state.message_attribution == [
+            {"index": 0, "agent": "orchestrator", "group": ""}
+        ]
+
+    @pytest.mark.asyncio
+    async def test_observe_agent_records_at_execution_boundary(self, single_agent_setup):
+        """Participation is recorded when the agent function actually runs —
+        as_tool, handoff at any depth, direct_run, and the root all await the
+        built agent object — so the record cannot be forged by message
+        content or broken by how Inspect merges sub-agent conversations."""
+        from orbit.execution.topology_executor import TopologyExecutor
+        executor = TopologyExecutor(single_agent_setup)
+        assert executor._invoked == []  # building/wrapping records nothing
+
+        seen = []
+        async def inner(state):
+            seen.append(state)
+            return state
+        wrapped = executor._observe_agent("worker", inner)
+        out = await wrapped("state-1")
+        assert out == "state-1" and seen == ["state-1"]
+        assert executor._invoked == ["worker"]
+        assert executor._last_ran == "worker"
+        await wrapped("state-2")  # deduped, order preserved
+        assert executor._invoked == ["worker"]
+
+    def test_built_agents_are_observed_and_keep_registry_name(self, multi_agent_setup):
+        """The observer wrapper must not disturb agent registry names:
+        handoff() derives its transfer_to_<name> tool name from them, and
+        agent_handoff resolves the sub-agent name the same way."""
+        from inspect_ai._util.registry import registry_unqualified_name
+        from orbit.execution.topology_executor import TopologyExecutor
+        executor = TopologyExecutor(multi_agent_setup)
+        for name, agent in executor.agents.items():
+            assert registry_unqualified_name(agent) == name
+
     def test_attribute_only_records_from_start_index(self, single_agent_setup):
         from orbit.execution.topology_executor import TopologyExecutor
         executor = TopologyExecutor(single_agent_setup)

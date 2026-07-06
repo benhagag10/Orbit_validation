@@ -188,6 +188,7 @@ def build_topology_agents(
     setup: SetupConfig,
     model_wrapper: Callable[[str, Model], Model] | None = None,
     tool_wrappers: dict[str, "ToolWrapperFn"] | None = None,
+    agent_wrapper: Callable[[str, Agent], Agent] | None = None,
 ) -> dict[str, Agent]:
     """Build all agents with topology wiring already applied.
 
@@ -207,6 +208,11 @@ def build_topology_agents(
             When set, every base tool and topology tool on that agent is
             replaced with the wrapped version before the agent is built.
             Used by defenses like dual_llm to intercept tool results.
+        agent_wrapper: Optional callable (agent_name, agent) -> agent applied
+            to each agent as it is built. The registry name/description are
+            set on the *wrapped* agent afterwards, so handoff()/as_tool()
+            tool schemas are unaffected. Used by TopologyExecutor to observe
+            agent invocations at the execution boundary.
 
     Returns:
         Dict mapping agent name -> fully-wired Agent instance.
@@ -249,8 +255,11 @@ def build_topology_agents(
         if resolved_model is not None:
             kwargs["model"] = resolved_model
 
+        agent: Agent = react(**kwargs)
+        if agent_wrapper is not None:
+            agent = agent_wrapper(spec.name, agent)
         return agent_with(
-            react(**kwargs), name=spec.name,
+            agent, name=spec.name,
             description=spec.specialty or spec.role,
         )
 

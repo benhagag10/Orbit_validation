@@ -67,7 +67,7 @@ def _track_invoked_agents(
     """Record agents that ran this turn into ``RuntimeMetrics.invoked_agents``.
 
     ``TopologyExecutor`` may delegate to sub-agents via ``as_tool()`` /
-    ``direct_run`` within a single root turn; those sub-agents never appear as
+    ``handoff()`` / ``direct_run`` within a single root turn; those sub-agents never appear as
     their own :class:`AgentTurnResult`, so consult the executor's own
     invoked-agent record first (root + delegated sub-agents, in order). Fall
     back to the per-turn result name for ``ScheduledExecutor``, where each
