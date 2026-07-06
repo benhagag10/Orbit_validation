@@ -7,7 +7,7 @@ Orbit has three ways to run experiments. This page covers all of them.
 The simplest way to run BrowserART experiments. Use `--agents`, `--topology`, and `--memory` to select a multi-agent condition.
 
 ```bash
-orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin
+uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin
 ```
 
 ### CLI Parameters
@@ -35,19 +35,19 @@ orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin
 
 ```bash
 # Single agent
-orbit browserart -m openai/gpt-4o
+uv run orbit browserart -m openai/gpt-4o
 
 # Specialist team with full memory sharing
-orbit browserart -m openai/gpt-4o --agents specialist --memory full
+uv run orbit browserart -m openai/gpt-4o --agents specialist --memory full
 
 # Specialist peers with round-robin turns
-orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin
+uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin
 
 # Multi-agent with video recording
-orbit browserart -m openai/gpt-4o --agents specialist --record-video-dir ./videos
+uv run orbit browserart -m openai/gpt-4o --agents specialist --record-video-dir ./videos
 
 # Filter by category, limit to 5 behaviors
-orbit browserart -m openai/gpt-4o --categories content/phishing --limit 5
+uv run orbit browserart -m openai/gpt-4o --categories content/phishing --limit 5
 ```
 
 ## `inspect eval` with `-T` Flags
@@ -55,7 +55,7 @@ orbit browserart -m openai/gpt-4o --categories content/phishing --limit 5
 You can also use Inspect's native CLI directly. All parameters from `orbit browserart` are available as `-T` flags:
 
 ```bash
-inspect eval orbit/browserart_safety \
+uv run inspect eval orbit/browserart_safety \
   -T agents=specialist -T topology=round_robin \
   --model openai/gpt-4o
 ```
@@ -85,7 +85,7 @@ inspect eval orbit/browserart_safety \
 For custom agents, attacks, defenses, or reproducible configs, use YAML files with the `orbit` CLI.
 
 ```bash
-orbit run my_config.yaml --model openai/gpt-4o
+uv run orbit run my_config.yaml --model openai/gpt-4o
 ```
 
 ### Minimal Config
@@ -422,7 +422,7 @@ These go in the `metadata` section and are specific to the SWE-Bench scenario.
 Run a BrowserART eval directly (no YAML config needed).
 
 ```bash
-orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin
+uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin
 ```
 
 | Option | Description |
@@ -450,7 +450,7 @@ orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin
 Run a single experiment from a YAML config.
 
 ```bash
-orbit run <config.yaml> [OPTIONS]
+uv run orbit run <config.yaml> [OPTIONS]
 ```
 
 | Option | Description |
@@ -471,7 +471,7 @@ orbit run <config.yaml> [OPTIONS]
 Run multiple configs as a benchmark suite.
 
 ```bash
-orbit suite configs/*.yaml --model openai/gpt-4o --baselines
+uv run orbit suite configs/*.yaml --model openai/gpt-4o --baselines
 ```
 
 | Option | Description |
@@ -487,7 +487,7 @@ orbit suite configs/*.yaml --model openai/gpt-4o --baselines
 Check a config file for errors without running.
 
 ```bash
-orbit validate my_config.yaml
+uv run orbit validate my_config.yaml
 ```
 
 ---
@@ -497,7 +497,7 @@ orbit validate my_config.yaml
 All runs produce Inspect eval logs. View them with:
 
 ```bash
-inspect view
+uv run inspect view
 ```
 
 This opens a browser UI showing all eval results, scores, and conversation traces.

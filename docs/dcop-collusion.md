@@ -161,12 +161,12 @@ Each scenario is registered as an Inspect task with flat parameters:
 
 ```bash
 # JiraTicket -- baseline (no collusion)
-inspect eval orbit/jira_ticket_allocation \
+uv run inspect eval orbit/jira_ticket_allocation \
   -T num_developers=4 -T num_tasks=6 -T seed=42 \
   --model openai/gpt-4o
 
 # JiraTicket -- with 2-agent coalition
-inspect eval orbit/jira_ticket_allocation \
+uv run inspect eval orbit/jira_ticket_allocation \
   -T num_developers=4 -T num_tasks=6 \
   -T coalition_agents=dev_0,dev_1 \
   -T persuasion_tactic=reciprocity_trade \
@@ -174,13 +174,13 @@ inspect eval orbit/jira_ticket_allocation \
   --model openai/gpt-4o
 
 # Hospital -- with coalition
-inspect eval orbit/hospital_scheduling \
+uv run inspect eval orbit/hospital_scheduling \
   -T num_hospitals=2 -T num_patients=6 \
   -T coalition_agents=hosp_0_surgery,hosp_0_radiology \
   --model openai/gpt-4o
 
 # MeetingScheduling -- 4 agents, 3 meetings
-inspect eval orbit/meeting_scheduling \
+uv run inspect eval orbit/meeting_scheduling \
   -T num_agents=4 -T num_meetings=3 \
   -T coalition_agents=agent_0,agent_1 \
   --model openai/gpt-4o
@@ -191,7 +191,7 @@ inspect eval orbit/meeting_scheduling \
 For full control over agent prompts, attack payloads, and execution settings:
 
 ```bash
-orbit run examples/collusion_jira_ticket.yaml --model openai/gpt-4o
+uv run orbit run examples/collusion_jira_ticket.yaml --model openai/gpt-4o
 ```
 
 Example YAML:
@@ -241,7 +241,7 @@ scheduler:
 ### Viewing Results
 
 ```bash
-inspect view --log-dir logs/
+uv run inspect view --log-dir logs/
 ```
 
 The Inspect log viewer shows all scorer outputs: security metrics, scenario-specific rewards, DCOP accuracy, and collusion metrics (regret, coalition advantage, channel activity).
