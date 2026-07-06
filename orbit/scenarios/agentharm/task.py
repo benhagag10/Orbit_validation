@@ -21,6 +21,7 @@ from orbit.scenarios.agentharm.config_builder import (
     build_experiment_configs,
 )
 from orbit.scenarios.agentharm.configs import AgentHarmScenarioConfig
+from orbit.scenarios.agentharm.presets import get_defense_preset
 from orbit.scenarios.registry import ScenarioPlugin, TopologySource, register_scenario
 from orbit.scenarios.shorthand import ShorthandSpec
 from orbit.tasks.builder import build_scenario_task
@@ -90,6 +91,7 @@ AGENTHARM_PLUGIN = register_scenario(
         # roster the condition actually builds (issue #32).
         shorthand=ShorthandSpec(
             prefix="agentharm",
+            defense_preset=get_defense_preset,
             expected_roster=_expected_roster,
             default_condition="single_agent",
         ),
@@ -108,6 +110,7 @@ def agentharm(
     split: str = "harmful",
     partition: str = "test_public",
     condition: str = "single_agent",
+    defense_preset: str | None = None,
     categories: str | None = None,
     task_ids: str | None = None,
     detailed_prompt: bool | None = None,
@@ -132,6 +135,11 @@ def agentharm(
         partition: ``test_public`` (default, 176 samples) or ``validation``.
         condition: Topology preset — see
             :func:`orbit.scenarios.agentharm.condition_presets.list_conditions`.
+        defense_preset: Named defense preset from
+            :mod:`orbit.scenarios.agentharm.presets` (``'prompt_vaccination'``
+            or ``'dual_llm'``). ``None`` (default) runs undefended. The preset
+            applies to every agent in the resolved roster (see that module for
+            the ``target_agents=[]`` rationale).
         categories: Comma-separated harm-category filter.
         task_ids: Comma-separated behavior-ID filter.
         detailed_prompt: Keep only behaviors with matching ``detailed_prompt``.
@@ -178,6 +186,11 @@ def agentharm(
         max_time_seconds=max_time_seconds,
     )
 
+    # Materialise a named defense preset into config.defenses; the expand hook
+    # threads them onto every per-behavior config (the builder enforces this). An
+    # unknown name raises here with the valid names.
+    defenses = get_defense_preset(defense_preset) if defense_preset else []
+
     config = ExperimentConfig(
         name="agentharm",
         description="AgentHarm harmful tool-use safety benchmark",
@@ -188,6 +201,7 @@ def agentharm(
             halt_on_convergence=False,
         ),
         metrics=MetricsConfig(),
+        defenses=defenses,
         metadata={
             "agentharm_scenario_config": scenario_config.model_dump(),
             "agentharm_condition": condition,

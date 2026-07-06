@@ -34,6 +34,7 @@ from orbit.scenarios.customer_service.tau2.dataset_builder import (
     load_policy,
     load_tau2_tasks,
 )
+from orbit.scenarios.customer_service.tau2.presets import get_defense_preset
 from orbit.scenarios.customer_service.tau2.scorer import (
     _apply_env_function_calls,
     _initialization_calls,
@@ -321,6 +322,7 @@ TAU2_PLUGIN = register_scenario(
         # condition actually builds (issue #32) instead of warning every run.
         shorthand=ShorthandSpec(
             prefix="tau2",
+            defense_preset=get_defense_preset,
             expected_roster=_expected_roster,
             default_condition="dual_control",
         ),
@@ -343,6 +345,7 @@ def tau2(
     domain: str = "airline",
     task_ids: str | None = None,
     condition: str = "dual_control",
+    defense_preset: str | None = None,
     judge_model: str = "openai/gpt-4.1",
     max_turns: int = 100,
     max_time_seconds: float = 600.0,
@@ -396,6 +399,11 @@ def tau2(
             only), ``'dual_control'`` (default), ``'supervisor_specialist'``,
             ``'tiered_escalation'``, ``'mesh_committee'``,
             ``'dual_control_review'``, ``'cross_domain_handoff'``.
+        defense_preset: Named defense preset from
+            :mod:`orbit.scenarios.customer_service.tau2.presets`
+            (``'prompt_vaccination'`` or ``'dual_llm'``). ``None`` (default)
+            runs undefended. The preset applies to every agent in the resolved
+            roster (see that module for the ``target_agents=[]`` rationale).
         judge_model: Model used for NL-assertion grading. Only invoked
             when the task's ``reward_basis`` includes ``NL_ASSERTION``.
         max_turns: Maximum orchestrator turns per task.
@@ -435,6 +443,11 @@ def tau2(
         data_path=data_path,
     )
 
+    # Materialise a named defense preset into config.defenses; the expand hook
+    # threads them onto every per-task config (the builder enforces this). An
+    # unknown name raises here with the valid names.
+    defenses = get_defense_preset(defense_preset) if defense_preset else []
+
     # Build the single template config and delegate to the shared builder.
     # The tau2 plugin's expand hook fans this out into one config per task
     # (its topology is built per-task by topologies.py, not from config.setup).
@@ -456,6 +469,7 @@ def tau2(
             halt_on_convergence=False,
         ),
         metrics=MetricsConfig(),
+        defenses=defenses,
         metadata={"tau2_scenario_config": scenario_config.model_dump()},
     )
     return build_scenario_task(config, TAU2_PLUGIN)
