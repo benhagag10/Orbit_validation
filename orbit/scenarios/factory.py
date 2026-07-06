@@ -1,14 +1,11 @@
-"""Shared helpers for scenario ``@task`` factories and metadata readers.
+"""Shared helper for scenario ``@task`` factories and metadata readers.
 
-Every scenario repeats the same three blocks by hand (issue #16): reconstruct
-its scenario-config model from Sample metadata (the ``orbit run`` path),
-resolve the topology-selection parameters (``condition`` / ``agents`` /
-``topology_file``), and assemble the template ``ExperimentConfig`` it hands to
-:func:`orbit.tasks.builder.build_scenario_task`. Each hand-rolled copy is a
-place for the factory and the metadata reader to desync — the root cause of
-the issue-#9 shorthand-drop class. These helpers derive all three from the
-scenario's declarations (its Pydantic scenario-config model and its preset
-registries), so a field/param is declared once.
+Every scenario reconstructs its scenario-config model from Sample metadata by
+hand (issue #16, the ``orbit run`` path), and each hand-rolled copy is a place
+for the factory and the metadata reader to desync — the root cause of the
+issue-#9 shorthand-drop class. :func:`scenario_config_from_metadata` derives
+that reconstruction from the scenario's own Pydantic model fields, so a field
+is declared once.
 """
 
 from __future__ import annotations
@@ -21,7 +18,6 @@ from orbit.scenarios.params import csv_tuple, split_csv
 
 if TYPE_CHECKING:
     from orbit.configs.experiment import ExperimentConfig
-    from orbit.configs.setup import SetupConfig
 
 
 def _is_multi_valued(annotation: Any) -> tuple[bool, bool]:
@@ -114,116 +110,3 @@ def scenario_config_from_metadata(
             value = csv_tuple(value) if as_tuple else split_csv(value)
         kwargs[name] = value
     return model_cls(**kwargs)
-
-
-def template_experiment_config(
-    *,
-    scenario_name: str,
-    description: str,
-    prefix: str,
-    scenario_config: Any,
-    max_turns: int,
-    max_time_seconds: float,
-    setup: "SetupConfig | None" = None,
-    execution: Any = None,
-    attacks: list | None = None,
-    defenses: list | None = None,
-    extra_metadata: dict[str, Any] | None = None,
-) -> "ExperimentConfig":
-    """The template ``ExperimentConfig`` every ``@task`` factory hands to the
-    shared builder — scenario-config dump under ``{prefix}_scenario_config``
-    (the standard metadata round-trip), scheduler budget mirrored from the
-    scenario config, ``halt_on_convergence`` off (dataset scenarios halt on
-    their own criteria).
-    """
-    from orbit.configs.experiment import ExperimentConfig
-    from orbit.configs.metrics import MetricsConfig
-    from orbit.configs.scenario import ScenarioConfig
-    from orbit.configs.scheduler import SchedulerConfig
-
-    metadata = {f"{prefix}_scenario_config": scenario_config.model_dump()}
-    if extra_metadata:
-        metadata.update(extra_metadata)
-
-    kwargs: dict[str, Any] = {
-        "name": scenario_name,
-        "description": description,
-        "scenario": ScenarioConfig(name=scenario_name, description=description),
-        "attacks": attacks or [],
-        "defenses": defenses or [],
-        "scheduler": SchedulerConfig(
-            max_turns=max_turns,
-            max_time_seconds=max_time_seconds,
-            halt_on_convergence=False,
-        ),
-        "metrics": MetricsConfig(),
-        "metadata": metadata,
-    }
-    if setup is not None:
-        kwargs["setup"] = setup
-    if execution is not None:
-        kwargs["execution"] = execution
-    return ExperimentConfig(**kwargs)
-
-
-def resolve_topology_params(
-    *,
-    condition: str | None = None,
-    agents: str | None = None,
-    topology: str | None = None,
-    memory: str | None = None,
-    instructions: str | None = None,
-    topology_file: str | None = "default",
-    get_condition_setup: Callable[[str], "SetupConfig"],
-    resolve_condition: Callable[..., str] | None = None,
-    default_setup: Callable[[], "SetupConfig"] | None = None,
-) -> tuple["SetupConfig | None", str | None]:
-    """Resolve the standard topology-selection ``-T`` params to a template.
-
-    Three mutually exclusive sources, identical semantics for every scenario
-    (previously four hand-rolled variants): a named ``condition`` preset;
-    human-readable ``agents``/``topology``/``memory``/``instructions`` knobs
-    resolved to a condition via the scenario's ``resolve_condition``; or a
-    ``topology_file`` YAML. Returns ``(setup, resolved_condition_name)`` —
-    setup is ``None`` when the scenario has no default template and nothing
-    was selected.
-    """
-    has_condition = condition is not None
-    has_agents = agents is not None
-    has_file = topology_file not in (None, "default")
-    has_sub = any(p is not None for p in (topology, memory, instructions))
-
-    if has_condition and has_agents:
-        raise ValueError("Cannot specify both --condition and --agents. Use one or the other.")
-    if has_condition and has_file:
-        raise ValueError("Cannot specify both --condition and --topology_file.")
-    if has_agents and has_file:
-        raise ValueError("Cannot specify both --agents and --topology_file.")
-    if (has_condition or has_file) and has_sub:
-        raise ValueError("--topology, --memory, --instructions are only used with --agents.")
-    if has_sub and not has_agents:
-        raise ValueError("--topology, --memory, --instructions require --agents.")
-
-    if has_agents:
-        if resolve_condition is None:
-            raise ValueError("This scenario does not support --agents; use --condition.")
-        condition = resolve_condition(
-            agents=agents,
-            topology=topology or "star",
-            memory=memory or "none",
-            instructions=instructions or "detailed",
-        )
-    if condition is not None:
-        return get_condition_setup(condition), condition
-    if has_file:
-        import yaml
-
-        from orbit.configs.setup import SetupConfig
-
-        with open(topology_file, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-        # Tolerate a full experiment YAML being passed: unwrap its setup block.
-        if "setup" in data and ("scenario" in data or "name" in data):
-            data = data["setup"]
-        return SetupConfig(**data), None
-    return (default_setup() if default_setup is not None else None), None
