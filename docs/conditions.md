@@ -18,6 +18,28 @@ inspect eval orbit/browserart_safety \
   --model openai/gpt-4o
 ```
 
+## In a YAML config
+
+Conditions are also selectable from an `orbit run` YAML via a scenario-prefixed
+`metadata` key — `<prefix>_condition`, e.g. `browserart_condition` or
+`swe_bench_condition` (see the
+[shorthand table](configuration.md#scenario-shorthand-metadata-keys) for which
+scenarios support it):
+
+```yaml
+scenario:
+  name: "browserart"
+metadata:
+  browserart_condition: "star_specialist"
+```
+
+Declare **either** a `<prefix>_condition` **or** an inline `setup:` block, not
+both. If both are present the **condition wins**: a `setup.agents` roster that
+differs from the condition's raises a `ShorthandConflictError`
+(`ORBIT_LENIENT=1` downgrades it to a warning), and a matching roster is dropped
+as redundant. (This precedence reversed with the scenario authoring kit — an
+inline setup no longer overrides a condition.)
+
 ## Overview
 
 The conditions decompose into three independent dimensions:
