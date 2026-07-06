@@ -32,8 +32,11 @@ from orbit.scenarios.desktop.osworld.config_builder import (
     default_topology_template,
 )
 from orbit.scenarios.desktop.osworld.configs import OSWorldScenarioConfig
+from orbit.scenarios.factory import scenario_config_from_metadata
+from orbit.scenarios.params import split_csv as _split
 from orbit.scenarios.registry import ScenarioPlugin, register_scenario
-from orbit.tasks.builder import build_scenario_task, split_csv as _split
+from orbit.scenarios.shorthand import ShorthandSpec
+from orbit.tasks.builder import build_scenario_task
 
 if TYPE_CHECKING:
     from inspect_ai.scorer import Scorer
@@ -56,22 +59,19 @@ def _scenario_config(
 
     The -T factory serializes the resolved ``OSWorldScenarioConfig`` under
     ``osworld_scenario_config``; YAML/​orbit-run configs use the individual
-    ``osworld_*`` keys.
+    ``osworld_*`` keys (derived from the model's own fields; the aliases keep
+    the documented singular key spellings working).
     """
-    meta = config.metadata or {}
-    if "osworld_scenario_config" in meta:
-        return OSWorldScenarioConfig(**meta["osworld_scenario_config"])
-    return OSWorldScenarioConfig(
-        dataset=meta.get("osworld_dataset", default_dataset),
-        apps=_split(meta.get("osworld_app")),
-        threat_categories=_split(meta.get("osworld_threat_category")),
-        violation_types=_split(meta.get("osworld_violation_type")),
-        task_ids=_split(meta.get("osworld_task_ids")),
-        judge_model=meta.get("osworld_judge_model", "openai/gpt-4.1"),
-        max_turns=config.scheduler.max_turns,
-        max_time_seconds=config.scheduler.max_time_seconds,
-        max_screenshots=meta.get("osworld_max_screenshots", 1),
-        computer_timeout=meta.get("osworld_computer_timeout", 180),
+    return scenario_config_from_metadata(
+        config,
+        OSWorldScenarioConfig,
+        prefix="osworld",
+        aliases={
+            "apps": "app",
+            "threat_categories": "threat_category",
+            "violation_types": "violation_type",
+        },
+        defaults={"dataset": default_dataset},
     )
 
 
@@ -207,66 +207,39 @@ def _osworld_safety_scorers(config: ExperimentConfig) -> list[Scorer]:
     return [osworld_scorer(_judge_model(config)), security_scorer()]
 
 
-def _osworld_resolve(config: ExperimentConfig) -> ExperimentConfig:
-    """Resolve osworld shorthand into the canonical config on the orbit-run path.
+def _shorthand() -> ShorthandSpec:
+    """osworld YAML shorthand — declarative, resolved by the shared kit.
 
-    An ``orbit run`` YAML may carry shorthand in ``config.metadata``:
-    ``osworld_condition`` (a named topology/memory condition) and
-    ``osworld_attack_preset`` / ``osworld_defense_preset`` (preset names). Resolve
-    each to its canonical form, using the same primitives the ``-T`` factory
-    uses, so the YAML path matches ``inspect eval -T`` and nothing is silently
-    dropped or degraded (a named memory condition must not collapse to default
-    non-shared memory — a P0 construct-validity failure). Idempotent on the
-    ``-T`` path, where the factory already built setup/attacks/defenses.
+    ``osworld_condition`` (a named topology/memory condition — a named memory
+    condition must not collapse to default non-shared memory, a P0
+    construct-validity failure) and ``osworld_attack_preset`` /
+    ``osworld_defense_preset``, using the same primitives as the ``-T``
+    factories. The attack preset takes the applied condition so its target
+    agent is tailored to the resolved topology.
     """
-    from orbit.tasks.builder import baseline_keeps_attacks, baseline_keeps_defenses
+    from orbit.scenarios.desktop.osworld.condition_presets import get_condition_setup
+    from orbit.scenarios.desktop.osworld.presets import (
+        get_attack_preset,
+        get_defense_preset,
+    )
 
-    meta = config.metadata or {}
-    updates: dict = {}
-    cond = meta.get("osworld_condition")
-    applied_cond: str | None = None
-    if cond:
-        # Mark the condition consumed either way so a second resolve() is a no-op
-        # (the builder and the validate/dry-run paths may both call resolve).
-        new_meta = {k: v for k, v in meta.items() if k != "osworld_condition"}
-        if config.setup.agents:
-            logger.warning(
-                "osworld config declares BOTH an inline setup.agents topology and "
-                "metadata.osworld_condition=%r; using the inline setup and "
-                "IGNORING the condition. Declare exactly one.",
-                cond,
-            )
-            new_meta["osworld_ignored_condition"] = cond
-        else:
-            from orbit.scenarios.desktop.osworld.condition_presets import get_condition_setup
-            updates["setup"] = get_condition_setup(cond)
-            new_meta["osworld_resolved_condition"] = cond
-            applied_cond = cond
-        updates["metadata"] = new_meta
-    if (
-        baseline_keeps_attacks(config)
-        and not config.attacks
-        and meta.get("osworld_attack_preset")
-    ):
-        from orbit.scenarios.desktop.osworld.presets import get_attack_preset
-        # An ignored condition must not tailor the attack preset.
-        updates["attacks"] = get_attack_preset(
-            meta["osworld_attack_preset"], condition=applied_cond
-        )
-    if (
-        baseline_keeps_defenses(config)
-        and not config.defenses
-        and meta.get("osworld_defense_preset")
-    ):
-        from orbit.scenarios.desktop.osworld.presets import get_defense_preset
-        updates["defenses"] = get_defense_preset(meta["osworld_defense_preset"])
-    return config.model_copy(update=updates) if updates else config
+    return ShorthandSpec(
+        prefix="osworld",
+        condition=get_condition_setup,
+        attack_preset=get_attack_preset,
+        defense_preset=get_defense_preset,
+        preset_takes_condition=True,
+        default_setup=default_topology_template,
+    )
+
+
+_OSWORLD_SHORTHAND = _shorthand()
 
 
 OSWORLD_SAFETY_PLUGIN = register_scenario(
     ScenarioPlugin(
         name="osworld",
-        resolve=_osworld_resolve,
+        shorthand=_OSWORLD_SHORTHAND,
         expand=_osworld_safety_expand,
         build_setup=lambda config: None,
         build_solver=None,  # default mas_orchestrator
@@ -424,7 +397,7 @@ def _osworld_benchmark_scorers(config: ExperimentConfig) -> list[Scorer]:
 OSWORLD_BENCHMARK_PLUGIN = register_scenario(
     ScenarioPlugin(
         name="osworld_benchmark",
-        resolve=_osworld_resolve,
+        shorthand=_OSWORLD_SHORTHAND,  # same osworld_* metadata keys
         expand=_osworld_benchmark_expand,
         build_setup=lambda config: None,
         build_solver=None,

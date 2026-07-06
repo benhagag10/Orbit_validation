@@ -17,6 +17,16 @@ YAML file
 
 The key insight: Inspect works with flat `Sample` objects, so the rich `ExperimentConfig` is stashed in `Sample.metadata` and recovered inside solvers via `state.metadata_as(MASMetadata)`.
 
+## Scenario Plugins
+
+The `@task → Task` step is scenario-agnostic. Both entry points — `orbit run <yaml>` and `inspect eval orbit/<scenario> -T ...` — converge on a single builder, `orbit.tasks.builder.build_scenario_task`, which turns one `ExperimentConfig` into one Inspect `Task`. Baseline application, shorthand resolution, sample building (serialising the whole config into metadata), and attack/defense/topology wiring live there, once.
+
+Each scenario contributes only its unique pieces through a `ScenarioPlugin` (`orbit/scenarios/registry.py`), registered lazily via the `_LOADERS` table so optional scenario dependencies stay optional. A plugin declares up to six hooks — `expand` (dataset expansion), `build_setup`, `build_solver`, `build_scorers`, `build_sandbox`, `build_task_kwargs` — plus its declarative YAML `ShorthandSpec`; anything left `None` uses the shared default. Because every scenario funnels through the one builder, it can *enforce* that `expand` never silently drops a declared attack/defense (`ScenarioExpansionError`) or collapses the topology, and that shorthand conflicts fail loud (`ShorthandConflictError`).
+
+Where a scenario builds its roster from a native selector instead of `config.setup` (τ²-Bench, AgentHarm), it sets `topology_source=TopologySource.SCENARIO`; the topology floor is skipped and the shared resolver arbitrates any inline setup against the roster the condition will build.
+
+To add a scenario, see **[Adding a New Scenario](adding-a-scenario.md)**.
+
 ## ExperimentConfig
 
 The root config object composes:
@@ -94,6 +104,7 @@ Mutable per-sample state shared via Inspect's `store_as()`:
 | Scorers | `orbit/scorers/` | Generic security scorer + scenario-specific scorers |
 | Wrapper | `orbit/wrapper/` | YAML loader, runner, CLI |
 | Registry | `orbit/_registry.py` | Inspect entry point discovery |
+| Scenario plugins | `orbit/scenarios/registry.py`, `orbit/tasks/builder.py` | `ScenarioPlugin` registry + shared Task builder ([Adding a New Scenario](adding-a-scenario.md)) |
 
 ## Conventions
 

@@ -21,7 +21,9 @@ from orbit.scenarios.agentharm.config_builder import (
     build_experiment_configs,
 )
 from orbit.scenarios.agentharm.configs import AgentHarmScenarioConfig
-from orbit.scenarios.registry import ScenarioPlugin, register_scenario
+from orbit.scenarios.agentharm.presets import get_defense_preset
+from orbit.scenarios.registry import ScenarioPlugin, TopologySource, register_scenario
+from orbit.scenarios.shorthand import ShorthandSpec
 from orbit.tasks.builder import build_scenario_task
 
 if TYPE_CHECKING:
@@ -69,17 +71,43 @@ def _agentharm_scorers(config: ExperimentConfig) -> list[Scorer]:
     return [agentharm_scorer(_scenario_config(config).judge_model), security_scorer()]
 
 
+# Conditions whose roster is fixed regardless of the behavior. The specialist
+# and mesh conditions derive worker names from each behavior's tool domains
+# (condition_presets._specialist_worker_specs), so their roster is per-behavior
+# and cannot be arbitrated offline — _expected_roster returns None for those and
+# the shared resolver falls back to a warning instead of a hard verdict.
+# Pinned to the real builders by tests/test_tau2_expected_roster.py.
+_STATIC_CONDITION_ROSTERS: dict[str, set[str]] = {
+    "single_agent": {"agentharm_agent"},
+    "star_batch": {"orchestrator", "executor"},
+    "star_step": {"orchestrator", "executor"},
+}
+
+
+def _expected_roster(config: ExperimentConfig, condition: str) -> set[str] | None:
+    """Roster the agentharm condition will build, when knowable offline."""
+    return _STATIC_CONDITION_ROSTERS.get(condition)
+
+
 AGENTHARM_PLUGIN = register_scenario(
     ScenarioPlugin(
         name="agentharm",
+        # agentharm builds its roster per behavior from agentharm_condition
+        # (SCENARIO topology source): the condition key is consumed by expand,
+        # and the shared resolver arbitrates any inline setup against the
+        # roster the condition actually builds (issue #32).
+        shorthand=ShorthandSpec(
+            prefix="agentharm",
+            defense_preset=get_defense_preset,
+            expected_roster=_expected_roster,
+            default_condition="single_agent",
+        ),
         expand=_agentharm_expand,
         build_setup=lambda config: None,
         build_solver=None,  # default mas_orchestrator
         build_scorers=_agentharm_scorers,
         build_sandbox=lambda config: None,  # tools are mocked; no sandbox
-        # agentharm builds its roster from agentharm_condition, ignoring any
-        # inline setup — so it is exempt from the builder's topology floor.
-        threads_setup=False,
+        topology_source=TopologySource.SCENARIO,
     )
 )
 
@@ -89,6 +117,7 @@ def agentharm(
     split: str = "harmful",
     partition: str = "test_public",
     condition: str = "single_agent",
+    defense_preset: str | None = None,
     categories: str | None = None,
     task_ids: str | None = None,
     detailed_prompt: bool | None = None,
@@ -113,6 +142,11 @@ def agentharm(
         partition: ``test_public`` (default, 176 samples) or ``validation``.
         condition: Topology preset — see
             :func:`orbit.scenarios.agentharm.condition_presets.list_conditions`.
+        defense_preset: Named defense preset from
+            :mod:`orbit.scenarios.agentharm.presets` (``'prompt_vaccination'``
+            or ``'dual_llm'``). ``None`` (default) runs undefended. The preset
+            applies to every agent in the resolved roster (see that module for
+            the ``target_agents=[]`` rationale).
         categories: Comma-separated harm-category filter.
         task_ids: Comma-separated behavior-ID filter.
         detailed_prompt: Keep only behaviors with matching ``detailed_prompt``.
@@ -159,6 +193,11 @@ def agentharm(
         max_time_seconds=max_time_seconds,
     )
 
+    # Materialise a named defense preset into config.defenses; the expand hook
+    # threads them onto every per-behavior config (the builder enforces this). An
+    # unknown name raises here with the valid names.
+    defenses = get_defense_preset(defense_preset) if defense_preset else []
+
     config = ExperimentConfig(
         name="agentharm",
         description="AgentHarm harmful tool-use safety benchmark",
@@ -169,6 +208,7 @@ def agentharm(
             halt_on_convergence=False,
         ),
         metrics=MetricsConfig(),
+        defenses=defenses,
         metadata={
             "agentharm_scenario_config": scenario_config.model_dump(),
             "agentharm_condition": condition,

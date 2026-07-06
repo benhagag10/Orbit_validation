@@ -71,6 +71,38 @@ class TestValidateSetup:
         )
         assert any("ghost" in e for e in ConfigValidator.validate_setup(setup))
 
+    def test_empty_setup_valid_for_scenario_topology_source(self):
+        """A topology_source=SCENARIO scenario (tau2/agentharm) derives its
+        roster from its condition; an EMPTY setup.agents is the recommended
+        single-source YAML form and must validate (issue #32 — requiring a
+        roster here is what forced every tau2 example to mirror its condition's
+        roster inline). CONFIG-source scenarios keep the strict rule."""
+        from orbit.configs.scenario import ScenarioConfig
+        from orbit.configs.experiment import ExperimentConfig
+        from orbit.configs.scheduler import SchedulerConfig
+
+        def cfg(scenario_name):
+            return ExperimentConfig(
+                name="t",
+                setup=SetupConfig(),
+                scenario=ScenarioConfig(name=scenario_name),
+                scheduler=SchedulerConfig(max_turns=5, max_time_seconds=60.0),
+            )
+
+        assert not any(
+            "at least one agent" in e.lower()
+            for e in ConfigValidator.validate(cfg("agentharm"))
+        )
+        assert not any(
+            "at least one agent" in e.lower()
+            for e in ConfigValidator.validate(cfg("tau2_airline"))
+        )
+        # A CONFIG-source scenario with an empty setup is still an error.
+        assert any(
+            "at least one agent" in e.lower()
+            for e in ConfigValidator.validate(cfg("some_custom_scenario"))
+        )
+
     def test_shipped_setup_only_examples_validate(self):
         # The 12 topology-override YAMLs that `orbit validate` used to reject.
         import glob

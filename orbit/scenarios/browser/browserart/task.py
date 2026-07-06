@@ -35,7 +35,9 @@ from orbit.scenarios.browser.browserart.config_builder import (
     default_topology_template,
 )
 from orbit.scenarios.browser.browserart.configs import BrowserARTScenarioConfig
+from orbit.scenarios.factory import scenario_config_from_metadata
 from orbit.scenarios.registry import ScenarioPlugin, register_scenario
+from orbit.scenarios.shorthand import ShorthandSpec
 from orbit.tasks.builder import build_scenario_task
 
 if TYPE_CHECKING:
@@ -67,71 +69,37 @@ def _scenario_config(config: ExperimentConfig) -> BrowserARTScenarioConfig:
 
     The -T factory serializes the resolved ``BrowserARTScenarioConfig`` under
     ``browserart_scenario_config``; hand-authored ``orbit run`` YAMLs use the
-    individual ``browserart_*`` keys. Both produce the same object here.
+    individual ``browserart_*`` keys, derived from the model's own fields
+    (Pydantic coerces the CSV-split strings into the ``list[int]`` task ids).
     """
-    meta = config.metadata or {}
-    if "browserart_scenario_config" in meta:
-        return BrowserARTScenarioConfig(**meta["browserart_scenario_config"])
-
-    categories = meta.get("browserart_categories")
-    if isinstance(categories, str):
-        categories = [c.strip() for c in categories.split(",") if c.strip()]
-
-    task_ids = meta.get("browserart_task_ids")
-    if isinstance(task_ids, str):
-        task_ids = [int(x.strip()) for x in task_ids.split(",") if x.strip()]
-    elif isinstance(task_ids, int):
-        task_ids = [task_ids]
-
-    return BrowserARTScenarioConfig(
-        data_path=meta.get("browserart_data_path"),
-        dataset=meta.get("browserart_dataset", "hbb"),
-        categories=categories,
-        task_ids=task_ids,
-        judge_model=meta.get("browserart_judge_model", "openai/gpt-4.1"),
-        max_turns=config.scheduler.max_turns,
-        max_time_seconds=config.scheduler.max_time_seconds,
+    return scenario_config_from_metadata(
+        config, BrowserARTScenarioConfig, prefix="browserart"
     )
 
 
-def _browserart_resolve(config: ExperimentConfig) -> ExperimentConfig:
-    """Resolve a ``browserart_condition`` shorthand into ``config.setup``.
+def _shorthand() -> ShorthandSpec:
+    """browserart YAML shorthand — declarative, resolved by the shared kit.
 
-    Topology should be specified in exactly ONE way: an inline ``setup.agents``
-    topology (authored in the YAML or built by the ``-T`` factory), or a named
-    ``metadata.browserart_condition`` preset — both single-source forms work.
-    If BOTH are declared, the inline ``setup`` WINS and the condition is ignored
-    with a warning (silence here is what collapsed a ``star_4_specialists``
-    condition to a placeholder before — the topology dimension of the issue-#9
-    bug class). When only a condition is given, it is materialised into
-    ``config.setup`` here — on BOTH entry points and BEFORE the dimension guard.
-    The trigger key is dropped either way so a second ``resolve`` is a no-op
-    (idempotent, including the ``-T`` path where the factory already built
-    ``config.setup`` and set no condition key).
+    ``browserart_condition`` resolves to a ``ConditionSetup`` that may carry an
+    ``execution`` config (mesh/scheduled execution conditions) alongside the
+    topology — the shared resolver materialises both. Attack presets take the
+    applied condition so the compromised-agent target matches the resolved
+    roster; before the kit the YAML path had no preset reader at all.
     """
-    meta = config.metadata or {}
-    cond = meta.get("browserart_condition")
-    if not cond:
-        return config
-    new_meta = {k: v for k, v in meta.items() if k != "browserart_condition"}
-    if config.setup.agents:
-        logger.warning(
-            "browserart config declares BOTH an inline setup.agents topology and "
-            "metadata.browserart_condition=%r; using the inline setup and IGNORING "
-            "the condition. Declare exactly one.",
-            cond,
-        )
-        new_meta["browserart_ignored_condition"] = cond
-        return config.model_copy(update={"metadata": new_meta})
-
     from orbit.scenarios.browser.browserart.condition_presets import get_condition
+    from orbit.scenarios.browser.browserart.presets import (
+        get_attack_preset,
+        get_defense_preset,
+    )
 
-    cs = get_condition(cond)
-    updates: dict = {"setup": cs.setup, "metadata": new_meta}
-    updates["metadata"]["browserart_resolved_condition"] = cond
-    if cs.execution is not None:
-        updates["execution"] = cs.execution
-    return config.model_copy(update=updates)
+    return ShorthandSpec(
+        prefix="browserart",
+        condition=get_condition,
+        attack_preset=get_attack_preset,
+        defense_preset=get_defense_preset,
+        preset_takes_condition=True,
+        default_setup=default_topology_template,
+    )
 
 
 def _browserart_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
@@ -197,7 +165,7 @@ def _browserart_scorers(config: ExperimentConfig) -> list[Scorer]:
 BROWSERART_PLUGIN = register_scenario(
     ScenarioPlugin(
         name="browserart",
-        resolve=_browserart_resolve,
+        shorthand=_shorthand(),
         expand=_browserart_expand,
         build_setup=lambda config: None,  # setup folded into the solver chain
         build_solver=_browserart_solver,
@@ -300,7 +268,7 @@ def browserart_safety(
         if max_time_seconds == 300.0:  # default wasn't overridden
             max_time_seconds = 600.0
 
-    # ---- Resolve topology template (+ optional Path-C execution) ----
+    # ---- Resolve topology template (+ optional mesh/scheduled execution) ----
     execution_template: ExecutionConfig | None = None
     if condition is not None:
         from orbit.scenarios.browser.browserart.condition_presets import get_condition
