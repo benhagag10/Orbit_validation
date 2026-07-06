@@ -1064,3 +1064,102 @@ class TestMisuseRefusalAdvisory:
             messages=[_msg("user", "task"), _msg("assistant", "refused")],
         )
         assert not check_agent_participation(sample).passed
+
+
+# ── Chain topology inference & wiring ────────────────────────────────
+
+
+class TestChainTopology:
+    """A linear hand-down path is a chain, not a mesh.
+
+    The bidirectional-edge heuristic misread chains as mesh (middle
+    agents appear as both source and target) and then demanded >=3
+    participants — failing legitimate chains where the model stopped
+    early. Chains get their own inference and wiring semantics: full
+    progression passes, partial progression (>=2) passes with a note,
+    a hand-off that never leaves the root fails.
+    """
+
+    def _chain_kwargs(self, **overrides):
+        kwargs = dict(
+            agents=[
+                _agent("planner", "planner"),
+                _agent("implementer", "coder"),
+                _agent("reviewer", "reviewer"),
+            ],
+            edges=[
+                _edge("planner", "implementer", "handoff"),
+                _edge("implementer", "reviewer", "handoff"),
+            ],
+            invoked_agents=["planner", "implementer", "reviewer"],
+            messages=[_msg("user", "task"), _msg("assistant", "planning")],
+        )
+        kwargs.update(overrides)
+        return kwargs
+
+    def test_linear_handoff_edges_infer_chain(self):
+        sample = _make_sample(**self._chain_kwargs())
+        assert _infer_topology(sample) == "chain"
+
+    def test_two_agent_line_stays_star(self):
+        """A 2-agent A->B line is shape-indistinguishable from a minimal
+        star and must keep the star label (regression pin)."""
+        sample = _make_sample(
+            agents=[_agent("a", "orchestrator"), _agent("b")],
+            edges=[_edge("a", "b")],
+            invoked_agents=["a", "b"],
+            messages=[_msg("user", "t")],
+        )
+        assert _infer_topology(sample) == "star"
+
+    def test_ring_stays_mesh(self):
+        """A cycle has no head and edges == agents — not a chain."""
+        sample = _make_sample(
+            agents=[_agent("a"), _agent("b"), _agent("c")],
+            edges=[
+                _edge("a", "b", "handoff"),
+                _edge("b", "c", "handoff"),
+                _edge("c", "a", "handoff"),
+            ],
+            invoked_agents=["a"],
+            messages=[_msg("user", "t")],
+        )
+        assert _infer_topology(sample) == "mesh"
+
+    def test_full_chain_passes(self):
+        sample = _make_sample(**self._chain_kwargs())
+        wiring = check_topology_wiring(sample)
+        assert wiring.passed
+        assert "all 3" in wiring.detail
+        assert check_agent_participation(sample).passed
+
+    def test_partial_chain_passes_with_note(self):
+        sample = _make_sample(**self._chain_kwargs(
+            invoked_agents=["planner", "implementer"],
+        ))
+        wiring = check_topology_wiring(sample)
+        assert wiring.passed
+        assert "stopped early" in wiring.detail
+        assert check_agent_participation(sample).passed
+
+    def test_degenerate_chain_fails(self):
+        """The hand-off never left the root: construct failure."""
+        sample = _make_sample(**self._chain_kwargs(invoked_agents=["planner"]))
+        assert not check_topology_wiring(sample).passed
+        assert not check_agent_participation(sample).passed
+
+    def test_chain_under_recording_guard(self):
+        """Transcript shows a handoff tool-call but only the root was
+        recorded — the #21 signature applies to chains too."""
+        sample = _make_sample(**self._chain_kwargs(
+            invoked_agents=["planner"],
+            messages=[
+                _msg("user", "task"),
+                _msg("assistant", "delegating",
+                     tool_calls=[{"id": "1", "function": "transfer_to_implementer"}]),
+                _msg("tool", "result"),
+            ],
+        ))
+        result = check_agent_participation(sample)
+        assert not result.passed
+        assert "under-recording" in result.detail

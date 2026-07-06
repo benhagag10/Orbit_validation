@@ -74,6 +74,8 @@ def _infer_topology(sample: EvalSample) -> str:
             return "star"
         if "mesh" in condition:
             return "mesh"
+        if "chain" in condition:
+            return "chain"
 
     if topology:
         if topology == "single":
@@ -82,6 +84,8 @@ def _infer_topology(sample: EvalSample) -> str:
             return "star"
         if topology in ("mesh_round_robin", "mesh_delegation"):
             return "mesh"
+        if topology == "chain":
+            return "chain"
 
     agents = setup.get("agents", [])
     edges = setup.get("edges", [])
@@ -92,6 +96,25 @@ def _infer_topology(sample: EvalSample) -> str:
     if edges:
         sources = {e.get("from_agent") for e in edges}
         targets = {e.get("to_agent") for e in edges}
+        # Chain: a linear hand-down path covering every agent — one head,
+        # in/out degree <=1 everywhere. Must be checked before the
+        # star/mesh heuristics: a chain's middle agents appear as both
+        # source and target, which the bidirectional test misreads as
+        # mesh. Requires >=3 agents — a 2-agent A->B line is shape-
+        # indistinguishable from a minimal star and keeps that label
+        # (both are verified identically: >=2 participants).
+        agent_names = {a.get("name") for a in agents}
+        out_deg = Counter(e.get("from_agent") for e in edges)
+        in_deg = Counter(e.get("to_agent") for e in edges)
+        if (
+            len(agents) >= 3
+            and len(edges) == len(agents) - 1
+            and sources | targets == agent_names
+            and all(c == 1 for c in out_deg.values())
+            and all(c == 1 for c in in_deg.values())
+            and len(sources - targets) == 1
+        ):
+            return "chain"
         # Star: all edges flow one direction (sources never appear as targets
         # in the same edge set, or each source has disjoint targets)
         # Mesh: bidirectional edges (agents appear as both source and target)
@@ -270,15 +293,17 @@ def check_agent_participation(sample: EvalSample) -> CheckResult:
         return CheckResult("agent_participation", False,
                            f"Multi-agent topology ({topology}, {config_agents} agents configured) but RuntimeMetrics empty and no multi-agent patterns in messages")
 
-    if topology == "star":
+    if topology in ("star", "chain"):
         delegated = _delegation_tool_calls(sample)
         if delegated:
-            # The transcript shows as_tool delegation that invoked_agents
-            # missed — instrumentation under-recording (the #21 signature).
+            # The transcript shows as_tool/handoff delegation that
+            # invoked_agents missed — under-recording (the #21 signature).
             return CheckResult("agent_participation", False,
                                f"Multi-agent topology ({topology}, {config_agents} configured) but only "
                                f"{len(invoked)} agent(s) invoked while the transcript shows delegation "
                                f"tool-calls to {sorted(delegated)} — invoked_agents under-recording (#21)")
+
+    if topology == "star":
         misuse_scenario = _misuse_probe_scenario(sample)
         if misuse_scenario and not _detect_text_dispatch(
                 sample.messages or [], _get_agent_names_from_config(sample)):
@@ -401,6 +426,28 @@ def check_topology_wiring(sample: EvalSample) -> CheckResult:
 
         return CheckResult("topology_wiring", False,
                            f"Star topology but no matching message patterns. Edges: {edges}")
+
+    if topology == "chain":
+        invoked = _get_store_val(store, "RuntimeMetrics:invoked_agents", [])
+        attribution = _get_store_val(store, "EnvironmentState:message_attribution", [])
+        participants = {a["agent"] for a in attribution} | set(invoked)
+        total_agents = len(_get_agent_names_from_config(sample))
+        total_turns = _get_store_val(store, "RuntimeMetrics:total_turns", 0)
+        if total_turns == 0 and not invoked:
+            return CheckResult("topology_wiring", True,
+                               "Chain topology: old log format — cannot verify progression, skipping")
+        if len(participants) >= total_agents:
+            return CheckResult("topology_wiring", True,
+                               f"Chain topology: all {total_agents} agents progressed")
+        if len(participants) >= 2:
+            # How far the hand-off travels is the model's choice; partial
+            # progression is behavior, not a wiring failure.
+            return CheckResult("topology_wiring", True,
+                               f"Chain topology: {len(participants)}/{total_agents} agents progressed — "
+                               "the model stopped early (behavior, not a construct failure)")
+        return CheckResult("topology_wiring", False,
+                           f"Chain topology ({total_agents} agents configured) but only "
+                           f"{len(participants)} participated — the hand-off never left the root")
 
     if topology == "mesh":
         attribution = _get_store_val(store, "EnvironmentState:message_attribution", [])
