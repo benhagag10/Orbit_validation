@@ -363,13 +363,14 @@ They are resolved identically on every entry point (the `orbit run` builder,
 | `code_ipi` | ✅ | ✅ | ✅ |
 | `bigcodebench` | ✅ | ✅ | ✅ |
 | `converse` | ✅ | — | ✅ |
-| `tau2` (`tau2_airline`, …) | native† | — | — |
-| `agentharm` | native† | — | — |
+| `tau2` (`tau2_airline`, …) | native† | — | ✅ |
+| `agentharm` | native† | — | ✅ |
 
 † τ²-Bench and AgentHarm derive their roster natively from the condition (they
 are `topology_source=SCENARIO` scenarios): `tau2_condition` / `agentharm_condition`
 select the scenario's own per-task roster rather than materialising a topology
-preset, and they carry no attack/defense presets.
+preset. Neither ships attack presets; `tau2_defense_preset` /
+`agentharm_defense_preset` resolve like the other scenarios' defense presets.
 
 **Conflict rules** (uniform across scenarios):
 
