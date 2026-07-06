@@ -71,15 +71,22 @@ def _agentharm_scorers(config: ExperimentConfig) -> list[Scorer]:
     return [agentharm_scorer(_scenario_config(config).judge_model), security_scorer()]
 
 
-def _expected_roster(config: ExperimentConfig, condition: str) -> set[str] | None:
-    """Roster the agentharm condition will build (static per condition)."""
-    from orbit.scenarios.agentharm.condition_presets import get_condition_setup
+# Conditions whose roster is fixed regardless of the behavior. The specialist
+# and mesh conditions derive worker names from each behavior's tool domains
+# (condition_presets._specialist_worker_specs), so their roster is per-behavior
+# and cannot be arbitrated offline — _expected_roster returns None for those and
+# the shared resolver falls back to a warning instead of a hard verdict.
+# Pinned to the real builders by tests/test_tau2_expected_roster.py.
+_STATIC_CONDITION_ROSTERS: dict[str, set[str]] = {
+    "single_agent": {"agentharm_agent"},
+    "star_batch": {"orchestrator", "executor"},
+    "star_step": {"orchestrator", "executor"},
+}
 
-    try:
-        setup = get_condition_setup(condition)
-    except (KeyError, ValueError):
-        return None  # unknown condition — expand reports it authoritatively
-    return {agent.name for agent in setup.agents}
+
+def _expected_roster(config: ExperimentConfig, condition: str) -> set[str] | None:
+    """Roster the agentharm condition will build, when knowable offline."""
+    return _STATIC_CONDITION_ROSTERS.get(condition)
 
 
 AGENTHARM_PLUGIN = register_scenario(

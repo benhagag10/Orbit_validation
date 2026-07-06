@@ -93,6 +93,48 @@ class TestExpectedRosterMatchesBuilders:
         assert expected_agent_names("not_a_condition", "airline") is None
 
 
+class TestAgentHarmExpectedRoster:
+    """Pin agentharm's static roster map to the real condition builders.
+
+    Only the behavior-independent conditions have a static roster; the
+    specialist/mesh conditions derive worker names per behavior and must return
+    ``None`` (the resolver then warns instead of hard-arbitrating).
+    """
+
+    def _behavior(self):
+        from orbit.scenarios.agentharm.configs import AgentHarmScenarioConfig
+        from orbit.scenarios.agentharm.dataset_builder import load_behaviors
+
+        try:
+            behaviors = load_behaviors(AgentHarmScenarioConfig())
+        except Exception as exc:  # noqa: BLE001 - built data may be absent
+            pytest.skip(f"could not load agentharm data: {exc}")
+        if not behaviors:
+            pytest.skip("no agentharm behaviors available")
+        return behaviors[0]
+
+    @pytest.mark.parametrize(
+        "condition", ["single_agent", "star_batch", "star_step"]
+    )
+    def test_static_roster_matches_real_builder(self, condition):
+        from orbit.scenarios.agentharm.condition_presets import get_condition_setup
+        from orbit.scenarios.agentharm.task import _STATIC_CONDITION_ROSTERS
+
+        behavior = self._behavior()
+        setup = get_condition_setup(condition, behavior, split="harmful")
+        real = {agent.name for agent in setup.agents}
+        assert _STATIC_CONDITION_ROSTERS[condition] == real, (
+            f"agentharm static roster for {condition!r} drifted from the real "
+            f"builder: {sorted(real)}"
+        )
+
+    @pytest.mark.parametrize("condition", ["star_specialist", "mesh_delegation"])
+    def test_behavior_dependent_conditions_return_none(self, condition):
+        from orbit.scenarios.agentharm.task import _expected_roster
+
+        assert _expected_roster(None, condition) is None
+
+
 class TestFactoryDefensePresetParity:
     """Issue #35: both factories expose defense_preset; unknown names error."""
 

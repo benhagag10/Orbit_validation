@@ -296,7 +296,12 @@ class TestExpandingPluginsPreserveDimensions:
             "agentharm_scenario_config": AgentHarmScenarioConfig().model_dump(),
             "agentharm_condition": "single_agent",
         }
-        task = self._build_or_skip(_exp("agentharm", metadata=meta))
+        # agentharm derives its roster from agentharm_condition (SCENARIO
+        # topology source); an inline setup that doesn't mirror the condition's
+        # roster is a hard conflict (issue #32), so declare none.
+        task = self._build_or_skip(
+            _exp("agentharm", setup=SetupConfig(agents=[], edges=[]), metadata=meta)
+        )
         configs = _sample_configs(task)
         assert configs
         for exp in configs:

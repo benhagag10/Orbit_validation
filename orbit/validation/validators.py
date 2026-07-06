@@ -95,6 +95,34 @@ class ConfigValidator:
         # are written, even for scenarios that replicate the template.
         agent_names = {agent.name for agent in config.setup.agents}
 
+        # A topology_source=SCENARIO scenario (tau2/agentharm) derives its
+        # roster from its own condition selector; an EMPTY setup.agents is the
+        # recommended single-source form there, not an error. (Requiring a
+        # roster here is what forced every tau2 example to carry a redundant
+        # inline copy of its condition's roster — issue #32.) A non-empty
+        # inline setup is still validated normally, and the shared shorthand
+        # resolver separately arbitrates it against the condition's roster.
+        scenario_derives_topology = False
+        if not config.setup.agents and config.scenario and config.scenario.name:
+            try:
+                from orbit.scenarios.registry import TopologySource, get_scenario
+
+                plugin = get_scenario(config.scenario.name)
+                scenario_derives_topology = (
+                    plugin is not None
+                    and plugin.topology_source is TopologySource.SCENARIO
+                )
+            except Exception:  # unresolvable plugin -> keep the strict rule
+                scenario_derives_topology = False
+        if scenario_derives_topology:
+            errors_from_setup = [
+                e
+                for e in ConfigValidator.validate_setup(config.setup)
+                if e != "At least one agent must be defined in setup.agents"
+            ]
+        else:
+            errors_from_setup = ConfigValidator.validate_setup(config.setup)
+
         # Names that exist at runtime. Attack/defense targets reference these.
         # With expand_templates, a scenario plugin that replicates its template
         # (only swe_bench today) expands here; every other scenario — and the
@@ -109,7 +137,7 @@ class ConfigValidator:
             runtime_names = agent_names
 
         # 1-4. Topology-level checks (shared with standalone SetupConfig YAMLs).
-        errors.extend(ConfigValidator.validate_setup(config.setup))
+        errors.extend(errors_from_setup)
 
         # 5. All agents referenced in attack.target_agent / collusion
         #    coalition_agents exist at runtime (post-expansion names).

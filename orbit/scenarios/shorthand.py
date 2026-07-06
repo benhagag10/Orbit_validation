@@ -162,10 +162,10 @@ def _arbitrate_scenario_topology(
     inline = _roster(config.setup)
     expected: set[str] | None = None
     if condition and spec.expected_roster is not None:
-        try:
-            expected = spec.expected_roster(config, str(condition))
-        except Exception as exc:  # unknown condition — let expand report it
-            logger.debug("expected_roster(%r) failed: %s", condition, exc)
+        # The hook's contract: return None for "unknown/unknowable" (expand
+        # reports a bad condition name authoritatively). Exceptions propagate —
+        # swallowing them here silently degraded arbitration to a warning.
+        expected = spec.expected_roster(config, str(condition))
     if expected is not None and inline == expected:
         return  # redundant documentation of the condition's roster — silent
     if expected is None:
