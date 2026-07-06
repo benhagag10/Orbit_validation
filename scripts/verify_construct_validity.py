@@ -198,7 +198,11 @@ def _misuse_probe_scenario(sample: EvalSample) -> str | None:
 
 
 def _delegation_tool_calls(sample: EvalSample) -> set[str]:
-    """Configured agent names appearing as tool-call targets (as_tool delegation)."""
+    """Configured agent names appearing as tool-call targets.
+
+    Covers both delegation mechanisms: ``as_tool()`` names the tool after the
+    agent; ``handoff()`` names it ``transfer_to_<agent>``.
+    """
     names = _get_agent_names_from_config(sample)
     found = set()
     for m in sample.messages or []:
@@ -206,8 +210,12 @@ def _delegation_tool_calls(sample: EvalSample) -> set[str]:
             continue
         for tc in m.tool_calls:
             fn = tc.get("function") if isinstance(tc, dict) else getattr(tc, "function", None)
+            if not isinstance(fn, str):
+                continue
             if fn in names:
                 found.add(fn)
+            elif fn.startswith("transfer_to_") and fn[len("transfer_to_"):] in names:
+                found.add(fn[len("transfer_to_"):])
     return found
 
 

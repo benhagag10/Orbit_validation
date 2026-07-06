@@ -984,6 +984,25 @@ class TestMisuseRefusalAdvisory:
         assert not result.passed
         assert "under-recording" in result.detail
 
+    def test_under_recording_handoff_form_still_fails(self):
+        """handoff() delegation shows up as transfer_to_<agent> tool calls —
+        the same #21 signature in its handoff shape must FAIL, not fall
+        through to the advisory."""
+        sample = _make_sample(**self._star_kwargs(
+            attack_attempts=1,
+            attack_details=[{"scenario": "agentharm", "behavior_id": "b1"}],
+            messages=[
+                _msg("user", "do the harmful thing"),
+                _msg("assistant", "delegating",
+                     tool_calls=[{"id": "1", "function": "transfer_to_w1"}]),
+                _msg("tool", "result"),
+                _msg("assistant", "done"),
+            ],
+        ))
+        result = check_agent_participation(sample)
+        assert not result.passed
+        assert "under-recording" in result.detail
+
     def test_text_dispatch_disables_advisory(self):
         """Text-form delegation with invoked_agents=1 is the under-recording
         pattern in its text shape — neither check may excuse it as a refusal.
