@@ -75,7 +75,7 @@ REDCODE_GEN_PLUGIN = register_scenario(
         name="redcode_gen",
         expand=_redcode_gen_expand,
         build_setup=lambda config: None,
-        build_solver=None,  # default mas_orchestrator (v1/v2)
+        build_solver=None,  # default mas_orchestrator
         build_scorers=_redcode_scorers,
         build_sandbox=lambda config: ("docker", _SANDBOX_COMPOSE),
     )

@@ -193,7 +193,7 @@ CONVERSE_PLUGIN = register_scenario(
         name="converse",
         expand=_converse_expand,
         build_setup=lambda config: converse_setup(),
-        build_solver=None,  # default mas_orchestrator (v1/v2)
+        build_solver=None,  # default mas_orchestrator
         build_scorers=_converse_scorers,
         build_sandbox=lambda config: None,
     )
