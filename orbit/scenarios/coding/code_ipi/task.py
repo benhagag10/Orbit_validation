@@ -22,6 +22,7 @@ from orbit.scenarios.coding.code_ipi.config_builder import (
 from orbit.scenarios.coding.code_ipi.configs import CodeIPIScenarioConfig
 from orbit.scenarios.registry import ScenarioPlugin, register_scenario
 from orbit.scenarios.params import split_csv
+from orbit.scenarios.shorthand import ShorthandSpec
 from orbit.tasks.builder import build_scenario_task
 
 if TYPE_CHECKING:
@@ -72,9 +73,38 @@ def _code_ipi_scorers(config: ExperimentConfig) -> list[Scorer]:
     return [code_ipi_scorer(), security_scorer()]
 
 
+def _shorthand() -> ShorthandSpec:
+    """CodeIPI YAML shorthand — declarative, resolved by the shared kit.
+
+    ``metadata.code_ipi_condition`` resolves the same named topology presets as
+    ``-T condition=...``; ``code_ipi_attack_preset`` / ``code_ipi_defense_preset``
+    use the same ``presets`` primitives as the ``-T`` factory. The default
+    topology template takes an ``inline_defense_warning`` flag, so ``default_setup``
+    (used only to validate materialised attack targets) wraps it with the
+    factory default. New with the kit — the YAML path previously had no
+    condition/preset reader at all.
+    """
+    from orbit.scenarios.coding.code_ipi.condition_presets import (
+        get_condition_setup,
+    )
+    from orbit.scenarios.coding.code_ipi.presets import (
+        get_attack_preset,
+        get_defense_preset,
+    )
+
+    return ShorthandSpec(
+        prefix="code_ipi",
+        condition=get_condition_setup,
+        attack_preset=get_attack_preset,
+        defense_preset=get_defense_preset,
+        default_setup=lambda: default_topology_template(),
+    )
+
+
 CODE_IPI_PLUGIN = register_scenario(
     ScenarioPlugin(
         name="code_ipi",
+        shorthand=_shorthand(),
         expand=_code_ipi_expand,
         build_setup=lambda config: None,
         build_solver=None,

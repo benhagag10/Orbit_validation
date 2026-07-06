@@ -840,7 +840,8 @@ class TestAttackModeParsing:
     tolerant parser (str | list | int | None)."""
 
     def test_parse_csv_tolerates_list_str_int_none(self):
-        from orbit.scenarios.customer_service.converse.task import _parse_csv
+        # The converse parser is the shared kit helper (issue #16).
+        from orbit.scenarios.params import csv_tuple as _parse_csv
 
         assert _parse_csv(None) is None
         assert _parse_csv("") is None
