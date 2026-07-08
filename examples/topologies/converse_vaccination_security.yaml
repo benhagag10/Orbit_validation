@@ -1,8 +1,10 @@
 # ConVerse: paper_star × prompt_vaccination × security attacks
 #
-# Pairs with examples/converse_prompt_vaccination.yaml (privacy row) to
-# cover the prompt_vaccination row of the {defense} × {attack mode}
-# matrix. Topology is identical to examples/converse_basic.yaml.
+# Security-only slice of the prompt_vaccination row of the
+# {defense} × {attack mode} matrix. examples/converse_prompt_vaccination.yaml
+# is the combined run (privacy + security in one eval); use this file when
+# you want the security mode scored on its own. Topology is identical to
+# examples/converse_basic.yaml.
 #
 # Usage:
 #   uv run inspect eval orbit/converse_safety \
