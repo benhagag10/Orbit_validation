@@ -3,9 +3,9 @@
 Conditions are preset multi-agent setups. Each condition configures the agents, network topology, memory, and prompts automatically. Use `--agents`, `--topology`, and `--memory` to select one:
 
 ```bash
-orbit browserart -m openai/gpt-4o --agents specialist
-orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin
-orbit browserart -m openai/gpt-4o --agents specialist --memory full
+uv run orbit browserart -m openai/gpt-4o --agents specialist
+uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin
+uv run orbit browserart -m openai/gpt-4o --agents specialist --memory full
 ```
 
 > **Note:** Conditions are specific to BrowserART. The SWE-Bench scenario uses its own topology and preset system (see `--topology`, `--attack-preset`, `--defense-preset`). See [Scenarios](scenarios.md) for SWE-Bench configuration.
@@ -13,7 +13,7 @@ orbit browserart -m openai/gpt-4o --agents specialist --memory full
 You can also use `inspect eval` with `-T` flags:
 
 ```bash
-inspect eval orbit/browserart_safety \
+uv run inspect eval orbit/browserart_safety \
   -T agents=specialist -T topology=round_robin \
   --model openai/gpt-4o
 ```
@@ -151,19 +151,19 @@ Add `--instructions relaxed` for relaxed prompt variants of `batch` or `speciali
 
 ```bash
 # Compare single agent vs specialist team
-orbit browserart -m openai/gpt-4o --agents single
-orbit browserart -m openai/gpt-4o --agents specialist
+uv run orbit browserart -m openai/gpt-4o --agents single
+uv run orbit browserart -m openai/gpt-4o --agents specialist
 
 # Compare star vs mesh topologies
-orbit browserart -m openai/gpt-4o --agents specialist --topology star
-orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin
-orbit browserart -m openai/gpt-4o --agents specialist --topology delegation
+uv run orbit browserart -m openai/gpt-4o --agents specialist --topology star
+uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin
+uv run orbit browserart -m openai/gpt-4o --agents specialist --topology delegation
 
 # Test memory levels
 for mem in none own_actions own_reasoning shared_actions full; do
-  orbit browserart -m openai/gpt-4o --agents specialist --memory $mem
+  uv run orbit browserart -m openai/gpt-4o --agents specialist --memory $mem
 done
 
 # View all results side by side
-inspect view
+uv run inspect view
 ```

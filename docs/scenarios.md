@@ -8,19 +8,18 @@ The core install — `uv sync --extra dev` — runs most scenarios as-is. Only f
 
 | Scenario | Family | Pip extra | System / runtime | Data step | Verify |
 |----------|--------|-----------|------------------|-----------|--------|
-| BrowserART | Browser | `uv sync --extra browserart` | Docker (browserart-service), Playwright/Chromium | `scripts/fetch_browserart_data.py` | `orbit verify-setup browserart` |
-| SWE-Bench | Coding | `uv sync --extra swebench` | Docker, `GITHUB_TOKEN` | auto (runtime) | `orbit verify-setup swe-bench` |
-| BigCodeBench | Coding | `uv sync --extra bigcodebench` | Docker (sandbox) | auto (HuggingFace) | `orbit verify-setup bigcodebench` |
+| BrowserART | Browser | `uv sync --extra browserart` | Docker (browserart-service), Playwright/Chromium | `scripts/fetch_browserart_data.py` | `uv run orbit verify-setup browserart` |
+| SWE-Bench | Coding | `uv sync --extra swebench` | Docker, `GITHUB_TOKEN` | auto (runtime) | `uv run orbit verify-setup swe-bench` |
+| BigCodeBench | Coding | `uv sync --extra bigcodebench` | Docker (sandbox) | auto (HuggingFace) | `uv run orbit verify-setup bigcodebench` |
 | RedCode-Gen | Coding | core (no extra) | Docker (sandbox) | `scripts/fetch_redcode_data.py` | — |
 | CodeIPI | Coding | core (no extra) | Docker (sandbox) | vendored | — |
-| OSWorld / OS-Harm | Desktop | `uv sync --extra osworld` | Docker | auto (HuggingFace) | `orbit verify-setup osworld` |
+| OSWorld / OS-Harm | Desktop | `uv sync --extra osworld` | Docker | auto (HuggingFace) | `uv run orbit verify-setup osworld` |
 | AgentHarm | Tool safety | core (no extra) | — | `scripts/build_agentharm_data.py` | — |
 | &tau;&sup2;-Bench | Customer Service | core (no extra) | — | vendored | — |
 | ConVerse | Customer Service | core (no extra) | — | vendored | — |
-| JiraTicket | Cooperative Allocation | `uv sync --extra dcop` | — | generated | `orbit verify-setup dcop` |
+| JiraTicket | Cooperative Allocation | `uv sync --extra dcop` | — | generated | `uv run orbit verify-setup dcop` |
 | Hospital | Cooperative Allocation | core (no extra) | — | generated | — |
 | MeetSched | Cooperative Allocation | core (no extra) | — | generated | — |
-| Colosseum DCOP | Cooperative Allocation | core (no extra) | — | generated | — |
 
 **System prerequisites at a glance:**
 - **Docker** — BrowserART, SWE-Bench, BigCodeBench, RedCode-Gen, CodeIPI, OSWorld.
@@ -80,7 +79,7 @@ view. If the service is unreachable, the solver exits with a clear error.
 
 ```bash
 # Check the browserart-service is up (and Docker, browsergym, the API key)
-orbit verify-setup browserart
+uv run orbit verify-setup browserart
 
 # Or probe the service health endpoint directly
 curl -s http://localhost:7878/healthz
@@ -106,7 +105,7 @@ export GOOGLE_API_KEY=...      # for google/gemini-1.5-pro
 **Run** (with the `browserart-service` running, per above):
 
 ```bash
-inspect eval orbit/browserart_safety \
+uv run inspect eval orbit/browserart_safety \
   -T max_turns=5 --limit 3 \
   --model openai/gpt-4o
 ```
@@ -119,12 +118,12 @@ The BrowserART Extension adds 10 multi-step, cross-platform attack campaigns (ID
 
 ```bash
 # All 10 multi-step tasks (defaults auto-adjust to max_turns=50, max_time_seconds=600)
-inspect eval orbit/browserart_safety \
+uv run inspect eval orbit/browserart_safety \
   -T dataset=hbb_extension --limit 1 \
   --model openai/gpt-4o
 
 # Specific task IDs
-inspect eval orbit/browserart_safety \
+uv run inspect eval orbit/browserart_safety \
   -T dataset=hbb_extension -T task_ids=227,228 -T max_turns=30 \
   --model openai/gpt-4o
 ```
@@ -156,13 +155,13 @@ This installs the [swebench](https://github.com/princeton-nlp/SWE-bench) harness
 docker info >/dev/null 2>&1 && echo "Docker: OK" || echo "Docker: NOT RUNNING"
 
 # Check swebench is installed
-python -c "import swebench; print('swebench:', swebench.__version__)"
+uv run python -c "import swebench; print('swebench:', swebench.__version__)"
 
 # Check Docker API from Python
-python -c "import docker; docker.from_env().ping(); print('Docker API: OK')"
+uv run python -c "import docker; docker.from_env().ping(); print('Docker API: OK')"
 
 # Or use the built-in verify command
-orbit verify-setup swe-bench
+uv run orbit verify-setup swe-bench
 ```
 
 ### Platform notes
@@ -189,7 +188,7 @@ SWE-Bench Docker images are only published as `x86_64` on Docker Hub. On Apple S
 **Run via Inspect CLI:**
 
 ```bash
-inspect eval orbit/swe_bench_multi_issue \
+uv run inspect eval orbit/swe_bench_multi_issue \
   -T num_issues=2 -T repos=django/django -T max_turns=30 \
   --model openai/gpt-4o
 ```
@@ -197,13 +196,13 @@ inspect eval orbit/swe_bench_multi_issue \
 **Run via standalone CLI:**
 
 ```bash
-orbit swe-bench --model openai/gpt-4o --repos django/django --num-issues 2
+uv run orbit swe-bench --model openai/gpt-4o --repos django/django --num-issues 2
 ```
 
 **Run via YAML config:**
 
 ```bash
-orbit run examples/swe_bench_multi_issue.yaml --model openai/gpt-4o
+uv run orbit run examples/swe_bench_multi_issue.yaml --model openai/gpt-4o
 ```
 
 ### SWE-Bench `-T` Parameters
@@ -267,10 +266,10 @@ This installs:
 docker info >/dev/null 2>&1 && echo "Docker: OK" || echo "Docker: NOT RUNNING"
 
 # Check inspect-evals[osworld] is installed
-python -c "import inspect_evals.osworld; print('inspect-evals[osworld]: OK')"
+uv run python -c "import inspect_evals.osworld; print('inspect-evals[osworld]: OK')"
 
 # Or use the built-in verify command
-orbit verify-setup osworld
+uv run orbit verify-setup osworld
 ```
 
 ### Data sources
@@ -302,39 +301,39 @@ export GOOGLE_API_KEY=...      # for google/gemini-1.5-pro
 
 ```bash
 # Single agent, 5 tasks
-orbit osworld -m openai/gpt-4o --limit 5
+uv run orbit osworld -m openai/gpt-4o --limit 5
 
 # Filter by app
-orbit osworld -m openai/gpt-4o --app thunderbird --limit 10
+uv run orbit osworld -m openai/gpt-4o --app thunderbird --limit 10
 
 # Misuse tasks only
-orbit osworld -m openai/gpt-4o --dataset osharm_misuse
+uv run orbit osworld -m openai/gpt-4o --dataset osharm_misuse
 
 # Star topology with specialists
-orbit osworld -m openai/gpt-4o --condition star_specialist --limit 5
+uv run orbit osworld -m openai/gpt-4o --condition star_specialist --limit 5
 
 # Friendly parameters
-orbit osworld -m openai/gpt-4o --agents specialist --topology round_robin --limit 5
+uv run orbit osworld -m openai/gpt-4o --agents specialist --topology round_robin --limit 5
 
 # With defense preset
-orbit osworld -m openai/gpt-4o --defense-preset basic --limit 5
+uv run orbit osworld -m openai/gpt-4o --defense-preset basic --limit 5
 ```
 
 **Run via Inspect CLI:**
 
 ```bash
-inspect eval orbit/osworld_safety \
+uv run inspect eval orbit/osworld_safety \
   --limit 5 --model openai/gpt-4o
 
 # With condition preset
-inspect eval orbit/osworld_safety \
+uv run inspect eval orbit/osworld_safety \
   -T condition=star_specialist --limit 5 --model openai/gpt-4o
 ```
 
 **Run via YAML config:**
 
 ```bash
-orbit run examples/osworld_osharm_basic.yaml --model openai/gpt-4o
+uv run orbit run examples/osworld_osharm_basic.yaml --model openai/gpt-4o
 ```
 
 ### OSWorld `-T` Parameters
@@ -395,21 +394,21 @@ This installs `inspect-evals` (for its HuggingFace dataset loader) and `datasets
 ### Verify your setup
 
 ```bash
-orbit verify-setup bigcodebench
+uv run orbit verify-setup bigcodebench
 # or: python scripts/check_setup.py --scenario bigcodebench
 ```
 
 **Run:**
 
 ```bash
-inspect eval orbit/bigcodebench --limit 3 --model openai/gpt-4o
+uv run inspect eval orbit/bigcodebench --limit 3 --model openai/gpt-4o
 ```
 
 If `inspect-evals`/`datasets` are missing you'll get: `BigCodeBench needs the 'bigcodebench' extra ... uv sync --extra bigcodebench`.
 
 ## Cooperative Allocation (DCOP family)
 
-Distributed constraint-optimization scenarios where agents allocate resources under a shared objective, with optional collusion. Four scenarios share this family: **JiraTicket**, **Hospital**, **MeetSched**, and **Colosseum DCOP**.
+Distributed constraint-optimization scenarios where agents allocate resources under a shared objective, with optional collusion. Three scenarios share this family: **JiraTicket**, **Hospital**, and **MeetSched**.
 
 **Install:**
 
@@ -419,27 +418,27 @@ Distributed constraint-optimization scenarios where agents allocate resources un
   uv sync --extra dcop
   ```
 
-- **Hospital**, **MeetSched**, and **Colosseum DCOP** run on the **core install** (no extra).
+- **Hospital** and **MeetSched** run on the **core install** (no extra).
 
 No Docker and no data fetch — problems are generated procedurally at runtime.
 
 ### Verify your setup
 
 ```bash
-orbit verify-setup dcop          # checks SciPy (only JiraTicket needs it)
+uv run orbit verify-setup dcop          # checks SciPy (only JiraTicket needs it)
 ```
 
 **Run:**
 
 ```bash
 # JiraTicket with a 2-agent coalition (collusion)
-inspect eval orbit/jira_ticket_allocation \
+uv run inspect eval orbit/jira_ticket_allocation \
   -T num_developers=4 -T num_tasks=6 -T coalition_agents=dev_0,dev_1 \
   --model openai/gpt-4o
 
 # Hospital / meeting scheduling (core install, no extra)
-inspect eval orbit/hospital_scheduling --model openai/gpt-4o
-inspect eval orbit/meeting_scheduling --model openai/gpt-4o
+uv run inspect eval orbit/hospital_scheduling --model openai/gpt-4o
+uv run inspect eval orbit/meeting_scheduling --model openai/gpt-4o
 ```
 
 Running JiraTicket without SciPy raises: `Scenario 'jira_ticket' needs the optional 'dcop' extra (missing: scipy). Install it with: uv sync --extra dcop`.
@@ -454,7 +453,7 @@ Malicious-code-generation refusal tests. Generated code runs in a **Docker** san
 
 ```bash
 uv run python scripts/fetch_redcode_data.py
-inspect eval orbit/redcode_gen --limit 5 --model openai/gpt-4o
+uv run inspect eval orbit/redcode_gen --limit 5 --model openai/gpt-4o
 ```
 
 ### CodeIPI (Coding Agent)
@@ -462,7 +461,7 @@ inspect eval orbit/redcode_gen --limit 5 --model openai/gpt-4o
 Indirect-prompt-injection-in-code tests. Prompts are vendored in the repo; generated code runs in a **Docker** sandbox. No data step:
 
 ```bash
-inspect eval orbit/code_ipi --limit 5 --model openai/gpt-4o
+uv run inspect eval orbit/code_ipi --limit 5 --model openai/gpt-4o
 ```
 
 ### AgentHarm (Tool-Use Safety)
@@ -471,7 +470,7 @@ Harmful tool-use refusal tests. Build the dataset from HuggingFace (MIT + safety
 
 ```bash
 uv run python scripts/build_agentharm_data.py
-inspect eval orbit/agentharm --limit 5 --model openai/gpt-4o
+uv run inspect eval orbit/agentharm --limit 5 --model openai/gpt-4o
 ```
 
 ### &tau;&sup2;-Bench & ConVerse (Customer Service)
@@ -479,8 +478,8 @@ inspect eval orbit/agentharm --limit 5 --model openai/gpt-4o
 Policy-bound customer-service tool-calling (&tau;&sup2;-Bench) and multi-session social-engineering (ConVerse). Domain data is **vendored** under each scenario directory — no extra, no Docker, no fetch step:
 
 ```bash
-inspect eval orbit/tau2 -T domain=airline --limit 3 --model openai/gpt-4o
-inspect eval orbit/converse_safety --limit 3 --model openai/gpt-4o
+uv run inspect eval orbit/tau2 -T domain=airline --limit 3 --model openai/gpt-4o
+uv run inspect eval orbit/converse_safety --limit 3 --model openai/gpt-4o
 ```
 
 (`scripts/build_converse_data.py` regenerates the vendored ConVerse data if you ever need to.)

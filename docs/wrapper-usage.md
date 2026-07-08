@@ -19,38 +19,38 @@ uv sync --extra dev
 
 ```bash
 # Single-agent BrowserART (1 behavior, BrowserGym mode, no Docker)
-inspect eval orbit/browserart_safety \
+uv run inspect eval orbit/browserart_safety \
   -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # Multi-agent with condition preset (star + specialists)
-inspect eval orbit/browserart_safety \
+uv run inspect eval orbit/browserart_safety \
   -T condition=star_specialist -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # Mesh delegation topology
-inspect eval orbit/browserart_safety \
+uv run inspect eval orbit/browserart_safety \
   -T condition=mesh_delegation -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # View results in browser
-inspect view
+uv run inspect view
 ```
 
 ### Option B: YAML config + `orbit` CLI
 
 ```bash
 # Run from YAML config
-orbit run examples/browserart_quick_test.yaml --model openai/gpt-4o
+uv run orbit run examples/browserart_quick_test.yaml --model openai/gpt-4o
 
 # Dry-run (validate and summarize without running)
-orbit run examples/browserart_quick_test.yaml --model openai/gpt-4o --dry-run
+uv run orbit run examples/browserart_quick_test.yaml --model openai/gpt-4o --dry-run
 
 # Override config values (top-level and nested Pydantic fields)
-orbit run examples/browserart_quick_test.yaml -m openai/gpt-4o -T epochs=3
+uv run orbit run examples/browserart_quick_test.yaml -m openai/gpt-4o -T epochs=3
 
 # Validate a config file
-orbit validate examples/browserart_quick_test.yaml
+uv run orbit validate examples/browserart_quick_test.yaml
 ```
 
 ## YAML Config Structure
@@ -105,7 +105,7 @@ metadata:
 Run it:
 
 ```bash
-orbit run my_config.yaml --model openai/gpt-4o
+uv run orbit run my_config.yaml --model openai/gpt-4o
 ```
 
 ### BrowserART metadata fields
@@ -180,22 +180,22 @@ prompts, and execution style automatically.
 
 ```bash
 # Single agent baseline
-inspect eval orbit/browserart_safety \
+uv run inspect eval orbit/browserart_safety \
   -T condition=single_agent -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # Specialist star topology
-inspect eval orbit/browserart_safety \
+uv run inspect eval orbit/browserart_safety \
   -T condition=star_specialist -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # Mesh delegation
-inspect eval orbit/browserart_safety \
+uv run inspect eval orbit/browserart_safety \
   -T condition=mesh_delegation -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # View all results
-inspect view
+uv run inspect view
 ```
 
 ## CLI Reference
@@ -224,7 +224,7 @@ YAML config file.
 Run multiple configs as a benchmark suite:
 
 ```bash
-orbit suite examples/*.yaml --model openai/gpt-4o --baselines
+uv run orbit suite examples/*.yaml --model openai/gpt-4o --baselines
 ```
 
 ### `orbit browserart`
@@ -232,7 +232,7 @@ orbit suite examples/*.yaml --model openai/gpt-4o --baselines
 Run BrowserART directly (no YAML config needed):
 
 ```bash
-orbit browserart --model openai/gpt-4o --limit 5 --max-turns 10
+uv run orbit browserart --model openai/gpt-4o --limit 5 --max-turns 10
 ```
 
 ### `orbit swe-bench`
@@ -240,7 +240,7 @@ orbit browserart --model openai/gpt-4o --limit 5 --max-turns 10
 Run SWE-Bench directly (no YAML config needed):
 
 ```bash
-orbit swe-bench --model openai/gpt-4o --repos django/django --num-issues 2
+uv run orbit swe-bench --model openai/gpt-4o --repos django/django --num-issues 2
 ```
 
 ### `orbit validate`
@@ -248,5 +248,5 @@ orbit swe-bench --model openai/gpt-4o --repos django/django --num-issues 2
 Check a config file for errors without running:
 
 ```bash
-orbit validate examples/browserart_quick_test.yaml
+uv run orbit validate examples/browserart_quick_test.yaml
 ```

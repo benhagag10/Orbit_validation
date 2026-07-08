@@ -51,31 +51,31 @@ Scenario-specific dependencies are installed separately. See [Scenario Requireme
 
 ```bash
 # BrowserART — single agent
-orbit browserart -m openai/gpt-4o
+uv run orbit browserart -m openai/gpt-4o
 
 # BrowserART — star topology with 4 specialists
-orbit browserart -m openai/gpt-4o --agents specialist
+uv run orbit browserart -m openai/gpt-4o --agents specialist
 
 # SWE-Bench — 2 coding agents on independent issues
-orbit swe-bench --model openai/gpt-4o --repos django/django --num-issues 2
+uv run orbit swe-bench --model openai/gpt-4o --repos django/django --num-issues 2
 
 # OS-Harm — computer-use agent safety
-orbit osworld -m openai/gpt-4o --dataset osharm_misuse --limit 10
+uv run orbit osworld -m openai/gpt-4o --dataset osharm_misuse --limit 10
 
 # Cooperative allocation — with collusion
-inspect eval orbit/jira_ticket_allocation \
+uv run inspect eval orbit/jira_ticket_allocation \
   -T num_developers=4 -T num_tasks=6 \
   -T coalition_agents=dev_0,dev_1 --model openai/gpt-4o
 
 # View results
-inspect view
+uv run inspect view
 ```
 
 ---
 
 ## Scenarios
 
-Orbit includes 12 scenarios organized into 5 families:
+Orbit includes 11 scenarios organized into 5 families:
 
 | Family | Scenarios | Action Space |
 |--------|-----------|-------------|
@@ -83,7 +83,7 @@ Orbit includes 12 scenarios organized into 5 families:
 | **Desktop** | OSWorld / OS-Harm | GUI primitives over virtual desktop |
 | **Browser** | BrowserART | Web actions over accessibility tree |
 | **Customer Service** | &tau;&sup2;-Bench, ConVerse | Policy-bound tool calls, dual-control loops |
-| **Cooperative Allocation** | Colosseum DCOP, Hospital, JiraTicket, MeetSched | DCOP resource allocation |
+| **Cooperative Allocation** | Hospital, JiraTicket, MeetSched | DCOP resource allocation |
 
 Each scenario lives under `orbit/scenarios/<family>/<name>/`.
 
@@ -120,7 +120,7 @@ Three ways to run experiments:
 ### CLI flags (quick exploration)
 
 ```bash
-orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin --memory full
+uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin --memory full
 ```
 
 | Flag | Values | Controls |
@@ -132,7 +132,7 @@ orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin --m
 ### Inspect CLI (direct access)
 
 ```bash
-inspect eval orbit/browserart_safety -T agents=specialist -T topology=round_robin --model openai/gpt-4o
+uv run inspect eval orbit/browserart_safety -T agents=specialist -T topology=round_robin --model openai/gpt-4o
 ```
 
 ### YAML configs (full control)
@@ -160,7 +160,7 @@ scheduler:
 ```
 
 ```bash
-orbit run my_config.yaml --model openai/gpt-4o
+uv run orbit run my_config.yaml --model openai/gpt-4o
 ```
 
 ---
@@ -218,13 +218,12 @@ Install only what the scenarios you actually run require.
 | JiraTicket | Cooperative Allocation | `uv sync --extra dcop` | — | generated |
 | Hospital | Cooperative Allocation | core | — | generated |
 | MeetSched | Cooperative Allocation | core | — | generated |
-| Colosseum DCOP | Cooperative Allocation | core | — | generated |
 
 Running a scenario without its extra raises an actionable error naming the exact
 `uv sync --extra <name>` command to run. Check prerequisites up front with:
 
 ```bash
-orbit verify-setup browserart   # or: swe-bench, osworld, bigcodebench, dcop, all
+uv run orbit verify-setup browserart   # or: swe-bench, osworld, bigcodebench, dcop, all
 ```
 
 > **Figure/report scripts.** The paper-figure helpers under `scripts/` need
