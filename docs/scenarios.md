@@ -222,23 +222,14 @@ uv run orbit run examples/swe_bench_multi_issue.yaml --model openai/gpt-4o
 
 ### Condition Presets
 
-Condition presets configure the agent topology and team structure. Use via `--condition <name>` with the CLI or `-T condition=<name>` with `inspect eval`.
+Conditions are shared across every scenario and documented once in
+[Conditions](conditions.md) — a condition is just a pre-baked config. Use via `--condition <name>`
+(CLI), `-T condition=<name>` (`inspect eval`), or run the shipped config directly with
+`orbit run orbit/scenarios/conditions/swe_bench/<name>.yaml`. SWE-Bench's specialists are
+implementation, debugging, testing, and review; the condition set is:
 
-| Condition | Description |
-|-----------|-------------|
-| `single_agent` | Single coding agent |
-| `star_batch` | Star: orchestrator + 1 batch executor (detailed instructions) |
-| `star_batch_relaxed` | Star: orchestrator + 1 batch executor (relaxed instructions) |
-| `star_specialist` | Star: orchestrator + 4 specialists (implementation, debugging, testing, review) |
-| `star_specialist_relaxed` | Star: orchestrator + 4 specialists (relaxed instructions) |
-| `star_step` | Star: orchestrator + 1 step-by-step executor |
-| `mesh_round_robin` | Mesh: 4 peers, round-robin with message board |
-| `mesh_delegation` | Mesh: 4 peers, dynamic delegation |
-| `memory_none` | Star + 4 specialists, no shared memory |
-| `memory_own_actions` | Star + 4 specialists, agents see own actions only |
-| `memory_own_reasoning` | Star + 4 specialists, agents see own reasoning |
-| `memory_shared_actions` | Star + 4 specialists, shared action visibility |
-| `memory_full` | Star + 4 specialists, full shared memory |
+`single_agent`, `star_batch`, `star_batch_relaxed`, `star_specialist`, `star_specialist_relaxed`,
+`star_step`, `mesh_round_robin`, `mesh_delegation`, and `memory_none` … `memory_full`.
 
 ## OSWorld / OS-Harm (Computer-Use Agent Safety)
 
@@ -361,21 +352,15 @@ uv run orbit run examples/osworld_osharm_basic.yaml --model openai/gpt-4o
 
 ### Condition Presets
 
-| Condition | Description |
-|-----------|-------------|
-| `single_agent` | Single computer-use agent |
-| `star_batch` | Star: orchestrator + 1 batch executor |
-| `star_batch_relaxed` | Star: orchestrator + 1 batch executor (relaxed instructions) |
-| `star_specialist` | Star: orchestrator + 4 specialists (email, browser, document, code) |
-| `star_specialist_relaxed` | Star: orchestrator + 4 specialists (relaxed instructions) |
-| `star_step` | Star: orchestrator + 1 step-by-step executor |
-| `mesh_round_robin` | Mesh: 4 peers, round-robin turns |
-| `mesh_delegation` | Mesh: 4 peers, dynamic delegation |
-| `memory_none` | Star + 4 specialists, no shared memory |
-| `memory_own_actions` | Star + 4 specialists, agents see own actions only |
-| `memory_own_reasoning` | Star + 4 specialists, agents see own reasoning |
-| `memory_shared_actions` | Star + 4 specialists, shared action visibility |
-| `memory_full` | Star + 4 specialists, full shared memory |
+Conditions are shared across every scenario and documented once in
+[Conditions](conditions.md). Use via `--condition <name>` (CLI), `-T condition=<name>`
+(`inspect eval`), or run the shipped config directly with
+`orbit run orbit/scenarios/conditions/osworld/<name>.yaml`. OSWorld ships two specialist families —
+tool-action specialists (`star_tool_*`, `mesh_tool_*`, `tool_memory_*`, the default for
+`--agents specialist`) and application specialists (`star_specialist`, `mesh_*`, `memory_*`, via
+`--agents app_specialist`) — for 30 conditions in total. Run
+`uv run python -c "from orbit.scenarios.desktop.osworld.condition_presets import list_conditions; print(list_conditions())"`
+for the full list.
 
 ## BigCodeBench (Coding Agent)
 

@@ -1,359 +1,43 @@
-"""SWE-Bench coding agent condition presets.
+"""SWE-Bench condition presets — thin binding over the shared YAML-backed loader.
 
-Bridge between general topology presets and coding-agent-specific details.
-Each factory function calls a general topology preset from
-:mod:`orbit.configs.topology_presets` and injects coding-specific
-agent names, prompts, and tools.
+Conditions ship as runnable configs in the general orbit syntax under
+``orbit/scenarios/conditions/swe_bench/*.yaml``. This module binds the shared loader
+(:mod:`orbit.scenarios.conditions`) to this scenario; there is no per-scenario registry to
+maintain. Edit or add a condition by editing/adding its YAML.
 
-Mirrors the BrowserART condition presets structure with domain-appropriate
-specialists (implementation, debugging, testing, review) instead of
-browser-specific specialists (click, fill, scroll, navigate).
-
-The 13 conditions:
-
-    single_agent              Single agent
-    star_batch / _relaxed     Star: orchestrator + 1 batch executor
-    star_specialist / _relaxed Star: orchestrator + 4 specialists
-    star_step                 Star: orchestrator + 1 step executor
-    mesh_round_robin          Mesh: 4 peers, round-robin, message board
-    mesh_delegation           Mesh: 4 peers, dynamic delegation
-    memory_none..memory_full  Star: orchestrator + 4 specialists, varying memory
+``resolve_condition`` maps the friendly ``--agents/--topology/--memory/--instructions`` flags to a
+condition name (the curated, experimentally-validated combinations) and is kept here as the only
+scenario-specific data.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any
+from typing import Callable
 
-from orbit.configs.setup import (
-    AgentMemoryAccess,
-    MemoryConfig,
-    SetupConfig,
-)
-from orbit.configs.topology_presets import (
-    mesh_delegation,
-    mesh_round_robin,
-    single_agent,
-    star_orchestrator_workers,
-)
-from orbit.scenarios.coding.swe_bench.prompts import (
-    CODING_AGENT_PROMPT,
-    EXECUTOR_BATCH_PROMPT,
-    EXECUTOR_STEP_PROMPT,
-    MEMORY_ORCH_PROMPT,
-    MEMORY_SPECIALIST_PROMPT,
-    MESH_DELEGATION_PROMPT,
-    MESH_ROUND_ROBIN_PROMPT,
-    ORCH_BATCH_DETAILED_PROMPT,
-    ORCH_BATCH_RELAXED_PROMPT,
-    ORCH_SPECIALIST_DETAILED_PROMPT,
-    ORCH_SPECIALIST_RELAXED_PROMPT,
-    ORCH_STEP_PROMPT,
-    SPECIALIST_DEBUGGING_PROMPT,
-    SPECIALIST_IMPLEMENTATION_PROMPT,
-    SPECIALIST_REVIEW_PROMPT,
-    SPECIALIST_TESTING_PROMPT,
-)
+from orbit.configs.setup import SetupConfig
+from orbit.scenarios import conditions as _shared
 
-# ---------------------------------------------------------------------------
-# Coding tools constant
-# ---------------------------------------------------------------------------
-
-_CODING_TOOLS = ["bash", "python", "text_editor"]
-
-# ---------------------------------------------------------------------------
-# Specialist definitions reused across star_specialist, mesh, memory conditions
-# ---------------------------------------------------------------------------
-
-_SPECIALIST_DEFS: list[dict[str, Any]] = [
-    {"name": "implementation_specialist", "role": "specialist", "specialty": "writing and modifying code"},
-    {"name": "debugging_specialist", "role": "specialist", "specialty": "investigating bugs and diagnosing issues"},
-    {"name": "testing_specialist", "role": "specialist", "specialty": "running tests and validating changes"},
-    {"name": "review_specialist", "role": "specialist", "specialty": "reviewing code for correctness"},
-]
-
-_SPECIALIST_PROMPT_MAP = {
-    "implementation_specialist": SPECIALIST_IMPLEMENTATION_PROMPT,
-    "debugging_specialist": SPECIALIST_DEBUGGING_PROMPT,
-    "testing_specialist": SPECIALIST_TESTING_PROMPT,
-    "review_specialist": SPECIALIST_REVIEW_PROMPT,
-}
-
-# ---------------------------------------------------------------------------
-# Single agent
-# ---------------------------------------------------------------------------
-
-
-def _build_single_agent() -> SetupConfig:
-    """Single coding agent — baseline."""
-    return single_agent(
-        name="coding_agent",
-        role="executor",
-        system_prompt=CODING_AGENT_PROMPT,
-        tools=_CODING_TOOLS,
-    )
-
-
-# ---------------------------------------------------------------------------
-# Star — Orchestrator + 1 batch executor
-# ---------------------------------------------------------------------------
-
-
-def _build_star_batch() -> SetupConfig:
-    """Star: orchestrator + 1 batch executor with detailed instructions."""
-    return star_orchestrator_workers(
-        orchestrator_prompt=ORCH_BATCH_DETAILED_PROMPT,
-        worker_specs=[{
-            "name": "executor",
-            "role": "executor",
-            "system_prompt": EXECUTOR_BATCH_PROMPT,
-            "tools": _CODING_TOOLS,
-        }],
-        properties={
-            "condition_type": "star_batch",
-            "execution_style": "batch",
-        },
-    )
-
-
-def _build_star_batch_relaxed() -> SetupConfig:
-    """Star: orchestrator + 1 batch executor with relaxed instructions."""
-    return star_orchestrator_workers(
-        orchestrator_prompt=ORCH_BATCH_RELAXED_PROMPT,
-        worker_specs=[{
-            "name": "executor",
-            "role": "executor",
-            "system_prompt": EXECUTOR_BATCH_PROMPT,
-            "tools": _CODING_TOOLS,
-        }],
-        properties={
-            "condition_type": "star_batch_relaxed",
-            "execution_style": "batch",
-        },
-    )
-
-
-# ---------------------------------------------------------------------------
-# Star — Orchestrator + 4 specialists
-# ---------------------------------------------------------------------------
-
-
-def _specialist_workers() -> list[dict[str, Any]]:
-    """Build worker spec dicts for the 4 specialists."""
-    return [
-        {
-            "name": s["name"],
-            "role": s["role"],
-            "specialty": s["specialty"],
-            "system_prompt": _SPECIALIST_PROMPT_MAP[s["name"]],
-            "tools": _CODING_TOOLS,
-        }
-        for s in _SPECIALIST_DEFS
-    ]
-
-
-def _build_star_specialist() -> SetupConfig:
-    """Star: orchestrator + 4 specialists with detailed dispatch."""
-    return star_orchestrator_workers(
-        orchestrator_prompt=ORCH_SPECIALIST_DETAILED_PROMPT,
-        worker_specs=_specialist_workers(),
-        properties={
-            "condition_type": "star_specialist",
-            "execution_style": "specialist_dispatch",
-        },
-    )
-
-
-def _build_star_specialist_relaxed() -> SetupConfig:
-    """Star: orchestrator + 4 specialists with relaxed dispatch."""
-    return star_orchestrator_workers(
-        orchestrator_prompt=ORCH_SPECIALIST_RELAXED_PROMPT,
-        worker_specs=_specialist_workers(),
-        properties={
-            "condition_type": "star_specialist_relaxed",
-            "execution_style": "specialist_dispatch",
-        },
-    )
-
-
-# ---------------------------------------------------------------------------
-# Star — Orchestrator + 1 step executor
-# ---------------------------------------------------------------------------
-
-
-def _build_star_step() -> SetupConfig:
-    """Star: orchestrator + 1 step executor (one action at a time)."""
-    return star_orchestrator_workers(
-        orchestrator_prompt=ORCH_STEP_PROMPT,
-        worker_specs=[{
-            "name": "executor",
-            "role": "executor",
-            "system_prompt": EXECUTOR_STEP_PROMPT,
-            "tools": _CODING_TOOLS,
-        }],
-        properties={
-            "condition_type": "star_step",
-            "execution_style": "step",
-        },
-    )
-
-
-# ---------------------------------------------------------------------------
-# Mesh — 4 peers, round-robin, message board
-# ---------------------------------------------------------------------------
-
-
-def _build_mesh_round_robin() -> SetupConfig:
-    """Mesh: 4 peers with round-robin turns and shared message board."""
-    agent_specs = [
-        {
-            "name": s["name"],
-            "role": "peer",
-            "specialty": s["specialty"],
-            "system_prompt": MESH_ROUND_ROBIN_PROMPT,
-            "tools": _CODING_TOOLS,
-        }
-        for s in _SPECIALIST_DEFS
-    ]
-    return mesh_round_robin(
-        agent_specs=agent_specs,
-        properties={
-            "condition_type": "mesh_round_robin",
-            "execution_style": "round_robin",
-        },
-    )
-
-
-# ---------------------------------------------------------------------------
-# Mesh — 4 peers, dynamic delegation
-# ---------------------------------------------------------------------------
-
-
-def _build_mesh_delegation() -> SetupConfig:
-    """Mesh: 4 peers with dynamic delegation."""
-    agent_specs = [
-        {
-            "name": s["name"],
-            "role": "peer",
-            "specialty": s["specialty"],
-            "system_prompt": MESH_DELEGATION_PROMPT,
-            "tools": _CODING_TOOLS,
-        }
-        for s in _SPECIALIST_DEFS
-    ]
-    return mesh_delegation(
-        agent_specs=agent_specs,
-        properties={
-            "condition_type": "mesh_delegation",
-            "execution_style": "delegation",
-        },
-    )
-
-
-# ---------------------------------------------------------------------------
-# Memory conditions — Star: orchestrator + 4 specialists, varying memory
-# ---------------------------------------------------------------------------
-
-# Memory access levels (cumulative — each level adds visibility):
-#   memory_none:           goal only (defaults)
-#   memory_own_actions:    + own action history
-#   memory_own_reasoning:  + own CoT
-#   memory_shared_actions: + shared action history
-#   memory_full:           + shared CoT + accumulated instructions
-_MEMORY_LEVELS: dict[str, dict[str, bool]] = {
-    "memory_none": {},
-    "memory_own_actions": {"own_action_history": True},
-    "memory_own_reasoning": {"own_action_history": True, "own_cot": True},
-    "memory_shared_actions": {"own_action_history": True, "own_cot": True, "shared_action_history": True},
-    "memory_full": {
-        "own_action_history": True,
-        "own_cot": True,
-        "shared_action_history": True,
-        "shared_cot": True,
-        "nl_instructions_accumulated": True,
-    },
-}
-
-
-def _memory_condition(level: str) -> SetupConfig:
-    """Build a memory condition with memory access at the given level."""
-    flags = _MEMORY_LEVELS[level]
-    specialist_names = [s["name"] for s in _SPECIALIST_DEFS]
-    all_names = ["orchestrator", *specialist_names]
-
-    access_list = [
-        AgentMemoryAccess(agent_name=name, **flags)
-        for name in all_names
-    ]
-    memory = MemoryConfig(
-        shared=True,
-        shared_groups=[all_names],
-        agent_memory_access=access_list,
-    )
-
-    return star_orchestrator_workers(
-        orchestrator_prompt=MEMORY_ORCH_PROMPT,
-        worker_specs=[
-            {
-                "name": s["name"],
-                "role": s["role"],
-                "specialty": s["specialty"],
-                "system_prompt": MEMORY_SPECIALIST_PROMPT,
-                "tools": _CODING_TOOLS,
-            }
-            for s in _SPECIALIST_DEFS
-        ],
-        memory=memory,
-        properties={
-            "condition_type": level,
-            "execution_style": "specialist_dispatch",
-            "memory_level": level,
-        },
-    )
-
-
-# ---------------------------------------------------------------------------
-# Condition registry
-# ---------------------------------------------------------------------------
-
-CONDITION_REGISTRY: dict[str, Callable[[], SetupConfig]] = {
-    "single_agent": _build_single_agent,
-    "star_batch": _build_star_batch,
-    "star_batch_relaxed": _build_star_batch_relaxed,
-    "star_specialist": _build_star_specialist,
-    "star_specialist_relaxed": _build_star_specialist_relaxed,
-    "star_step": _build_star_step,
-    "mesh_round_robin": _build_mesh_round_robin,
-    "mesh_delegation": _build_mesh_delegation,
-    "memory_none": lambda: _memory_condition("memory_none"),
-    "memory_own_actions": lambda: _memory_condition("memory_own_actions"),
-    "memory_own_reasoning": lambda: _memory_condition("memory_own_reasoning"),
-    "memory_shared_actions": lambda: _memory_condition("memory_shared_actions"),
-    "memory_full": lambda: _memory_condition("memory_full"),
-}
+_SCENARIO = "swe_bench"
 
 
 def get_condition_setup(condition: str) -> SetupConfig:
-    """Return the ``SetupConfig`` for a named condition.
-
-    Raises ``ValueError`` if the condition is unknown.
-    """
-    factory = CONDITION_REGISTRY.get(condition)
-    if factory is None:
-        available = ", ".join(sorted(CONDITION_REGISTRY))
-        raise ValueError(
-            f"Unknown condition {condition!r}. Available: {available}"
-        )
-    return factory()
+    """Return the SetupConfig for a named condition (loaded from its shipped YAML)."""
+    return _shared.get_condition_setup(_SCENARIO, condition)
 
 
 def list_conditions() -> list[str]:
     """Return a sorted list of available condition names."""
-    return sorted(CONDITION_REGISTRY)
+    return _shared.list_conditions(_SCENARIO)
+
+
+# Back-compat: name -> zero-arg factory that rebuilds the SetupConfig from its YAML.
+CONDITION_REGISTRY: dict[str, Callable[[], SetupConfig]] = {
+    name: (lambda n=name: get_condition_setup(n)) for name in list_conditions()
+}
 
 
 # ---------------------------------------------------------------------------
-# Human-readable parameter resolver
+# Human-readable parameter resolver (friendly flags -> condition name)
 # ---------------------------------------------------------------------------
 
 _FRIENDLY_TO_CONDITION: dict[tuple[str, str, str, str], str] = {

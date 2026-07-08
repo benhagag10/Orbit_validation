@@ -79,6 +79,9 @@ include = ["orbit*"]
 "orbit.scenarios.coding.swe_bench._vendor" = ["LICENSE.inspect_evals"]
 "orbit.scenarios.customer_service.tau2" = ["LICENSE.tau2"]
 "orbit.scenarios.customer_service.tau2.data" = ["**/*.json", "**/*.md", "**/*.toml", "README.md"]
+# Shipped condition configs (a condition == a pre-baked SetupConfig in the general
+# orbit syntax). Loaded at runtime by orbit/scenarios/conditions.py.
+"orbit.scenarios" = ["conditions/*/*.yaml"]
 
 [tool.pytest.ini_options]
 markers = [

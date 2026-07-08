@@ -251,7 +251,7 @@ class TestConditionPresets:
         assert setup.roles[ROLE_USER_ENVIRONMENT] == setup.agents[0].name
 
     def test_unknown_condition_raises(self):
-        with pytest.raises(ValueError, match="Unknown ConVerse condition"):
+        with pytest.raises(ValueError, match="Unknown condition"):
             get_condition_setup("does-not-exist")
 
     def test_specialist_trio_has_three_planner_specialists(self):

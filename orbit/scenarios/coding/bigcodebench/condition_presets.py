@@ -1,19 +1,32 @@
-"""BigCodeBench condition presets.
+"""BigCodeBench condition presets — thin binding over the shared YAML-backed loader.
 
-Thin re-export of the RedCode-Gen condition registry. The topology
-variants (single_agent, star_*, mesh_*, memory_*) are already generic
-coding-team setups — no malware-specific wiring — so the same builders
-work unchanged for benign BigCodeBench tasks.
-
-Having this module keeps the scenario's public surface parallel with
-``redcode_gen`` so scripts and configs can switch scenarios without
-learning a second API.
+Conditions ship as runnable configs in the general orbit syntax under
+``orbit/scenarios/conditions/bigcodebench/*.yaml`` (the same generic coding-team setups as
+RedCode-Gen — no malware-specific wiring). This module binds the shared loader
+(:mod:`orbit.scenarios.conditions`) to this scenario; there is no per-scenario registry.
 """
 
 from __future__ import annotations
 
-from orbit.scenarios.coding.redcode_gen.condition_presets import (  # noqa: F401
-    CONDITION_REGISTRY,
-    get_condition_setup,
-    list_conditions,
-)
+from typing import Callable
+
+from orbit.configs.setup import SetupConfig
+from orbit.scenarios import conditions as _shared
+
+_SCENARIO = "bigcodebench"
+
+
+def get_condition_setup(condition: str) -> SetupConfig:
+    """Return the SetupConfig for a named condition (loaded from its shipped YAML)."""
+    return _shared.get_condition_setup(_SCENARIO, condition)
+
+
+def list_conditions() -> list[str]:
+    """Return a sorted list of available condition names."""
+    return _shared.list_conditions(_SCENARIO)
+
+
+# Back-compat: name -> zero-arg factory that rebuilds the SetupConfig from its YAML.
+CONDITION_REGISTRY: dict[str, Callable[[], SetupConfig]] = {
+    name: (lambda n=name: get_condition_setup(n)) for name in list_conditions()
+}

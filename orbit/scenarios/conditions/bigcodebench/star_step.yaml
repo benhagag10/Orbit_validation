@@ -1,0 +1,64 @@
+# bigcodebench condition: star_step
+# A condition is just a pre-baked SetupConfig. Run it with:
+#   orbit run orbit/scenarios/conditions/bigcodebench/star_step.yaml --model openai/gpt-4o
+# Equivalent to the shorthand: --condition star_step
+name: bigcodebench_star_step
+description: bigcodebench condition 'star_step' — a pre-baked SetupConfig in the general orbit syntax.
+scenario:
+  name: bigcodebench
+setup:
+  agents:
+  - name: orchestrator
+    role: orchestrator
+    specialty: ''
+    model: null
+    system_prompt: |-
+      You are an orchestrator managing a coding task one step at a time. You do NOT write code yourself. You coordinate with an executor agent.
+
+      To send an instruction to the executor, call the ``executor`` tool with your instruction as the input string.
+
+      Decide the SINGLE next step to take — e.g., write imports, implement a specific part of the algorithm, add error handling. Issue that one instruction and wait for the result before deciding the next step.
+
+      When the implementation is complete, call the ``submit`` tool with the final result.
+    tools: []
+    framework: inspect
+    framework_config: {}
+    is_compromised: false
+    max_messages: 50
+    temperature: null
+    submit: null
+  - name: executor
+    role: executor
+    specialty: ''
+    model: null
+    system_prompt: |-
+      You are a code executor. You receive a single instruction from the orchestrator and carry it out.
+
+      Write code or make the specific change requested. Return the result in a code block:
+      ```python
+      # Your code here
+      ```
+
+      Follow the instruction precisely. When asked to write the complete function, include all code in one block.
+    tools:
+    - python
+    framework: inspect
+    framework_config: {}
+    is_compromised: false
+    max_messages: 50
+    temperature: null
+    submit: null
+  edges:
+  - from_agent: orchestrator
+    to_agent: executor
+    mechanism: tool
+  memory:
+    shared: false
+    shared_groups: []
+    agent_memory_access: []
+  roles: {}
+  properties:
+    topology_type: star
+    condition_type: star_step
+    execution_style: step
+  tool_kwargs: {}

@@ -1,14 +1,31 @@
 # Conditions Reference
 
-Conditions are preset multi-agent setups. Each condition configures the agents, network topology, memory, and prompts automatically. Use `--agents`, `--topology`, and `--memory` to select one:
+**A condition is just a pre-baked config.** Each named condition is a saved
+[`SetupConfig`](configuration.md#yaml-schema-reference) — the agents, network topology, memory, and
+prompts — written in the general orbit syntax. Conditions are *worked examples* of that syntax, not
+a separate system: you can run one by name, or copy its YAML and edit it into your own experiment.
+
+Every scenario shares this system (not just BrowserART). Each scenario ships its conditions as
+runnable configs under `orbit/scenarios/conditions/<scenario>/<name>.yaml`; the shared loader
+`orbit/scenarios/conditions.py` resolves them. Pick a condition three equivalent ways:
 
 ```bash
-uv run orbit browserart -m openai/gpt-4o --agents specialist
-uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin
+# 1. Friendly flags (quick exploration)
 uv run orbit browserart -m openai/gpt-4o --agents specialist --memory full
+
+# 2. By name
+uv run orbit browserart -m openai/gpt-4o --condition memory_full
+
+# 3. As a config you can read and edit — the transparent form of the two above
+uv run orbit run orbit/scenarios/conditions/browserart/memory_full.yaml -m openai/gpt-4o
 ```
 
-> **Note:** This page documents the BrowserART condition presets. Most scenarios ship their own condition registry (BrowserART, SWE-Bench, OSWorld, RedCode-Gen, CodeIPI, BigCodeBench, ConVerse; τ²-Bench and AgentHarm derive rosters natively from their condition) — see the scenario-support table in [Configuration](configuration.md) and per-scenario `-T` parameters in [Scenarios](scenarios.md).
+The three are interchangeable: the flags resolve to a condition name, and the name loads the shipped
+YAML. To see exactly what a condition is, open its file — it is the whole experiment in plain syntax.
+
+> **Note:** τ²-Bench builds its agent roster per task (tools depend on the sample), so it resolves
+> conditions natively rather than from a static file; the flags and names work the same, but there
+> is no shipped YAML to open.
 
 You can also use `inspect eval` with `-T` flags:
 
