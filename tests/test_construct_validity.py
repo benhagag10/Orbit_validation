@@ -16,6 +16,7 @@ from scripts.verify_construct_validity import (
     CheckResult,
     check_agent_participation,
     check_attack_placement,
+    check_cache_filter_bypass,
     check_defense_activation,
     check_message_flow,
     check_scorer_output,
@@ -42,6 +43,7 @@ def _make_sample(
     total_turns: int = 10,
     attacks: list[dict] | None = None,
     defenses: list[dict] | None = None,
+    memory: dict | None = None,
     scenario_name: str = "",
     attack_attempts: int = 0,
     attack_successes: int = 0,
@@ -63,6 +65,7 @@ def _make_sample(
         "agents": agents or [],
         "edges": edges or [],
         "properties": properties or {},
+        "memory": memory or {},
     }
     experiment = {
         "setup": setup,
@@ -130,11 +133,18 @@ def _make_sample(
     return sample
 
 
-def _make_model_event(request: dict | None) -> MagicMock:
-    """Build a fake ModelEvent. request=None models a cache-read event
-    (no raw provider call recorded)."""
+def _make_model_event(
+    request: dict | None,
+    cache: str | None = None,
+    model: str = "mockllm/model",
+) -> MagicMock:
+    """Build a fake ModelEvent. request=None models a stripped event
+    (no raw provider call recorded — log_model_api off, or a cache read).
+    cache mirrors ModelEvent.cache: None, "read", or "write"."""
     ev = MagicMock()
     ev.event = "model"
+    ev.cache = cache
+    ev.model = model
     if request is None:
         ev.call = None
     else:
@@ -899,6 +909,155 @@ class TestVaccinationEffect:
         ]
         result = check_vaccination_effect(sample)
         assert result.passed
+
+
+# ── Cache Filter Bypass ──────────────────────────────────────────────
+
+
+class TestCacheFilterBypass:
+    """check_cache_filter_bypass fails any log combining Inspect response
+    caching with model filters (issue #36): the cache is keyed and consulted
+    above FilteredModelAPI, so a hit skips input filters (vaccination /
+    safety prompt / memory context) and output filters entirely — the run
+    is labeled defended but measured undefended."""
+
+    def test_no_filters_cache_read_na(self):
+        """Cache reads without any filter-bearing config → N/A pass.
+
+        Caching an undefended, memory-free run bypasses nothing."""
+        sample = _make_sample()
+        sample.events = [_make_model_event(None, cache="read")]
+        result = check_cache_filter_bypass(sample)
+        assert result.passed
+        assert "N/A" in result.detail
+
+    def test_non_filter_defense_cache_read_na(self):
+        """Defenses that carry no model filters (monitors, guardians, tool
+        wrappers) act above the model layer — caching cannot bypass them."""
+        sample = _make_sample(
+            defenses=[{"defense_type": "llm_monitor"},
+                      {"defense_type": "guardian_agent"},
+                      {"defense_type": "tool_wrapper"}],
+        )
+        sample.events = [_make_model_event(None, cache="read")]
+        result = check_cache_filter_bypass(sample)
+        assert result.passed
+        assert "N/A" in result.detail
+
+    def test_disabled_filter_defense_cache_read_na(self):
+        """A disabled filter-bearing defense installs no filters → N/A."""
+        sample = _make_sample(
+            defenses=[{"defense_type": "prompt_vaccination", "enabled": False}],
+        )
+        sample.events = [_make_model_event(None, cache="read")]
+        result = check_cache_filter_bypass(sample)
+        assert result.passed
+        assert "N/A" in result.detail
+
+    def test_vaccination_cache_read_fails(self):
+        """prompt_vaccination + a cache read → FAIL with a pointed message."""
+        sample = _make_sample(
+            defenses=[{"defense_type": "prompt_vaccination"}],
+        )
+        sample.events = [
+            _make_model_event({"messages": []}, model="openai/gpt-4o-mini"),
+            _make_model_event(None, cache="read", model="openai/gpt-4o-mini"),
+        ]
+        result = check_cache_filter_bypass(sample)
+        assert not result.passed
+        assert "1/2" in result.detail
+        assert "issue #36" in result.detail
+        assert "prompt_vaccination" in result.detail
+
+    def test_secure_model_cache_read_fails(self):
+        """secure_model (safety prompt + output content filter) + cache read
+        → FAIL. Unlike vaccination, no other check catches this arm."""
+        sample = _make_sample(
+            defenses=[{"defense_type": "secure_model"}],
+        )
+        sample.events = [_make_model_event(None, cache="read")]
+        result = check_cache_filter_bypass(sample)
+        assert not result.passed
+        assert "secure_model" in result.detail
+
+    def test_shared_memory_cache_read_fails(self):
+        """shared_groups builds a MemoryTracker → MemoryInjectionFilter is in
+        the chain; a cache hit serves a response generated without the
+        (turn-dependent) memory context."""
+        sample = _make_sample(
+            memory={"shared": True, "shared_groups": [["alice", "bob"]]},
+        )
+        sample.events = [_make_model_event(None, cache="read")]
+        result = check_cache_filter_bypass(sample)
+        assert not result.passed
+        assert "memory:injection_filter" in result.detail
+
+    def test_agent_memory_access_cache_read_fails(self):
+        """Per-agent memory visibility flags also build a tracker → FAIL."""
+        sample = _make_sample(
+            memory={"agent_memory_access": [
+                {"agent_name": "alice", "can_read": True, "can_write": False},
+            ]},
+        )
+        sample.events = [_make_model_event(None, cache="read")]
+        result = check_cache_filter_bypass(sample)
+        assert not result.passed
+
+    def test_memory_poisoning_attack_cache_read_fails(self):
+        """A memory_poisoning attack forces a tracker even without shared
+        memory config → FAIL."""
+        sample = _make_sample(
+            attacks=[{"attack_type": "memory_poisoning"}],
+            attack_attempts=1,
+        )
+        sample.events = [_make_model_event(None, cache="read")]
+        result = check_cache_filter_bypass(sample)
+        assert not result.passed
+
+    def test_converse_poison_seed_cache_read_fails(self):
+        """A ConVerse poison seed (in experiment metadata) builds a tracker
+        → FAIL."""
+        sample = _make_sample()
+        sample.metadata["experiment"]["metadata"] = {
+            "converse_memory_poison_seed": [{"key": "note", "value": "x"}],
+        }
+        sample.events = [_make_model_event(None, cache="read")]
+        result = check_cache_filter_bypass(sample)
+        assert not result.passed
+
+    def test_filters_no_cache_pass(self):
+        """Filters configured, all model calls reached the provider → PASS."""
+        sample = _make_sample(
+            defenses=[{"defense_type": "prompt_vaccination"}],
+        )
+        sample.events = [
+            _make_model_event({"messages": []}),
+            _make_model_event({"messages": []}),
+        ]
+        result = check_cache_filter_bypass(sample)
+        assert result.passed
+        assert "none cache-served" in result.detail
+
+    def test_filters_cache_write_only_pass_with_advisory(self):
+        """Writes without reads: this run generated everything through the
+        filters, so it is valid — but the populated cache is keyed on
+        pre-filter input, so the PASS detail must warn (issue #36)."""
+        sample = _make_sample(
+            defenses=[{"defense_type": "secure_model"}],
+        )
+        sample.events = [_make_model_event({"messages": []}, cache="write")]
+        result = check_cache_filter_bypass(sample)
+        assert result.passed
+        assert "issue #36" in result.detail
+
+    def test_filters_no_events_pass(self):
+        """Header-only / pre-execution log → nothing to check, PASS."""
+        sample = _make_sample(
+            defenses=[{"defense_type": "prompt_vaccination"}],
+        )
+        result = check_cache_filter_bypass(sample)
+        assert result.passed
+        assert "No model events" in result.detail
 
 
 # ── Scorer Output ────────────────────────────────────────────────────

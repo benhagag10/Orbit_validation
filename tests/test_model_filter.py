@@ -5,11 +5,13 @@ from __future__ import annotations
 import pytest
 
 from inspect_ai.model import (
+    CachePolicy,
     ChatMessageAssistant,
     ChatMessageSystem,
     ChatMessageUser,
     GenerateConfig,
     ModelOutput,
+    get_model,
 )
 from inspect_ai.model._model_output import ChatCompletionChoice
 
@@ -18,9 +20,11 @@ from orbit.defenses.base import DefenseBase
 from orbit.defenses.model_defense import ModelDefense
 from orbit.defenses.model_filter import (
     FilterContext,
+    FilteredModel,
     FilteredModelAPI,
     ModelFilter,
     OutputContentFilter,
+    ResponseCachingUnsupportedError,
     SystemPromptFilter,
     wrap_model,
 )
@@ -343,9 +347,119 @@ class TestWrapModel:
         result = wrap_model(model, [filt], ctx)
 
         assert result is not model
+        assert isinstance(result, FilteredModel)
         assert isinstance(result.api, FilteredModelAPI)
         assert result.config is model.config
         assert result.model_args == model.model_args
+
+
+# ── FilteredModel cache refusal (issue #36) ──────────────────────────────
+
+
+def _wrapped_mockllm(
+    base_config: GenerateConfig | None = None,
+    agent_name: str = "alice",
+):
+    """A real mockllm Model wrapped with one filter, as wrap_model builds it.
+
+    Uses the real Model.generate machinery — the layer where Inspect's
+    response cache lives — so these tests exercise the actual guard path.
+    """
+    model = (
+        get_model("mockllm/model", config=base_config)
+        if base_config is not None
+        else get_model("mockllm/model")
+    )
+    return wrap_model(
+        model,
+        [SystemPromptFilter(prompt="be safe")],
+        FilterContext(agent_name=agent_name),
+    )
+
+
+class TestFilteredModelCacheRefusal:
+    """FilteredModel must refuse Inspect response caching: the cache is keyed
+    on the pre-filter input and consulted above FilteredModelAPI, so a hit
+    would skip input filters and output scanning entirely (issue #36)."""
+
+    @pytest.mark.asyncio
+    async def test_explicit_cache_true_raises(self):
+        model = _wrapped_mockllm()
+        with pytest.raises(ResponseCachingUnsupportedError, match="issue #36"):
+            await model.generate([ChatMessageUser(content="hi")], cache=True)
+
+    @pytest.mark.asyncio
+    async def test_cache_policy_raises(self):
+        model = _wrapped_mockllm()
+        with pytest.raises(ResponseCachingUnsupportedError):
+            await model.generate(
+                [ChatMessageUser(content="hi")], cache=CachePolicy(expiry=None)
+            )
+
+    @pytest.mark.asyncio
+    async def test_error_names_agent_and_filters(self):
+        model = _wrapped_mockllm(agent_name="worker_2")
+        with pytest.raises(
+            ResponseCachingUnsupportedError,
+            match=r"worker_2.*system_prompt_filter",
+        ):
+            await model.generate([ChatMessageUser(content="hi")], cache=True)
+
+    @pytest.mark.asyncio
+    async def test_passed_config_cache_raises(self):
+        """cache via the per-call GenerateConfig (Model.generate's fallback
+        when no explicit cache= arg is given) is also refused."""
+        model = _wrapped_mockllm()
+        with pytest.raises(ResponseCachingUnsupportedError):
+            await model.generate(
+                [ChatMessageUser(content="hi")],
+                config=GenerateConfig(cache=True),
+            )
+
+    @pytest.mark.asyncio
+    async def test_base_config_cache_raises(self):
+        """cache baked into the model's own config at construction time is
+        refused on the first generate."""
+        model = _wrapped_mockllm(base_config=GenerateConfig(cache=True))
+        with pytest.raises(ResponseCachingUnsupportedError):
+            await model.generate([ChatMessageUser(content="hi")])
+
+    @pytest.mark.asyncio
+    async def test_explicit_false_overrides_config_cache(self):
+        """Inspect semantics: an explicit cache=False beats config.cache, so
+        the guard must allow it — the call runs uncached."""
+        model = _wrapped_mockllm(base_config=GenerateConfig(cache=True))
+        output = await model.generate(
+            [ChatMessageUser(content="hi")], cache=False
+        )
+        assert output.completion
+
+    @pytest.mark.asyncio
+    async def test_uncached_generate_works_and_filters_run(self):
+        """Without caching, generate succeeds and the chain still filters."""
+        model = get_model("mockllm/model")
+        filt = _CountingFilter()
+        wrapped = wrap_model(
+            model, [filt], FilterContext(agent_name="alice")
+        )
+        output = await wrapped.generate([ChatMessageUser(content="hi")])
+        assert output.completion
+        assert filt.input_count == 1
+
+    @pytest.mark.asyncio
+    async def test_generate_loop_default_does_not_raise(self):
+        """generate_loop passes Inspect's NOT_GIVEN sentinel through to
+        generate(); the guard must treat it as not-given (fall back to
+        config), not as a cache request."""
+        model = _wrapped_mockllm()
+        messages, output = await model.generate_loop("hi")
+        assert output.completion
+
+    @pytest.mark.asyncio
+    async def test_generate_loop_cache_raises(self):
+        model = _wrapped_mockllm()
+        with pytest.raises(ResponseCachingUnsupportedError):
+            await model.generate_loop("hi", cache=True)
 
 
 # ── SystemPromptFilter tests ─────────────────────────────────────────────

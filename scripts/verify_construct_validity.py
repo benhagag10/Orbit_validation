@@ -757,6 +757,133 @@ def check_vaccination_effect(sample: EvalSample) -> CheckResult:
                        "cannot verify generate-time effect, skipping")
 
 
+# Defense types whose get_model_filters() returns a non-empty chain (see
+# orbit/defenses/registry.py). These run inside FilteredModelAPI, *below*
+# Inspect's response cache. Custom defenses added via register_defense()
+# that carry model filters cannot be recognized from a log's config dict,
+# so they are outside this tripwire's reach.
+_FILTER_BEARING_DEFENSE_TYPES = {"prompt_vaccination", "secure_model"}
+
+
+def _expected_model_filters(sample: EvalSample) -> list[str]:
+    """Model-filter sources implied by the sample's config.
+
+    Mirrors the orchestrator's filter assembly (_build_attacks_and_defenses
+    + _build_memory_tracker): enabled filter-bearing defenses, plus the
+    MemoryInjectionFilter whenever a memory tracker would be built
+    (per-agent access flags, shared groups, a memory_poisoning attack, or
+    a ConVerse poison seed).
+    """
+    meta = sample.metadata or {}
+    exp = meta.get("experiment", {})
+    if isinstance(exp, str):
+        exp = json.loads(exp)
+    if not isinstance(exp, dict):
+        return []
+
+    sources = []
+    for d in exp.get("defenses", []):
+        if not isinstance(d, dict) or not d.get("enabled", True):
+            continue
+        if d.get("defense_type") in _FILTER_BEARING_DEFENSE_TYPES:
+            sources.append(f"defense:{d['defense_type']}")
+
+    setup = exp.get("setup", {})
+    memory = setup.get("memory", {}) if isinstance(setup, dict) else {}
+    exp_meta = exp.get("metadata", {})
+    seed = meta.get("converse_memory_poison_seed")
+    if not isinstance(seed, list) and isinstance(exp_meta, dict):
+        seed = exp_meta.get("converse_memory_poison_seed")
+    has_memory_tracker = bool(
+        (isinstance(memory, dict)
+         and (memory.get("agent_memory_access") or memory.get("shared_groups")))
+        or any(isinstance(a, dict) and a.get("attack_type") == "memory_poisoning"
+               for a in exp.get("attacks", []))
+        or (isinstance(seed, list) and seed)
+    )
+    if has_memory_tracker:
+        sources.append("memory:injection_filter")
+    return sources
+
+
+def check_cache_filter_bypass(sample: EvalSample) -> CheckResult:
+    """Model-filter defenses must not be combined with Inspect response caching.
+
+    Inspect's response cache is keyed and consulted *above* the ModelAPI
+    layer, while every Orbit model filter (prompt vaccination, secure_model
+    safety prompt + output content filter, memory-context injection) runs
+    *below* it, inside FilteredModelAPI (issue #36). Two consequences:
+
+    1. The cache key is built from the pre-filter input, so a defended and
+       an undefended run of the same sample share cache entries by
+       construction — the sharp edge for factorized A/B ablations.
+    2. On a cache hit, Model.generate returns before FilteredModelAPI runs:
+       input filters never inject and output filters never scan. The run is
+       labeled defended but measured undefended, and scores come out
+       looking normal.
+
+    A cache *read* (``ModelEvent.cache == "read"``) in a log whose config
+    implies model filters is therefore a construct-validity failure. The
+    log cannot distinguish a same-run hit (mostly benign for static
+    prompts, still wrong for turn-dependent memory context) from a
+    cross-arm hit serving undefended output, so any read fails. Cache
+    *writes* alone leave this run valid — every response was generated
+    through the filters — but they populate a pre-filter-keyed cache that
+    any later arm of the same sample will silently hit; the PASS detail
+    flags this.
+
+    Scorer/judge model calls in the same sample are not distinguished from
+    agent calls, so a cache-enabled judge also trips this check. No Orbit
+    code path enables response caching today, so any read deserves a look.
+    """
+    sources = _expected_model_filters(sample)
+    if not sources:
+        return CheckResult("cache_filter_bypass", True,
+                           "No model-filter defenses or memory injection configured — N/A")
+
+    events = getattr(sample, "events", None) or []
+    reads: list[str] = []
+    writes = 0
+    model_events = 0
+    for ev in events:
+        if getattr(ev, "event", None) != "model":
+            continue
+        model_events += 1
+        cache = getattr(ev, "cache", None)
+        if cache == "read":
+            reads.append(str(getattr(ev, "model", "?")))
+        elif cache == "write":
+            writes += 1
+
+    if reads:
+        return CheckResult("cache_filter_bypass", False,
+                           f"{len(reads)}/{model_events} model call(s) served from Inspect's "
+                           f"response cache (models: {sorted(set(reads))}) while the config "
+                           f"implies model filters ({sorted(sources)}). The cache sits above "
+                           f"FilteredModelAPI: cached responses skip input filters "
+                           f"(vaccination / safety prompt / memory context) and were never "
+                           f"scanned by output filters — the run is labeled defended but "
+                           f"measured undefended (issue #36). Rerun without response caching.")
+
+    if writes:
+        return CheckResult("cache_filter_bypass", True,
+                           f"No cache reads, but {writes} cache write(s) alongside model "
+                           f"filters ({sorted(sources)}). This run is valid, but the cache "
+                           f"key ignores filter-injected content: any later run of the same "
+                           f"sample — defended or not — will silently reuse this arm's "
+                           f"responses (issue #36). Advisory: disable caching for "
+                           f"filter-bearing runs.")
+
+    if model_events:
+        return CheckResult("cache_filter_bypass", True,
+                           f"{model_events} model call(s), none cache-served — filters "
+                           f"reached the provider on every call")
+
+    return CheckResult("cache_filter_bypass", True,
+                       "No model events in log (header-only or pre-execution log) — "
+                       "nothing to check")
+
+
 def check_scorer_output(sample: EvalSample) -> CheckResult:
     """Verify scorer produced non-empty metrics."""
     scores = sample.scores or {}
@@ -807,6 +934,7 @@ def run_structural_checks(sample: EvalSample, sample_idx: int) -> list[CheckResu
         check_attack_placement(sample),
         check_defense_activation(sample),
         check_vaccination_effect(sample),
+        check_cache_filter_bypass(sample),
         check_scorer_output(sample),
         check_message_flow(sample),
     ]
