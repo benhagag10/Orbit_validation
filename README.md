@@ -1,14 +1,23 @@
+<div align="center">
+
+<a href="https://wittlab.ai/"><img src="docs/assets/wittlab_logo.png" alt="Wittlab" height="120"></a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<a href="https://www.matsprogram.org/"><img src="docs/assets/mats_logo.jpeg" alt="MATS Program" height="120"></a>
+
 # Orbit
 
-**A configuration-driven framework for evaluating the security of multi-agent LLM systems.**
+**Multi-Agent Security Benchmarking Framework**
 
-Built as a plugin on [Inspect AI](https://inspect.ai-safety-institute.org.uk/) — no modifications to Inspect, pure extension via its plugin architecture.
+Built on [Inspect AI](https://inspect.ai-safety-institute.org.uk/) by the [UK AI Security Institute](https://www.aisi.gov.uk/)<br>
+Developed at [Wittlab](https://wittlab.ai/) as part of the [MATS](https://www.matsprogram.org/) program
 
-[Quick Start](#quick-start) |
-[Scenarios](#scenarios) |
-[Attacks & Defenses](#attacks--defenses) |
-[Configuration](#configuration) |
+[Quick Start](#quick-start) •
+[Scenarios](#scenarios) •
+[Attacks & Defenses](#attacks--defenses) •
+[Configuration](#configuration) •
 [Full Documentation](docs/configuration.md)
+
+</div>
 
 ---
 
