@@ -24,7 +24,9 @@ The presets:
   sentinel halt condition. Matches PR 2 / PR 3 default.
 - **supervisor_specialist** — triage agent (reads-only) + one
   specialist agent per WRITE-role bucket in the domain. Specialists
-  receive reads *and* their own WRITE tools. Scheduling order rotates
+  receive reads *and* their own WRITE tools, but not
+  ``transfer_to_human_agents`` — escalation authority stays with the
+  customer-facing supervisor (issue #39). Scheduling order rotates
   so every agent gets a turn each round.
 - **tiered_escalation** — front-line agent gets READ-only tools;
   manager agent gets reads and WRITE tools. Tests privilege
@@ -442,7 +444,8 @@ same policy and the same labeled transcript. When the supervisor
 hands a {role} write action to you, perform it via your tools and
 report the result to the channel. Otherwise stay out of the
 conversation: reply with a brief standby note (e.g. "Standing by.")
-— do not question the customer yourself and do not escalate.
+— do not question the customer yourself. Escalating the customer to
+a human agent is the supervisor's decision, never yours.
 {team_note}
 </instructions>
 <policy>
@@ -480,6 +483,18 @@ def _build_supervisor_specialist_plan(
     )
     agent_specs: list[AgentSpec] = [supervisor]
     for role in roles:
+        # Escalating the customer to a human is the supervisor's call:
+        # specialists keep the triage reads for context but not
+        # ``transfer_to_human_agents``. Left in reach, gpt-4o-mini
+        # specialists spuriously transferred at conversation impasses
+        # they weren't even asked to handle (issue #39), and any
+        # gold-required transfer is still satisfiable because the
+        # action evaluator unions calls across assistant agents.
+        specialist_tools = [
+            t
+            for t in tools_for_role(domain, role, include_reads=True)
+            if t != "transfer_to_human_agents"
+        ]
         agent_specs.append(
             AgentSpec(
                 name=f"{role}_specialist",
@@ -490,7 +505,7 @@ def _build_supervisor_specialist_plan(
                     policy=policy_text,
                     team_note=TEAM_CHANNEL_NOTE,
                 ),
-                tools=tools_for_role(domain, role, include_reads=True),
+                tools=specialist_tools,
                 max_messages=max_messages,
                 submit=False,
             )

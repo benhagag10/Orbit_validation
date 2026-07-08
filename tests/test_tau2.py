@@ -3728,6 +3728,22 @@ class TestTopologyPresets:
         assert not (set(supervisor.tools) & set(write_tools("airline")))
 
     @pytest.mark.parametrize("domain", ["airline", "retail", "telecom"])
+    def test_specialists_cannot_transfer_to_human(self, domain):
+        """Escalation authority is the supervisor's (issue #39): left in
+        reach, specialists spuriously transferred the customer at
+        conversation impasses they weren't asked to handle."""
+        from orbit.scenarios.customer_service.tau2.topologies import build_topology
+
+        cfg, task, policy = self._first_task(domain)
+        scfg = cfg.model_copy(update={"topology": "supervisor_specialist"})
+        plan = build_topology("supervisor_specialist", task, scfg, policy)
+        for spec in plan.agents:
+            if spec.name.endswith("_specialist"):
+                assert "transfer_to_human_agents" not in spec.tools, spec.name
+        supervisor = next(a for a in plan.agents if a.name == "supervisor")
+        assert "transfer_to_human_agents" in supervisor.tools
+
+    @pytest.mark.parametrize("domain", ["airline", "retail", "telecom"])
     def test_tiered_escalation_front_line_is_read_only(self, domain):
         from orbit.scenarios.customer_service.tau2.tool_metadata import (
             read_only_tools,
