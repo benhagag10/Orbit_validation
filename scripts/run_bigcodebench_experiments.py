@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Batch runner for ICML BigCodeBench experiments (13 conditions).
+Batch runner for BigCodeBench experiments (13 conditions).
 
 Mirrors ``scripts/run_redcode_gen_experiments.py`` so the two
 scenarios can be swept with the same operational surface. BigCodeBench
@@ -61,7 +61,7 @@ DEFAULT_MAX_TURNS = 100
 DEFAULT_MAX_TIME = 300.0   # seconds per task (5 min)
 DEFAULT_MAX_SAMPLES = 8    # parallel samples per condition
 DEFAULT_RETRY_ON_ERROR = 1
-DEFAULT_LOG_ROOT = Path("logs/bigcodebench_icml")
+DEFAULT_LOG_ROOT = Path("logs/bigcodebench")
 
 SMOKE_LIMIT = 3
 SMOKE_MAX_TURNS = 10
@@ -238,7 +238,7 @@ def _run_single(run_spec: dict) -> RunResult:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run ICML BigCodeBench experiments (13 conditions)"
+        description="Run BigCodeBench experiments (13 conditions)"
     )
     parser.add_argument(
         "--smoke", action="store_true",
@@ -352,7 +352,7 @@ def main():
     print(f"\n{'='*60}")
     mode = "SMOKE TEST" if args.smoke else "FULL RUN"
     seed_str = ", ".join(str(s) for s in seeds)
-    print(f"  ICML BigCodeBench Experiments — {mode}")
+    print(f"  BigCodeBench Experiments — {mode}")
     print(f"  {total} runs, model={args.model}, seed(s)={seed_str}")
     print(f"  Max turns: {max_turns}, max time: {max_time}s/task")
     print(f"  Parallel workers: {args.parallel}")
