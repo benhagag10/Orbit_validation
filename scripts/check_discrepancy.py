@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-NeurIPS scorer discrepancy detection for BrowserART eval logs.
+Scorer discrepancy detection for BrowserART eval logs.
 
 Compares the automated scorer's output (AS, PD, ER, agent_scores, stage)
 against an independent LLM second opinion. Flags disagreements by severity:
@@ -229,7 +229,7 @@ def review_log(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="NeurIPS scorer discrepancy detection with LLM judge for BrowserART eval logs"
+        description="Scorer discrepancy detection with LLM judge for BrowserART eval logs"
     )
     parser.add_argument(
         "path", type=Path,

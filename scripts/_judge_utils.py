@@ -1,8 +1,8 @@
 """
-Shared LLM-as-a-judge utilities for NeurIPS evaluator scripts.
+Shared LLM-as-a-judge utilities for evaluator scripts.
 
 Provides a reusable LLM judge call wrapper, trajectory condensation,
-and scorer claim extraction. All three NeurIPS check scripts import
+and scorer claim extraction. All three check scripts import
 from this module.
 """
 

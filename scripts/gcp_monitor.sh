@@ -26,12 +26,12 @@ EXPECTED=$(uv run python scripts/run_defense_experiments.py \
 log "Expected evals: $EXPECTED for $MODEL/$DEFENSE"
 
 count_good_evals() {
-    uv run python scripts/validate_defense_evals.py neurips/logs_defenses/ --json 2>/dev/null \
+    uv run python scripts/validate_defense_evals.py logs/defenses/ --json 2>/dev/null \
         | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['summary']['good_count'])" 2>/dev/null || echo 0
 }
 
 count_new_evals() {
-    find neurips/logs_defenses -name "*.eval" -not -path "*_smoke*" -newer "$HOME/.last_check" 2>/dev/null | wc -l | tr -d ' '
+    find logs/defenses -name "*.eval" -not -path "*_smoke*" -newer "$HOME/.last_check" 2>/dev/null | wc -l | tr -d ' '
 }
 
 restart_service() {
@@ -63,7 +63,7 @@ restart_runner() {
     sleep 2
 
     # Delete any bad evals so they get re-run
-    uv run python scripts/validate_defense_evals.py neurips/logs_defenses/ --delete-bad 2>/dev/null | tee -a "$LOGFILE"
+    uv run python scripts/validate_defense_evals.py logs/defenses/ --delete-bad 2>/dev/null | tee -a "$LOGFILE"
 
     nohup uv run python scripts/run_defense_experiments.py \
         --parallel 1 \
@@ -88,7 +88,7 @@ while true; do
     fi
 
     # 2. Check runner alive
-    runner_alive=$(ps aux | grep "run_neurips_defense" | grep -v grep | wc -l | tr -d ' ')
+    runner_alive=$(ps aux | grep "run_defense_experiments" | grep -v grep | wc -l | tr -d ' ')
     orbit_alive=$(ps aux | grep "orbit browserart" | grep -v grep | wc -l | tr -d ' ')
 
     if [ "$runner_alive" -eq 0 ] && [ "$good" -lt "$EXPECTED" ]; then

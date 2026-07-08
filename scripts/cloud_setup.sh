@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cloud_setup.sh — Bootstrap a cloud VM for running OS-Harm ICML experiments.
+# cloud_setup.sh — Bootstrap a cloud VM for running OS-Harm experiments.
 #
 # Usage (run on a fresh Ubuntu 22.04+ VM):
 #   curl -fsSL <raw-github-url>/scripts/cloud_setup.sh | bash

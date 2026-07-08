@@ -32,7 +32,7 @@ from scripts.run_collusion_experiments import (
 )
 
 DEFAULT_SEEDS = [42, 73, 117]
-LOG_ROOT = Path("neurips/logs_collusion_v3")
+LOG_ROOT = Path("logs/collusion_v3")
 
 
 def generate_runs(

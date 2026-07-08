@@ -19,7 +19,7 @@ import zipfile
 from collections import Counter, defaultdict
 from pathlib import Path
 
-LOG_ROOT = Path("neurips/logs_collusion")
+LOG_ROOT = Path("logs/collusion")
 
 EXPECTED_SCORERS = ["security_scorer", "integrity_scorer"]
 SCENARIO_SCORERS = {"jira": "jira_ticket_scorer", "hospital": "hospital_scorer"}

@@ -119,7 +119,7 @@ ax.set_title("BrowserART: Defense Effectiveness Across Models and Topologies\n",
 plt.tight_layout()
 
 # Save
-out_dir = Path(__file__).parent.parent / "neurips"
+out_dir = Path(__file__).parent.parent / "figures"
 plt.savefig(out_dir / "asr_heatmap.pdf", bbox_inches="tight", dpi=300)
 plt.savefig(out_dir / "asr_heatmap.png", bbox_inches="tight", dpi=300)
 print(f"Saved to {out_dir / 'asr_heatmap.pdf'} and .png")
