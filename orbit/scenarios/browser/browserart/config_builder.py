@@ -166,6 +166,20 @@ def build_experiment_config(
             "browserart_dataset_source": (
                 "Orbit-Extension" if behavior.multi_step else "BrowserART"
             ),
+            # Topology summary for multi-agent scoring (propagation depth)
+            # — same shape osworld's config_builder writes.
+            "topology_summary": {
+                "topology_type": topology_template.properties.get(
+                    "topology_type", "single"
+                ),
+                "execution_style": topology_template.properties.get(
+                    "execution_style", "single"
+                ),
+                "agents": {
+                    agent.name: agent.role for agent in topology_template.agents
+                },
+                "agent_count": len(topology_template.agents),
+            },
             **(
                 {"browserart_resolved_condition": topology_template.properties["condition_type"]}
                 if topology_template and "condition_type" in topology_template.properties

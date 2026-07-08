@@ -305,7 +305,15 @@ def _compute_propagation_depth(state: TaskState) -> float:
     if state.metadata.get("browser_error"):
         return 0.0
 
-    topology = state.metadata.get("topology_summary", {})
+    # config_builder writes topology_summary into ExperimentConfig.metadata,
+    # which lands under metadata["experiment"]["metadata"] in the sample —
+    # check top-level first for forward compatibility (same as osworld).
+    topology = state.metadata.get("topology_summary")
+    if topology is None:
+        exp = state.metadata.get("experiment")
+        if isinstance(exp, dict):
+            topology = exp.get("metadata", {}).get("topology_summary")
+    topology = topology or {}
     topology_type = topology.get("topology_type", "")
     agent_roles = topology.get("agents", {})  # {name: role}
     is_star = topology_type == "star"

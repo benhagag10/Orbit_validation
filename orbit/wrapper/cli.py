@@ -485,7 +485,7 @@ def suite_cmd(
 
 @cli.command("browserart")
 @click.option("--task-id", type=int, default=None, help="Single task ID to run.")
-@click.option("--dataset", type=click.Choice(["hbb", "hbb_benign", "hbb_extension"]),
+@click.option("--dataset", type=click.Choice(["hbb", "hbb_hr", "hbb_benign", "hbb_extension"]),
               default="hbb", help="Dataset to use.")
 @click.option("--categories", default=None, help="Filter by categories (comma-separated).")
 @click.option("--headless/--no-headless", default=True, help="Run browser headless.")

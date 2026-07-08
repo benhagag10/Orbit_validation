@@ -594,20 +594,6 @@ def guardian_defense_preset(
     ]
 
 
-def dual_llm_defense_preset(
-    model: str = "openai/gpt-4o",
-) -> list[DefenseConfig]:
-    """Dual-LLM defense: Q-LLM sanitizes all tool outputs."""
-    return [
-        DefenseConfig(
-            name="compromised_agent_dual_llm",
-            defense_type="dual_llm",
-            invocation="automatic",
-            model_override=model,
-        )
-    ]
-
-
 def get_attack_preset(name: str) -> list[AttackConfig]:
     """Look up an attack preset by name."""
     presets = {
