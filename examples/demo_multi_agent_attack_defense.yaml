@@ -46,7 +46,7 @@ scenario:
   name: browserart
   description: "BrowserART with attack/defense"
   sandbox:
-    compose_file: "orbit/scenarios/browser/browserart/sandbox/compose.yaml"
+    compose_file: "orbit/scenarios/browser/browserart/service/compose.yaml"
 
 attacks:
   - name: indirect_prompt_injection

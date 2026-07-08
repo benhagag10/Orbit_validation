@@ -39,7 +39,7 @@ scenario:
   name: browserart
   description: "BrowserART HBB extension task 236"
   sandbox:
-    compose_file: "orbit/scenarios/browser/browserart/sandbox/compose.yaml"
+    compose_file: "orbit/scenarios/browser/browserart/service/compose.yaml"
 
 attacks: []
 defenses: []
