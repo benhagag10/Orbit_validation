@@ -58,7 +58,7 @@ attacks: []
 defenses: []
 
 execution:
-  scheduling_mode: round_robin
+  scheduling_mode: interleaved
   agent_groups:
     - name: tau2_mesh_committee
       agents: [user_sim, peer_1, peer_2, peer_3]

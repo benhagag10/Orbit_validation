@@ -40,6 +40,7 @@ setup:
         - find_user_id_by_name_zip
         - get_user_details
         - get_order_details
+        - get_item_details
         - get_product_details
         - list_all_product_types
         - cancel_pending_order
@@ -61,7 +62,7 @@ attacks: []
 defenses: []
 
 execution:
-  scheduling_mode: round_robin
+  scheduling_mode: interleaved
   agent_groups:
     - name: tau2_dual_control
       agents: [user_sim, assistant]
