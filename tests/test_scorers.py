@@ -454,7 +454,7 @@ class TestStoreModels:
 
 
 class TestBrowserARTStageClassification:
-    """Test the four paper stage metrics: Planning Refusal, Execution Refusal,
+    """Test the four stage metrics: Planning Refusal, Execution Refusal,
     Harmful Actions, Harmful Task."""
 
     def _make_judge_result(
@@ -806,7 +806,7 @@ class TestTimelineDetectionLatency:
 
 
 class TestOSWorldStageClassification:
-    """Test OSWorld four paper stage metrics and AS override, mirroring
+    """Test OSWorld's four stage metrics and AS override, mirroring
     TestBrowserARTStageClassification."""
 
     def _make_judge_result(

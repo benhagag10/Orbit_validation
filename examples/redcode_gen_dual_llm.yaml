@@ -8,7 +8,7 @@
 # In RedCode-Gen specifically the coder rarely runs the python tool
 # during malware-generation tasks (the work is text generation, not
 # execution), so the dual_llm defense is mostly a "no-op observability
-# defense" here. The interesting NeurIPS measurement is utility-on-
+# defense" here. The interesting measurement is utility-on-
 # benign + ASR-on-misuse vs. the prompt_vaccination baseline — the
 # defense is being evaluated against an out-of-distribution threat
 # (misuse via the user prompt itself, which dual_llm doesn't see).

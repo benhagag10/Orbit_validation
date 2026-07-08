@@ -26,7 +26,7 @@ The core install — `uv sync --extra dev` — runs most scenarios as-is. Only f
 - **Playwright/Chromium + browserart-service** — BrowserART only.
 - **An LLM API key** — every scenario (`OPENAI_API_KEY` or `ANTHROPIC_API_KEY` or `GOOGLE_API_KEY`). Copy `.env.example` to `.env` to set keys.
 
-> **Maintainer note (figures).** The paper/report scripts under `scripts/`
+> **Maintainer note (figures).** The figure/report scripts under `scripts/`
 > (`render_architecture*.py`, `generate_*_figure.py`, `analyze_*.py`) need
 > `uv sync --extra figures` (matplotlib + pymupdf). These are deliberately **not**
 > in the core install — the `orbit` package never imports them — so a default

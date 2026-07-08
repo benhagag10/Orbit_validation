@@ -27,7 +27,7 @@ experiment: the user profile (as text + split toolkit sections), the domain's
 planning options, the ground-truth ratings, and the flattened privacy/security
 attack lists.
 
-## Totals (matches the paper)
+## Totals (matches the upstream ConVerse paper)
 
 - **12 personas** — 4 per domain × 3 domains
 - **611 privacy attacks** — spread across the 3-tier taxonomy

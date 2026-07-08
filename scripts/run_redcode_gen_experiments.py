@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Batch runner for ICML RedCode-Gen experiments (13 conditions).
+Batch runner for RedCode-Gen experiments (13 conditions).
 
 Runs 13 conditions x 160 tasks (all malware categories) = 13 eval runs.
 Supports parallel execution, skip-existing, and multi-seed runs.
@@ -25,7 +25,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
-# ── Experiment matrix (13 conditions matching ICML paper) ─────────────────────
+# ── Experiment matrix (13 conditions) ─────────────────────────────────────────
 
 EXPERIMENTS = [
     # (dir_name, condition_code, paper_name, tables)
@@ -59,7 +59,7 @@ DEFAULT_MAX_TURNS = 100
 DEFAULT_MAX_TIME = 300.0   # seconds per task (5 min)
 DEFAULT_MAX_SAMPLES = 8    # parallel samples per condition
 DEFAULT_RETRY_ON_ERROR = 1
-DEFAULT_LOG_ROOT = Path("logs/redcode_gen_icml")
+DEFAULT_LOG_ROOT = Path("logs/redcode_gen")
 
 SMOKE_LIMIT = 3
 SMOKE_MAX_TURNS = 10
@@ -241,7 +241,7 @@ def _run_single(run_spec: dict) -> RunResult:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run ICML RedCode-Gen experiments (13 conditions)"
+        description="Run RedCode-Gen experiments (13 conditions)"
     )
     parser.add_argument(
         "--smoke", action="store_true",
@@ -360,7 +360,7 @@ def main():
     print(f"\n{'='*60}")
     mode = "SMOKE TEST" if args.smoke else "FULL RUN"
     seed_str = ", ".join(str(s) for s in seeds)
-    print(f"  ICML RedCode-Gen Experiments — {mode}")
+    print(f"  RedCode-Gen Experiments — {mode}")
     print(f"  {total} runs, model={args.model}, seed(s)={seed_str}")
     print(f"  Judge: {args.judge_model}")
     print(f"  Max turns: {max_turns}, max time: {max_time}s/task")

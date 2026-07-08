@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Cross-experiment analysis for ICML BrowserART experiments (GPT-4o).
+Cross-experiment analysis for BrowserART experiments (GPT-4o).
 
-Reads eval logs from logs/icml_gpt4o/ and produces 3 tables matching the paper:
+Reads eval logs from logs/browserart_gpt4o/ and produces 3 tables matching the paper:
   - Table 1: Role Distribution (5 conditions)
   - Table 2: Communication Topology (3 conditions)
   - Table 3: Memory & State Visibility (4 conditions)
@@ -14,7 +14,7 @@ Paper metrics per table:
 Supports multi-seed runs (mean ± std).
 
 Usage:
-    python scripts/analyze_experiments.py [--log-root logs/icml_gpt4o/] [--latex] [--csv]
+    python scripts/analyze_experiments.py [--log-root logs/browserart_gpt4o/] [--latex] [--csv]
     python scripts/analyze_experiments.py --seeds 42 43 44
 """
 
@@ -491,11 +491,11 @@ def write_csv(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Analyze ICML BrowserART experiment results (3-table paper format)"
+        description="Analyze BrowserART experiment results (3-table paper format)"
     )
     parser.add_argument(
-        "--log-root", type=Path, default=Path("logs/icml_gpt4o"),
-        help="Root log directory (default: logs/icml_gpt4o/)",
+        "--log-root", type=Path, default=Path("logs/browserart_gpt4o"),
+        help="Root log directory (default: logs/browserart_gpt4o/)",
     )
     parser.add_argument(
         "--seeds", type=int, nargs="+", default=[42],

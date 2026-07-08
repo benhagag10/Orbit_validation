@@ -6,7 +6,7 @@ Checks: scorer completeness, metric consistency, attack injection,
 defense activation, CollusionLog initialization, benign sanity.
 
 Usage:
-    python scripts/validate_collusion_results.py
+    python scripts/validate_collusion_results.py [--log-root logs/collusion_v3]
     python scripts/validate_collusion_results.py --verbose
 """
 
@@ -19,7 +19,7 @@ import zipfile
 from collections import Counter, defaultdict
 from pathlib import Path
 
-LOG_ROOT = Path("neurips/logs_collusion")
+DEFAULT_LOG_ROOT = Path("logs/collusion_v3")
 
 EXPECTED_SCORERS = ["security_scorer", "integrity_scorer"]
 SCENARIO_SCORERS = {"jira": "jira_ticket_scorer", "hospital": "hospital_scorer"}
@@ -165,6 +165,10 @@ def validate_eval(eval_path: Path, info: dict, verbose: bool = False) -> list[st
 
 def main():
     parser = argparse.ArgumentParser(description="Validate DCOP collusion results")
+    parser.add_argument(
+        "--log-root", type=Path, default=DEFAULT_LOG_ROOT,
+        help=f"Root directory of collusion eval logs (default: {DEFAULT_LOG_ROOT}/)",
+    )
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
 
@@ -173,7 +177,7 @@ def main():
     attack_counts = Counter()
     defense_counts = Counter()
 
-    for model_dir in sorted(LOG_ROOT.iterdir()):
+    for model_dir in sorted(args.log_root.iterdir()):
         if not model_dir.is_dir() or "smoke" in model_dir.name or "verify" in model_dir.name:
             continue
         model = model_dir.name

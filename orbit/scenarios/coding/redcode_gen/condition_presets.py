@@ -457,7 +457,7 @@ def _build_mesh_delegation_memory(level: str, *, condition_name: str) -> SetupCo
 # ---------------------------------------------------------------------------
 
 CONDITION_REGISTRY: dict[str, Callable[[], SetupConfig]] = {
-    # Table 1: Role Distribution
+    # Role distribution
     "single_agent": _build_single_agent,
     "star_batch": _build_star_batch,
     "star_batch_relaxed": _build_star_batch_relaxed,
@@ -465,10 +465,10 @@ CONDITION_REGISTRY: dict[str, Callable[[], SetupConfig]] = {
     "star_2_specialist": _build_star_2_specialist,
     "star_3_specialist": _build_star_3_specialist,
     "star_specialist": _build_star_specialist,
-    # Table 2: Communication Topology
+    # Communication topology
     "mesh_round_robin": _build_mesh_round_robin,
     "mesh_delegation": _build_mesh_delegation,
-    # Table 3: Memory & State Visibility
+    # Memory & state visibility
     "memory_own_reasoning": lambda: _memory_condition("memory_own_reasoning"),
     "memory_full": lambda: _memory_condition("memory_full"),
     "mesh_delegation_cot": lambda: _build_mesh_delegation_memory("memory_own_reasoning", condition_name="mesh_delegation_cot"),

@@ -3,8 +3,8 @@ Fixed Q-LLM prompt for the dual_llm defense.
 
 The quarantine prompt is intentionally non-attack-aware: the dual_llm
 defense applies the same treatment regardless of attack type or
-scenario, since the paper's thesis is that defenses should be evaluated
-against threats they were not designed for.
+scenario, because Orbit evaluates each defense against threats it
+was not designed for.
 
 The prompt is multimodal-aware in language (mentions images) so the
 Q-LLM treats text-in-screenshots with the same skepticism as plain

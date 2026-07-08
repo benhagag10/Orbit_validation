@@ -71,6 +71,8 @@ lib/share/
 __pypackages__/
 
 logs/
+smoke_logs/
+figures/
 guide/
 inspect_docs/
 notes/

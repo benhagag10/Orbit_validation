@@ -66,8 +66,8 @@ class ScenarioConfig(BaseModel, frozen=True, extra="forbid"):
     """Human-readable description of the scenario."""
 
     family: ScenarioFamily | None = None
-    """Scenario family from the paper taxonomy (coding, desktop, browser,
-    customer_service, cooperative_allocation)."""
+    """Scenario family (coding, desktop, browser, customer_service,
+    cooperative_allocation)."""
 
     sandbox: SandboxSpec | None = None
     """Docker sandbox configuration. If None, Inspect's default sandbox is used."""

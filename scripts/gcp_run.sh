@@ -98,6 +98,6 @@ wait "$MONITOR_PID" 2>/dev/null || true
 # ── 5. Package results ─────────────────────────────────────────────
 SAFE_MODEL=$(echo "$MODEL" | tr '/' '_')
 RESULTS_TAR="$HOME/results_${DEFENSE}_${SAFE_MODEL}.tar.gz"
-tar czf "$RESULTS_TAR" neurips/logs_defenses/
+tar czf "$RESULTS_TAR" logs/defenses/
 log "Results packaged: $RESULTS_TAR"
 log "DONE"

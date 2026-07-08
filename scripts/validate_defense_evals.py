@@ -158,7 +158,7 @@ def main():
         if bad:
             print(f"\nBAD EVALS:")
             for r in bad:
-                tag = str(r.path).replace("neurips/logs_defenses/", "")
+                tag = str(r.path).replace("logs/defenses/", "")
                 print(f"  {tag}: {r.error}")
         if args.delete_bad and bad:
             print(f"\nDeleted {len(bad)} bad evals")
