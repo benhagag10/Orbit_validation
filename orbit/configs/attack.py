@@ -32,7 +32,7 @@ ATTACK_TYPE_TO_THREAT_TYPE: dict[str, "ThreatType"] = {
 }
 
 
-class ThreatModel(BaseModel, frozen=True):
+class ThreatModel(BaseModel, frozen=True, extra="forbid"):
     """Attacker capability and knowledge assumptions.
 
     Models the attacker's power level for the experiment. Used by attack
@@ -63,7 +63,7 @@ class ThreatModel(BaseModel, frozen=True):
     """Which agents/tools/channels are targetable. Agent names or tool names."""
 
 
-class AttackTiming(BaseModel, frozen=True):
+class AttackTiming(BaseModel, frozen=True, extra="forbid"):
     """When the attack is injected during the experiment."""
 
     phase: Literal["pre_deployment", "runtime", "specific_turn"] = "runtime"
@@ -89,7 +89,7 @@ class AttackTiming(BaseModel, frozen=True):
         return self
 
 
-class AttackConfig(BaseModel, frozen=True):
+class AttackConfig(BaseModel, frozen=True, extra="forbid"):
     """Full attack specification.
 
     Read by attacks/registry.py to instantiate the correct AttackBase subclass.

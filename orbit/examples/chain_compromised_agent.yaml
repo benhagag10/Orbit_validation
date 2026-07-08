@@ -92,7 +92,7 @@ scheduler:
   health_checks: true
 
 metrics:
-  asr: true
+  attack_success_rate: true
   defense_bypass_rate: true
   utility_preservation: true
   detection_latency: true

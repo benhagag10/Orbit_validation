@@ -26,7 +26,7 @@ from orbit.configs.scheduler import SchedulerConfig
 from orbit.configs.setup import SetupConfig
 
 
-class ExperimentConfig(BaseModel, frozen=True):
+class ExperimentConfig(BaseModel, frozen=True, extra="forbid"):
     """Top-level experiment configuration loaded from YAML.
 
     This is the central data model that drives everything. It is stored in

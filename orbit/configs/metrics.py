@@ -10,7 +10,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field, model_validator
 
 
-class MetricsConfig(BaseModel, frozen=True):
+class MetricsConfig(BaseModel, frozen=True, extra="forbid"):
     """Which security metrics the scorer should compute."""
 
     attack_success_rate: bool = True

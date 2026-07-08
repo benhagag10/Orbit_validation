@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from orbit.configs.setup import SetupConfig
 
 
-class SandboxSpec(BaseModel, frozen=True):
+class SandboxSpec(BaseModel, frozen=True, extra="forbid"):
     """Docker sandbox specification.
 
     Maps to Inspect's sandbox configuration. At most one of compose_file
@@ -52,7 +52,7 @@ class SandboxSpec(BaseModel, frozen=True):
     """Environment variables passed to all sandbox containers."""
 
 
-class ScenarioConfig(BaseModel, frozen=True):
+class ScenarioConfig(BaseModel, frozen=True, extra="forbid"):
     """Task domain and execution environment definition.
 
     Describes the scenario the multi-agent system operates in
@@ -93,7 +93,7 @@ class ScenarioConfig(BaseModel, frozen=True):
     ground-truth optimal solutions for regret-based scoring."""
 
 
-class ScenarioRoleRequirements(BaseModel, frozen=True):
+class ScenarioRoleRequirements(BaseModel, frozen=True, extra="forbid"):
     """Role-interface contract a scenario exposes to the ExperimentConfig layer.
 
     A scenario declares *which roles* the task needs and *which tools* each role
