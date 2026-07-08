@@ -1,25 +1,27 @@
-<div align="center">
+<p align="center">
+  <a href="https://wittlab.ai/"><img src="docs/assets/wittlab_logo.png" alt="Wittlab" height="120"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://www.cooperativeai.com/"><img src="docs/assets/caif_logo.jpg" alt="Cooperative AI Foundation" height="60"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://www.matsprogram.org/"><img src="docs/assets/mats_logo.jpeg" alt="MATS Program" height="120"></a>
+</p>
 
-<a href="https://wittlab.ai/"><img src="docs/assets/wittlab_logo.png" alt="Wittlab" height="120"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-<a href="https://www.cooperativeai.com/"><img src="docs/assets/caif_logo.jpg" alt="Cooperative AI Foundation" height="60"></a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-<a href="https://www.matsprogram.org/"><img src="docs/assets/mats_logo.jpeg" alt="MATS Program" height="120"></a>
+<h1 align="center">Orbit</h1>
 
-# Orbit
+<p align="center"><strong>Multi-Agent Security Benchmarking Framework</strong></p>
 
-**Multi-Agent Security Benchmarking Framework**
+<p align="center">
+  Built on <a href="https://inspect.ai-safety-institute.org.uk/">Inspect AI</a> by the <a href="https://www.aisi.gov.uk/">UK AI Security Institute</a><br>
+  Developed at <a href="https://wittlab.ai/">Wittlab</a> as part of the <a href="https://www.matsprogram.org/">MATS</a> program
+</p>
 
-Built on [Inspect AI](https://inspect.ai-safety-institute.org.uk/) by the [UK AI Security Institute](https://www.aisi.gov.uk/)<br>
-Developed at [Wittlab](https://wittlab.ai/) as part of the [MATS](https://www.matsprogram.org/) program
-
-[Quick Start](#quick-start) •
-[Scenarios](#scenarios) •
-[Attacks & Defenses](#attacks--defenses) •
-[Configuration](#configuration) •
-[Full Documentation](docs/configuration.md)
-
-</div>
+<p align="center">
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#scenarios">Scenarios</a> •
+  <a href="#attacks--defenses">Attacks & Defenses</a> •
+  <a href="#configuration">Configuration</a> •
+  <a href="docs/configuration.md">Full Documentation</a>
+</p>
 
 ---
 
