@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from collections import Counter
 from pathlib import Path
@@ -550,7 +551,8 @@ def check_defense_activation(sample: EvalSample) -> CheckResult:
     has_vaccination = any(d.get("defense_type") == "prompt_vaccination" for d in defenses)
     if has_vaccination and vaccinations:
         return CheckResult("defense_activation", True,
-                           f"Vaccination applied to {len(vaccinations)} agent(s)")
+                           f"Vaccination recorded for {len(vaccinations)} agent(s) "
+                           f"(bookkeeping — generate-time effect verified by vaccination_effect)")
 
     if activations > 0:
         return CheckResult("defense_activation", True,
@@ -558,6 +560,122 @@ def check_defense_activation(sample: EvalSample) -> CheckResult:
 
     return CheckResult("defense_activation", False,
                        f"{len(defenses)} defense(s) configured but 0 activations, 0 vaccinations")
+
+
+def check_vaccination_effect(sample: EvalSample) -> CheckResult:
+    """If prompt_vaccination is configured, verify the generate-time effect.
+
+    ``DefenseLog.vaccinations`` is write-side bookkeeping recorded during
+    pre-deployment; historically it was populated even while the defense was
+    a runtime no-op (issue #26), so reading it alone produced a false PASS.
+    This check reads the effect side instead, in order of evidence strength:
+
+    1. Raw provider requests (``ModelEvent.call``) — built by the model API
+       *below* the defense filter chain, so they contain the injected system
+       message. Only present when the eval ran with ``log_model_api=True``
+       (Inspect strips them from the transcript by default).
+    2. ``DefenseLog.vaccination_injections`` — a per-agent counter written by
+       the vaccination filter itself on every generate() call it hardens.
+       Unlike the pre-deployment bookkeeping, it is written by the same code
+       path that produces the effect, so it survives default logging.
+    3. Neither available but models ran → FAIL (indistinguishable from the
+       inert defense of issue #26).
+
+    ``ModelEvent.input`` must NOT be used here: Inspect records it above the
+    filter chain (before FilteredModelAPI runs), so a correctly working
+    vaccination never appears in it.
+    """
+    meta = sample.metadata or {}
+    exp = meta.get("experiment", {})
+    if isinstance(exp, str):
+        exp = json.loads(exp)
+    defenses = exp.get("defenses", []) if isinstance(exp, dict) else []
+    vax_defenses = [
+        d for d in defenses
+        if d.get("defense_type") == "prompt_vaccination" and d.get("enabled", True)
+    ]
+    if not vax_defenses:
+        return CheckResult("vaccination_effect", True,
+                           "No prompt_vaccination configured — N/A")
+
+    store = sample.store or {}
+    recorded = _get_store_val(store, "DefenseLog:vaccinations", {})
+    expected_texts = {t for t in recorded.values() if t} if isinstance(recorded, dict) else set()
+    for d in vax_defenses:
+        if d.get("vaccination_prompt"):
+            expected_texts.add(d["vaccination_prompt"])
+    if not expected_texts:
+        return CheckResult("vaccination_effect", False,
+                           "prompt_vaccination configured but no vaccination text in "
+                           "DefenseLog.vaccinations or config — pre-deployment likely "
+                           "never ran, and there is no text to verify against")
+
+    # Message content in logged events is deduplicated into
+    # sample.attachments and referenced as "attachment://<id>". Resolve
+    # references inside each request before scanning — but only inside the
+    # request: scanning all attachments blindly would also see the store
+    # event that records DefenseLog.vaccinations (bookkeeping), which is
+    # exactly the false-positive this check exists to eliminate.
+    attachments = getattr(sample, "attachments", None) or {}
+
+    def _resolve_attachments(text: str) -> str:
+        if not attachments or "attachment://" not in text:
+            return text
+        return re.sub(
+            r"attachment://([0-9a-fA-F]+)",
+            lambda m: attachments.get(m.group(1), m.group(0)),
+            text,
+        )
+
+    events = getattr(sample, "events", None) or []
+    model_events = [ev for ev in events if getattr(ev, "event", None) == "model"]
+    requests = []
+    for ev in model_events:
+        call = getattr(ev, "call", None)
+        if call is None or getattr(call, "request", None) is None:
+            continue  # stripped (log_model_api off) or cache-read event
+        try:
+            serialized = json.dumps(call.request, default=str)
+        except (TypeError, ValueError):
+            serialized = str(call.request)
+        requests.append(_resolve_attachments(serialized))
+
+    # Evidence 1: raw provider requests (decisive both ways).
+    if requests:
+        missing = [t for t in expected_texts if not any(t in r for r in requests)]
+        if missing:
+            return CheckResult("vaccination_effect", False,
+                               f"{len(missing)} vaccination text(s) absent from all "
+                               f"{len(requests)} raw model request(s) — defense is inert "
+                               f"at generate time (bookkeeping alone is not evidence; "
+                               f"issue #26)")
+        hits = sum(1 for r in requests if any(t in r for t in expected_texts))
+        return CheckResult("vaccination_effect", True,
+                           f"Vaccination text present in {hits}/{len(requests)} "
+                           f"raw model request(s)")
+
+    # Evidence 2: generate-time injection counter written by the filter.
+    injections = _get_store_val(store, "DefenseLog:vaccination_injections", {})
+    if isinstance(injections, dict):
+        injected_agents = {a: n for a, n in injections.items() if n}
+        if injected_agents:
+            total = sum(injected_agents.values())
+            return CheckResult("vaccination_effect", True,
+                               f"Generate-time injection counter: {total} injection(s) "
+                               f"across {len(injected_agents)} agent(s) "
+                               f"{sorted(injected_agents)} (raw model calls not in log; "
+                               f"rerun with log_model_api=True for request-level proof)")
+
+    # No effect-side evidence. If models ran, that is the issue #26 shape.
+    if model_events:
+        return CheckResult("vaccination_effect", False,
+                           f"{len(model_events)} model call(s) ran but no vaccination "
+                           f"injections were recorded and no raw requests are in the "
+                           f"log — defense is inert at generate time (issue #26)")
+
+    return CheckResult("vaccination_effect", True,
+                       "No model events in log (header-only or pre-execution log) — "
+                       "cannot verify generate-time effect, skipping")
 
 
 def check_scorer_output(sample: EvalSample) -> CheckResult:
@@ -609,6 +727,7 @@ def run_structural_checks(sample: EvalSample, sample_idx: int) -> list[CheckResu
         check_topology_wiring(sample),
         check_attack_placement(sample),
         check_defense_activation(sample),
+        check_vaccination_effect(sample),
         check_scorer_output(sample),
         check_message_flow(sample),
     ]
