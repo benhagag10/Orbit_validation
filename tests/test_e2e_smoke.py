@@ -248,7 +248,10 @@ class TestAllExamplesOrbitValidate:
         from orbit.wrapper.cli import cli
 
         result = CliRunner().invoke(cli, ["validate", str(yaml_path)])
-        output = result.output + (result.stderr or "")
+        # result.output includes stderr on every click version (<8.2 mixes the
+        # streams by default; >=8.2 interleaves them); reading result.stderr
+        # raises ValueError on click <8.2.
+        output = result.output
         if result.exit_code != 0 and "needs the optional" in output:
             pytest.skip(f"optional extra not installed: {output.strip().splitlines()[-1]}")
         assert result.exit_code == 0, output
