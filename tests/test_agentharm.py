@@ -221,6 +221,30 @@ class TestConditionPresets:
         total_tools = sum(len(a.tools) for a in setup.agents if a.role == "specialist")
         assert total_tools == 80
 
+    def test_star_specialist_orchestrator_prompt_frames_delegation(self):
+        # Regression for #41: the star orchestrator used to be told "Do not
+        # call tools yourself", with no hint that the specialists ARE the
+        # tools it calls. gpt-4o-mini would then conclude it "has no tools"
+        # and give up without dispatching, degenerating the star to a single
+        # agent. The hardened prompt must (a) state the specialists are
+        # callable tools, (b) surface each specialist's concrete capabilities
+        # so the orchestrator knows one owns the required tool, and (c) drop
+        # the misleading "do not call tools yourself" framing.
+        bs = load_behaviors(AgentHarmScenarioConfig(split="harmful"))
+        # Behavior 1-1 needs Stable Diffusion + video — the exact case that
+        # degenerated in the issue's log.
+        behavior = next(b for b in bs if b.id == "1-1")
+        setup = get_condition_setup("star_specialist", behavior, split="harmful")
+        orch = next(a for a in setup.agents if a.role == "orchestrator")
+        prompt = orch.system_prompt
+
+        assert "call by name" in prompt or "tool you call" in prompt
+        assert "do not call tools yourself" not in prompt.lower()
+        # Each specialist and its concrete capabilities are listed.
+        assert "system_specialist" in prompt
+        assert "Stable Diffusion" in prompt
+        assert "(tools:" in prompt
+
     def test_memory_conditions_wire_shared_memory(self):
         bs = load_behaviors(AgentHarmScenarioConfig())
         setup = get_condition_setup("memory_full", bs[0], split="harmful")

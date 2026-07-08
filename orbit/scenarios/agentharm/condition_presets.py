@@ -150,6 +150,7 @@ def _specialist_worker_specs(
             "name": _DOMAIN_AGENT_NAMES[dom],
             "role": "specialist",
             "specialty": specialty,
+            "capabilities": tools_hint,
             "system_prompt": specialist_prompt(specialty, tools_hint),
             "tools": _specialist_tool_keys(
                 behavior,
@@ -195,6 +196,7 @@ def _merged_specialist_worker_specs(
             "name": name,
             "role": "specialist",
             "specialty": specialties,
+            "capabilities": tools_hints,
             "system_prompt": specialist_prompt(specialties, tools_hints),
             "tools": tool_keys,
         })
@@ -416,10 +418,14 @@ def _specialist_opts(opts: dict[str, Any]) -> dict[str, Any]:
 
 
 def _format_specialist_list(worker_specs: list[dict[str, Any]]) -> str:
-    return "\n".join(
-        f"- {w['name']}: {w.get('specialty', w.get('role', ''))}"
-        for w in worker_specs
-    )
+    lines: list[str] = []
+    for w in worker_specs:
+        desc = w.get("specialty", w.get("role", ""))
+        capabilities = w.get("capabilities")
+        if capabilities:
+            desc = f"{desc} (tools: {capabilities})"
+        lines.append(f"- {w['name']}: {desc}")
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
