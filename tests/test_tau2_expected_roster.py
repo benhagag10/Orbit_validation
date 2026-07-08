@@ -8,9 +8,9 @@ mis-arbitrates. :class:`TestExpectedRosterMatchesBuilders` walks every
 condition × domain and asserts the map equals the agent names of the *real* plan
 built from a vendored task, so the two cannot diverge.
 
-:class:`TestFactoryDefensePresetParity` covers issue #35: the ``tau2`` and
-``agentharm`` ``@task`` factories now expose a ``defense_preset`` parameter (YAML
-already had ``*_defense_preset`` shorthand; this closes the entry-point gap), and
+:class:`TestFactoryDefensePresetParity` covers issue #35: the ``tau2`` ``@task``
+factory now exposes a ``defense_preset`` parameter (YAML already had
+``*_defense_preset`` shorthand; this closes the entry-point gap), and
 ``get_defense_preset`` rejects an unknown name with a helpful message.
 
 Data is vendored, so the roster tests run offline; a load failure skips with the
@@ -93,60 +93,13 @@ class TestExpectedRosterMatchesBuilders:
         assert expected_agent_names("not_a_condition", "airline") is None
 
 
-class TestAgentHarmExpectedRoster:
-    """Pin agentharm's static roster map to the real condition builders.
-
-    Only the behavior-independent conditions have a static roster; the
-    specialist/mesh conditions derive worker names per behavior and must return
-    ``None`` (the resolver then warns instead of hard-arbitrating).
-    """
-
-    def _behavior(self):
-        from orbit.scenarios.agentharm.configs import AgentHarmScenarioConfig
-        from orbit.scenarios.agentharm.dataset_builder import load_behaviors
-
-        try:
-            behaviors = load_behaviors(AgentHarmScenarioConfig())
-        except Exception as exc:  # noqa: BLE001 - built data may be absent
-            pytest.skip(f"could not load agentharm data: {exc}")
-        if not behaviors:
-            pytest.skip("no agentharm behaviors available")
-        return behaviors[0]
-
-    @pytest.mark.parametrize(
-        "condition", ["single_agent", "star_batch", "star_step"]
-    )
-    def test_static_roster_matches_real_builder(self, condition):
-        from orbit.scenarios.agentharm.condition_presets import get_condition_setup
-        from orbit.scenarios.agentharm.task import _STATIC_CONDITION_ROSTERS
-
-        behavior = self._behavior()
-        setup = get_condition_setup(condition, behavior, split="harmful")
-        real = {agent.name for agent in setup.agents}
-        assert _STATIC_CONDITION_ROSTERS[condition] == real, (
-            f"agentharm static roster for {condition!r} drifted from the real "
-            f"builder: {sorted(real)}"
-        )
-
-    @pytest.mark.parametrize("condition", ["star_specialist", "mesh_delegation"])
-    def test_behavior_dependent_conditions_return_none(self, condition):
-        from orbit.scenarios.agentharm.task import _expected_roster
-
-        assert _expected_roster(None, condition) is None
-
-
 class TestFactoryDefensePresetParity:
-    """Issue #35: both factories expose defense_preset; unknown names error."""
+    """Issue #35: the tau2 factory exposes defense_preset; unknown names error."""
 
     def test_tau2_factory_exposes_defense_preset(self):
         from orbit.scenarios.customer_service.tau2.task import tau2
 
         assert "defense_preset" in inspect.signature(tau2).parameters
-
-    def test_agentharm_factory_exposes_defense_preset(self):
-        from orbit.scenarios.agentharm.task import agentharm
-
-        assert "defense_preset" in inspect.signature(agentharm).parameters
 
     def test_tau2_unknown_defense_preset_lists_valid_names(self):
         from orbit.scenarios.customer_service.tau2.presets import (
@@ -161,30 +114,11 @@ class TestFactoryDefensePresetParity:
         for name in list_defense_presets():
             assert name in message
 
-    def test_agentharm_unknown_defense_preset_lists_valid_names(self):
-        from orbit.scenarios.agentharm.presets import (
-            get_defense_preset,
-            list_defense_presets,
-        )
-
-        with pytest.raises(ValueError) as excinfo:
-            get_defense_preset("does_not_exist")
-        message = str(excinfo.value)
-        assert "does_not_exist" in message
-        for name in list_defense_presets():
-            assert name in message
-
     @pytest.mark.parametrize("preset", ["prompt_vaccination", "dual_llm"])
     def test_presets_target_all_agents(self, preset):
-        # Both scenarios' presets leave target_agents empty (== all agents in the
-        # condition-derived roster). See each presets module's docstring.
-        from orbit.scenarios.agentharm.presets import (
-            get_defense_preset as ah_preset,
-        )
-        from orbit.scenarios.customer_service.tau2.presets import (
-            get_defense_preset as tau2_preset,
-        )
+        # The presets leave target_agents empty (== all agents in the
+        # condition-derived roster). See the presets module's docstring.
+        from orbit.scenarios.customer_service.tau2.presets import get_defense_preset
 
-        for getter in (tau2_preset, ah_preset):
-            for defense in getter(preset):
-                assert defense.target_agents == []
+        for defense in get_defense_preset(preset):
+            assert defense.target_agents == []

@@ -115,7 +115,7 @@ def _assert_topology_preserved(
     turn a declared ``memory.shared=True`` into ``False``. This is a floor:
     adding agents is fine (agent expansion happens later in the orchestrator).
     Scenarios that derive topology from a native selector
-    (``topology_source=SCENARIO``: tau2/agentharm) are exempt — the shared
+    (``topology_source=SCENARIO``: tau2) are exempt — the shared
     resolver arbitrates their inline setup instead.
     """
     want_agents = len(resolved.setup.agents)
@@ -323,7 +323,7 @@ def build_scenario_task(
 
     # 1b. Topology floor: a topology_source=CONFIG plugin (the default) may not
     # collapse the agent count or drop shared memory during expansion. Scenarios
-    # that derive topology from a native selector (SCENARIO: tau2/agentharm) are
+    # that derive topology from a native selector (SCENARIO: tau2) are
     # exempt — their inline-setup-vs-condition arbitration happened in the
     # shared resolver (spec-declared, issue #32); plugins without a spec still
     # get the legacy ignored-setup warning here.
@@ -345,7 +345,7 @@ def build_scenario_task(
     # `mas_environment_setup`, where ConfigValidator was previously the only
     # gate — an attack whose target_agent doesn't exist would then silently fail
     # to bind (a benign run) with no error. Validated on a representative
-    # EXPANDED config (so condition-built rosters are seen, not tau2/agentharm's
+    # EXPANDED config (so condition-built rosters are seen, not tau2's
     # empty pre-expand setup) with the default identity names — expansion
     # already renamed any template agents (swe_bench's solver -> solver_0), so
     # `expand_templates=True` here would double-expand. LOGGED not raised: the

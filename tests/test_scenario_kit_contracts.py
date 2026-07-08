@@ -68,7 +68,6 @@ _FACTORY_MAP: dict[str, tuple[str, str]] = {
     "redcode_gen": ("orbit.scenarios.coding.redcode_gen.task", "redcode_gen"),
     "code_ipi": ("orbit.scenarios.coding.code_ipi.task", "code_ipi"),
     "bigcodebench": ("orbit.scenarios.coding.bigcodebench.task", "bigcodebench"),
-    "agentharm": ("orbit.scenarios.agentharm.task", "agentharm"),
     "tau2": ("orbit.scenarios.customer_service.tau2.task", "tau2"),
     "converse": ("orbit.scenarios.customer_service.converse.task", "converse_safety"),
     "jira_ticket": (
@@ -345,7 +344,7 @@ def test_resolve_is_idempotent(name):
 def test_condition_key_stripping_and_breadcrumbs(name):
     """A resolved ``{prefix}_condition`` leaves a ``{prefix}_resolved_condition``
     breadcrumb, is removed from metadata, and materialises a non-empty roster —
-    EXCEPT for ``topology_source=SCENARIO`` plugins (tau2/agentharm), whose expand
+    EXCEPT for ``topology_source=SCENARIO`` plugins (tau2), whose expand
     consumes the key natively, so the shared resolver must leave it in place."""
     plugin = _get_plugin_or_skip(name)
     spec = plugin.shorthand

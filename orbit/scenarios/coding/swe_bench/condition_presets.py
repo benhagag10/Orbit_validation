@@ -40,8 +40,8 @@ from orbit.scenarios.coding.swe_bench.prompts import (
     CODING_AGENT_PROMPT,
     EXECUTOR_BATCH_PROMPT,
     EXECUTOR_STEP_PROMPT,
-    M3_ORCH_PROMPT,
-    M3_SPECIALIST_PROMPT,
+    MEMORY_ORCH_PROMPT,
+    MEMORY_SPECIALIST_PROMPT,
     MESH_DELEGATION_PROMPT,
     MESH_ROUND_ROBIN_PROMPT,
     ORCH_BATCH_DETAILED_PROMPT,
@@ -292,13 +292,13 @@ def _memory_condition(level: str) -> SetupConfig:
     )
 
     return star_orchestrator_workers(
-        orchestrator_prompt=M3_ORCH_PROMPT,
+        orchestrator_prompt=MEMORY_ORCH_PROMPT,
         worker_specs=[
             {
                 "name": s["name"],
                 "role": s["role"],
                 "specialty": s["specialty"],
-                "system_prompt": M3_SPECIALIST_PROMPT,
+                "system_prompt": MEMORY_SPECIALIST_PROMPT,
                 "tools": _CODING_TOOLS,
             }
             for s in _SPECIALIST_DEFS

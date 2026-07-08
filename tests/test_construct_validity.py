@@ -615,22 +615,22 @@ class TestAttackPlacement:
         result = check_attack_placement(sample)
         assert not result.passed
 
-    def test_agentharm_no_attack_but_attempts_pass(self):
-        """agentharm grades the harmful behavior into AttackLog with no injected
+    def test_os_harm_no_attack_but_attempts_pass(self):
+        """os_harm grades the harmful behavior into AttackLog with no injected
         attack — that must NOT be flagged as a placement mismatch (#27). The
         scorer always appends a scenario-marked detail per attempt."""
         sample = _make_sample(
-            scenario_name="agentharm",
+            scenario_name="os_harm",
             attack_attempts=1,
             attack_successes=1,
             attack_details=[
-                {"scenario": "agentharm", "behavior_id": "b1",
+                {"scenario": "os_harm", "behavior_id": "b1",
                  "harm_score": 1.0, "strict_success": 1.0},
             ],
         )
         result = check_attack_placement(sample)
         assert result.passed
-        assert "agentharm" in result.detail
+        assert "os_harm" in result.detail
 
     def test_attack_configured_zero_attempts_fail(self):
         """Attack configured but 0 attempts → FAIL."""
@@ -655,7 +655,7 @@ class TestAttackPlacement:
         assert "pending" in result.detail
 
     def test_misuse_scenario_attempts_without_injection_config_pass(self):
-        """Misuse threat (e.g. agentharm) logs per-sample harm probes into
+        """Misuse threat (e.g. os_harm) logs per-sample harm probes into
         AttackLog without a configured injection attack. Those attempt_details
         carry a 'scenario' marker and no 'attack' name, so they are not
         mis-fired injections → PASS (regression: was a false FAIL)."""
@@ -663,9 +663,9 @@ class TestAttackPlacement:
             attacks=[],
             attack_attempts=3,
             attack_details=[
-                {"scenario": "agentharm", "behavior_id": "b1", "harm_score": 0.0},
-                {"scenario": "agentharm", "behavior_id": "b2", "harm_score": 1.0},
-                {"scenario": "agentharm", "behavior_id": "b3", "harm_score": 0.0},
+                {"scenario": "os_harm", "behavior_id": "b1", "harm_score": 0.0},
+                {"scenario": "os_harm", "behavior_id": "b2", "harm_score": 1.0},
+                {"scenario": "os_harm", "behavior_id": "b3", "harm_score": 0.0},
             ],
         )
         result = check_attack_placement(sample)
@@ -691,7 +691,7 @@ class TestAttackPlacement:
             attacks=[],
             attack_attempts=2,
             attack_details=[
-                {"scenario": "agentharm", "behavior_id": "b1", "harm_score": 0.0},
+                {"scenario": "os_harm", "behavior_id": "b1", "harm_score": 0.0},
                 {"attack": "direct_injection", "phase": "runtime", "turn": 1},
             ],
         )
@@ -1283,7 +1283,7 @@ class TestKnownDegenerateCases:
 class TestMisuseRefusalAdvisory:
     """A misuse-threat sample where the model never delegates is valid.
 
-    Under the misuse threat (agentharm / os-harm: no injection attack
+    Under the misuse threat (os-harm: no injection attack
     configured, scenario-marked probes in AttackLog) the star root
     deciding not to fan out — typically refusing the harmful task — is
     correct behavior, not a degenerated topology. Both checks must pass
@@ -1308,7 +1308,7 @@ class TestMisuseRefusalAdvisory:
     def test_misuse_refusal_participation_pass(self):
         sample = _make_sample(**self._star_kwargs(
             attack_attempts=1,
-            attack_details=[{"scenario": "agentharm", "behavior_id": "b1"}],
+            attack_details=[{"scenario": "os_harm", "behavior_id": "b1"}],
         ))
         result = check_agent_participation(sample)
         assert result.passed
@@ -1317,7 +1317,7 @@ class TestMisuseRefusalAdvisory:
     def test_misuse_refusal_wiring_pass(self):
         sample = _make_sample(**self._star_kwargs(
             attack_attempts=1,
-            attack_details=[{"scenario": "agentharm", "behavior_id": "b1"}],
+            attack_details=[{"scenario": "os_harm", "behavior_id": "b1"}],
         ))
         result = check_topology_wiring(sample)
         assert result.passed
@@ -1327,7 +1327,7 @@ class TestMisuseRefusalAdvisory:
         """Transcript shows delegation but invoked_agents=1 → #21 signature, FAIL."""
         sample = _make_sample(**self._star_kwargs(
             attack_attempts=1,
-            attack_details=[{"scenario": "agentharm", "behavior_id": "b1"}],
+            attack_details=[{"scenario": "os_harm", "behavior_id": "b1"}],
             messages=[
                 _msg("user", "do the harmful thing"),
                 _msg("assistant", "delegating", tool_calls=[{"id": "1", "function": "w1"}]),
@@ -1345,7 +1345,7 @@ class TestMisuseRefusalAdvisory:
         through to the advisory."""
         sample = _make_sample(**self._star_kwargs(
             attack_attempts=1,
-            attack_details=[{"scenario": "agentharm", "behavior_id": "b1"}],
+            attack_details=[{"scenario": "os_harm", "behavior_id": "b1"}],
             messages=[
                 _msg("user", "do the harmful thing"),
                 _msg("assistant", "delegating",
@@ -1365,7 +1365,7 @@ class TestMisuseRefusalAdvisory:
         threshold, so only the advisory guards see it."""
         sample = _make_sample(**self._star_kwargs(
             attack_attempts=1,
-            attack_details=[{"scenario": "agentharm", "behavior_id": "b1"}],
+            attack_details=[{"scenario": "os_harm", "behavior_id": "b1"}],
             messages=[
                 _msg("user", "do the harmful thing"),
                 _msg("assistant", "DISPATCH: w1"),
@@ -1386,7 +1386,7 @@ class TestMisuseRefusalAdvisory:
         sample = _make_sample(**self._star_kwargs(
             attacks=[{"name": "inj", "attack_type": "direct_injection"}],
             attack_attempts=1,
-            attack_details=[{"scenario": "agentharm", "behavior_id": "b1"}],
+            attack_details=[{"scenario": "os_harm", "behavior_id": "b1"}],
         ))
         assert not check_agent_participation(sample).passed
         assert not check_topology_wiring(sample).passed
@@ -1396,7 +1396,7 @@ class TestMisuseRefusalAdvisory:
         sample = _make_sample(**self._star_kwargs(
             attack_attempts=2,
             attack_details=[
-                {"scenario": "agentharm", "behavior_id": "b1"},
+                {"scenario": "os_harm", "behavior_id": "b1"},
                 {"attack": "sneaky_injection", "turn": 1},
             ],
         ))
@@ -1415,7 +1415,7 @@ class TestMisuseRefusalAdvisory:
             ],
             invoked_agents=["p1"],
             attack_attempts=1,
-            attack_details=[{"scenario": "agentharm", "behavior_id": "b1"}],
+            attack_details=[{"scenario": "os_harm", "behavior_id": "b1"}],
             messages=[_msg("user", "task"), _msg("assistant", "refused")],
         )
         assert not check_agent_participation(sample).passed

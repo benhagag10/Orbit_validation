@@ -128,7 +128,7 @@ run_condition() {
         export PATH=\$HOME/.local/bin:\$PATH && \
         export COMPOSE_HTTP_TIMEOUT=300 && \
         set -a && source .env && set +a && \
-        sg docker -c 'uv run python -u scripts/run_osharm_icml_experiments.py \
+        sg docker -c 'uv run python -u scripts/run_osharm_experiments.py \
             --model \"$model\" --seed $SEED --parallel 1 --max-samples $MAX_SAMPLES \
             --log-root \"$remote_log_dir\" \
             --condition \"$cond\"' \

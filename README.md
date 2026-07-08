@@ -225,7 +225,6 @@ Install only what the scenarios you actually run require.
 | RedCode-Gen | Coding | core | Docker (sandbox) | `scripts/fetch_redcode_data.py` |
 | CodeIPI | Coding | core | Docker (sandbox) | vendored |
 | OSWorld / OS-Harm | Desktop | `uv sync --extra osworld` | Docker | auto (HuggingFace) |
-| AgentHarm | Tool safety | core | — | `scripts/build_agentharm_data.py` |
 | &tau;&sup2;-Bench | Customer Service | core | — | vendored |
 | ConVerse | Customer Service | core | — | vendored |
 | JiraTicket | Cooperative Allocation | `uv sync --extra dcop` | — | generated |

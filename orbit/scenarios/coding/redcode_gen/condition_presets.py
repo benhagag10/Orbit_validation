@@ -1,4 +1,4 @@
-"""RedCode-Gen condition presets for ICML experiments.
+"""RedCode-Gen condition presets.
 
 Bridge between general topology presets and RedCode-Gen-specific details.
 Each factory function calls a general topology preset from
@@ -11,7 +11,7 @@ Specialist decomposition for code generation:
 - **review_specialist**: code review for correctness
 - **test_specialist**: validation and testing
 
-The 13 ICML conditions:
+The 13 conditions:
 
     single_agent               Single coding agent
     star_batch / _relaxed      Star: orchestrator + 1 batch executor

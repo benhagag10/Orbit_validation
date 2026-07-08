@@ -95,7 +95,7 @@ class ConfigValidator:
         # are written, even for scenarios that replicate the template.
         agent_names = {agent.name for agent in config.setup.agents}
 
-        # A topology_source=SCENARIO scenario (tau2/agentharm) derives its
+        # A topology_source=SCENARIO scenario (tau2) derives its
         # roster from its own condition selector; an EMPTY setup.agents is the
         # recommended single-source form there, not an error. (Requiring a
         # roster here is what forced every tau2 example to carry a redundant

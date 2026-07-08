@@ -87,7 +87,7 @@ MONITOR_PID=$!
 log "Monitor started (PID $MONITOR_PID)"
 
 # Run experiments (monitor will restart if this dies)
-uv run python scripts/run_neurips_defense_experiments.py \
+uv run python scripts/run_defense_experiments.py \
     --parallel 1 \
     --model "$MODEL" \
     --defense "$DEFENSE" 2>&1 | tee -a "$LOGFILE"

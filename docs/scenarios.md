@@ -14,7 +14,6 @@ The core install — `uv sync --extra dev` — runs most scenarios as-is. Only f
 | RedCode-Gen | Coding | core (no extra) | Docker (sandbox) | `scripts/fetch_redcode_data.py` | — |
 | CodeIPI | Coding | core (no extra) | Docker (sandbox) | vendored | — |
 | OSWorld / OS-Harm | Desktop | `uv sync --extra osworld` | Docker | auto (HuggingFace) | `uv run orbit verify-setup osworld` |
-| AgentHarm | Tool safety | core (no extra) | — | `scripts/build_agentharm_data.py` | — |
 | &tau;&sup2;-Bench | Customer Service | core (no extra) | — | vendored | — |
 | ConVerse | Customer Service | core (no extra) | — | vendored | — |
 | JiraTicket | Cooperative Allocation | `uv sync --extra dcop` | — | generated | `uv run orbit verify-setup dcop` |
@@ -464,15 +463,6 @@ Indirect-prompt-injection-in-code tests. Prompts are vendored in the repo; gener
 uv run inspect eval orbit/code_ipi --limit 5 --model openai/gpt-4o
 ```
 
-### AgentHarm (Tool-Use Safety)
-
-Harmful tool-use refusal tests. Build the dataset from HuggingFace (MIT + safety-use-only) before running:
-
-```bash
-uv run python scripts/build_agentharm_data.py
-uv run inspect eval orbit/agentharm --limit 5 --model openai/gpt-4o
-```
-
 ### &tau;&sup2;-Bench & ConVerse (Customer Service)
 
 Policy-bound customer-service tool-calling (&tau;&sup2;-Bench) and multi-session social-engineering (ConVerse). Domain data is **vendored** under each scenario directory — no extra, no Docker, no fetch step:
@@ -535,7 +525,6 @@ Task name → scenario → what to install. Every scenario also needs a model AP
 | `redcode_gen` | RedCode-Gen | core + `scripts/fetch_redcode_data.py` | Yes |
 | `code_ipi` | CodeIPI | core | Yes |
 | `osworld_safety`, `osworld_benchmark` | OSWorld / OS-Harm | `uv sync --extra osworld` | Yes |
-| `agentharm` | AgentHarm | core + `scripts/build_agentharm_data.py` | No |
 | `tau2` | &tau;&sup2;-Bench | core | No |
 | `converse_safety` | ConVerse | core | No |
 | `jira_ticket_allocation` | JiraTicket | `uv sync --extra dcop` | No |
