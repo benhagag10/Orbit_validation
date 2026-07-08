@@ -18,7 +18,7 @@ setup:
     - name: "planner"
       role: "planner"
       model: "openai/o3-mini"        # Reasoning model for planning
-      temperature: 0.3
+      # No temperature: o-series reasoning models reject non-default values.
       tools: ["bash", "text_editor"]
       system_prompt: |
         You are a senior software engineer. Analyze the GitHub issue,
