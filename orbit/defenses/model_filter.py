@@ -8,7 +8,10 @@ per-call activation checks.
 
 Interaction with Inspect:
     - FilteredModelAPI subclasses ModelAPI, wrapping an inner API's generate()
-    - wrap_model() constructs a new Model with the filtered API
+    - wrap_model() constructs a new FilteredModel with the filtered API
+    - FilteredModel refuses Inspect response caching: the cache is keyed on
+      the pre-filter input and consulted above the ModelAPI layer, so a hit
+      would bypass the filter chain entirely (issue #36)
     - SystemPromptFilter prepends ChatMessageSystem to input
     - OutputContentFilter regex-scans ModelOutput completion text
 
@@ -29,6 +32,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
 from inspect_ai.model import (
+    CachePolicy,
     ChatMessage,
     ChatMessageSystem,
     GenerateConfig,
@@ -216,6 +220,79 @@ class FilteredModelAPI(ModelAPI):
         return output
 
 
+class ResponseCachingUnsupportedError(RuntimeError):
+    """Inspect response caching was requested for a filter-wrapped model.
+
+    See :class:`FilteredModel` for why the combination cannot be served
+    correctly (issue #36).
+    """
+
+
+class FilteredModel(Model):
+    """Model whose API carries a filter chain; refuses response caching.
+
+    Inspect's response cache is keyed and consulted in ``Model.generate``,
+    *above* the ModelAPI layer where the filter chain runs (issue #36).
+    The key is built from the pre-filter input, so a defended and an
+    undefended run of the same sample share cache entries by construction,
+    and a hit returns before ``FilteredModelAPI`` runs — input filters
+    never inject and output filters never scan the served completion.
+    There is no correct way to serve a filtered model from that cache, so
+    ``generate()`` raises when caching is requested for this model
+    (explicit ``cache=`` argument, or ``cache`` in the passed or base
+    ``GenerateConfig``) and otherwise passes an explicit ``cache=False``
+    to the parent, which overrides every config-fallback pathway —
+    including ones a future Inspect version might add (e.g. eval-level
+    ``--cache`` propagating beyond the active model instance).
+    """
+
+    async def generate(
+        self,
+        input: str | list[ChatMessage],
+        tools: Any = (),
+        tool_choice: Any = None,
+        config: GenerateConfig = GenerateConfig(),
+        cache: bool | CachePolicy | Any = None,
+    ) -> ModelOutput:
+        if isinstance(cache, (bool, CachePolicy)):
+            # Explicit argument: honor Inspect's semantics exactly —
+            # an explicit False disables caching even if config enables it.
+            requested: Any = cache
+        else:
+            # Not given (None, or Inspect's NOT_GIVEN passed through by
+            # generate_loop): Model.generate would fall back to the merged
+            # config, where the passed config overrides the base config.
+            requested = (
+                config.cache if config.cache is not None else self.config.cache
+            )
+        if requested:
+            api = self.api
+            agent = getattr(getattr(api, "_context", None), "agent_name", "?")
+            filter_names = ", ".join(
+                f.name for f in getattr(api, "_filters", [])
+            )
+            raise ResponseCachingUnsupportedError(
+                f"Inspect response caching was requested for agent "
+                f"'{agent}', whose model is wrapped with model filters "
+                f"({filter_names}). The response cache is keyed on the "
+                f"pre-filter input and consulted above the filter chain: a "
+                f"cache hit would skip input filters and output scanning "
+                f"entirely, and defended/undefended runs of the same sample "
+                f"would share cache entries (issue #36). Disable response "
+                f"caching (--cache / GenerateConfig.cache / "
+                f"generate(cache=...)) for runs with filter-bearing "
+                f"defenses (prompt_vaccination, secure_model) or memory "
+                f"injection."
+            )
+        return await super().generate(
+            input=input,
+            tools=tools,
+            tool_choice=tool_choice,
+            config=config,
+            cache=False,
+        )
+
+
 def wrap_model(
     model: Model,
     filters: list[ModelFilter],
@@ -234,12 +311,15 @@ def wrap_model(
             to block the request, "open" skips failed filters.
 
     Returns:
-        A new Model with FilteredModelAPI, or the original if no filters.
+        A new FilteredModel with FilteredModelAPI, or the original if no
+        filters. The returned model refuses Inspect response caching
+        (raises ResponseCachingUnsupportedError) — cache hits would bypass
+        the filter chain entirely (issue #36).
     """
     if not filters:
         return model
     filtered_api = FilteredModelAPI(model.api, filters, context, fail_mode=fail_mode)
-    return Model(filtered_api, model.config, model.model_args)
+    return FilteredModel(filtered_api, model.config, model.model_args)
 
 
 # -- Built-in filters ────────────────────────────────────────────────────

@@ -330,10 +330,13 @@ defenses:
 > the pre-filter input — a defended and an undefended run of the same sample
 > share cache entries by construction — and a cache hit returns before the
 > filters run, so a "defended" run silently measures undefended behavior.
-> Orbit never enables response caching itself; if you add it in custom code,
-> keep it away from filter-bearing runs. The construct-validity checker
+> Orbit never enables response caching itself, and filtered agent models
+> refuse it at runtime: requesting caching for a filter-wrapped model raises
+> `ResponseCachingUnsupportedError` instead of silently serving invalid
+> results. As a backstop (logs from older Orbit versions, cache-enabled judge
+> models), the construct-validity checker
 > (`scripts/verify_construct_validity.py`, check `cache_filter_bypass`) fails
-> any log that combines the two.
+> any log that combines cache reads with filter-bearing config.
 
 ### `scheduler`
 
