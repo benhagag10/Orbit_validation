@@ -127,7 +127,7 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_ro
 |------|--------|----------|
 | `--agents` | `single`, `batch`, `specialist`, `step` | Agent roles and count |
 | `--topology` | `star`, `round_robin`, `delegation` | Network structure |
-| `--memory` | `none`, `own_actions`, `shared_actions`, `full` | Inter-agent visibility |
+| `--memory` | `none`, `own_actions`, `own_reasoning`, `shared_actions`, `full` | Inter-agent visibility |
 
 ### Inspect CLI (direct access)
 
@@ -230,6 +230,11 @@ uv run orbit verify-setup browserart   # or: swe-bench, osworld, bigcodebench, d
 > `uv sync --extra figures` (matplotlib + pymupdf). They are kept out of the
 > core install so the base stays lean — no scenario or reporting dependency
 > leaks into a default `uv sync --extra dev`.
+
+> **LangGraph bridge.** Agents declared with `framework: "langgraph"` in a
+> YAML agent spec are bridged via Inspect's `agent_bridge()` and need
+> `uv sync --extra langgraph` (langgraph + langchain-openai). The default
+> `framework: "inspect"` needs nothing extra.
 
 See [Scenario Requirements](docs/scenarios.md) for full per-scenario setup.
 

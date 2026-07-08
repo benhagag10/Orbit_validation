@@ -239,7 +239,7 @@ setup:
 | `tools` | list | [] | Tool names |
 | `temperature` | float | 0.0 | LLM temperature |
 | `max_messages` | int | 50 | Max messages before forced stop |
-| `framework` | string | "inspect" | `"inspect"`, `"langgraph"`, or `"custom"` |
+| `framework` | string | "inspect" | `"inspect"`, `"langgraph"` (needs `uv sync --extra langgraph`), or `"custom"` |
 | `is_compromised` | bool | false | Starts as compromised agent |
 
 #### Edge Mechanisms
