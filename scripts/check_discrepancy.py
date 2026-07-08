@@ -9,9 +9,9 @@ against an independent LLM second opinion. Flags disagreements by severity:
   - Minor: per-agent score differences that don't flip AS
 
 Usage:
-    python scripts/check_neurips_discrepancy.py <log_path_or_dir> [options]
-    python scripts/check_neurips_discrepancy.py logs/ --dataset hbb --strict
-    python scripts/check_neurips_discrepancy.py logs/run.eval --json --sample-limit 30
+    python scripts/check_discrepancy.py <log_path_or_dir> [options]
+    python scripts/check_discrepancy.py logs/ --dataset hbb --strict
+    python scripts/check_discrepancy.py logs/run.eval --json --sample-limit 30
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ from _browserart_log_utils import (
     is_benign_sample,
     read_eval_log_raw,
 )
-from _neurips_judge_utils import call_llm_judge, condense_trajectory, extract_scorer_claims
+from _judge_utils import call_llm_judge, condense_trajectory, extract_scorer_claims
 
 
 # ---------------------------------------------------------------------------

@@ -12,11 +12,11 @@ Paper: "Architecture Matters for Multi-Agent Security"
   - 13 unique conditions total
 
 Usage:
-    python scripts/run_osharm_icml_experiments.py --dry-run
-    python scripts/run_osharm_icml_experiments.py --smoke --model openai/gpt-4o
-    python scripts/run_osharm_icml_experiments.py --model openai/gpt-4o
-    python scripts/run_osharm_icml_experiments.py --condition single_agent
-    python scripts/run_osharm_icml_experiments.py --model openai/gpt-4o --parallel 3 --max-samples 10
+    python scripts/run_osharm_experiments.py --dry-run
+    python scripts/run_osharm_experiments.py --smoke --model openai/gpt-4o
+    python scripts/run_osharm_experiments.py --model openai/gpt-4o
+    python scripts/run_osharm_experiments.py --condition single_agent
+    python scripts/run_osharm_experiments.py --model openai/gpt-4o --parallel 3 --max-samples 10
 """
 
 from __future__ import annotations

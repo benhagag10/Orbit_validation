@@ -6,9 +6,9 @@ Runs all 5 heuristic validity groups from check_browserart_validity.py
 with the AI-assisted trajectory review always enabled (not opt-in).
 
 Usage:
-    python scripts/check_neurips_validity.py <log_path_or_dir> [options]
-    python scripts/check_neurips_validity.py logs/ --dataset hbb --strict
-    python scripts/check_neurips_validity.py logs/run.eval --json --sample-limit 30
+    python scripts/check_validity.py <log_path_or_dir> [options]
+    python scripts/check_validity.py logs/ --dataset hbb --strict
+    python scripts/check_validity.py logs/run.eval --json --sample-limit 30
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ from _browserart_log_utils import (
     is_benign_sample,
     read_eval_log_raw,
 )
-from _neurips_judge_utils import call_llm_judge, condense_trajectory
+from _judge_utils import call_llm_judge, condense_trajectory
 from check_browserart_validity import (
     check_benign_browsing_sanity,
     check_harmful_browsing_sanity,

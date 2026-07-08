@@ -146,7 +146,7 @@ for i in "${!MODELS[@]}"; do
         COND_START=$(date +%s)
 
         # Run the single condition
-        sg docker -c "uv run python -u scripts/run_osharm_icml_experiments.py \
+        sg docker -c "uv run python -u scripts/run_osharm_experiments.py \
             --model '$MODEL' --seed $SEED --parallel 1 --max-samples $MAX_SAMPLES \
             --log-root '$LOG_DIR' \
             --condition '$cond'" 2>&1 || true

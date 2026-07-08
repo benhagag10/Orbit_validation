@@ -52,7 +52,7 @@ class TestDualLLMPreset:
 class TestRunnerConfig:
     def test_defenses_list_has_four(self):
         import importlib
-        mod = importlib.import_module("scripts.run_neurips_defense_experiments")
+        mod = importlib.import_module("scripts.run_defense_experiments")
         assert len(mod.DEFENSES) == 4
         names = [d[0] for d in mod.DEFENSES]
         assert "system_prompt" in names
@@ -62,7 +62,7 @@ class TestRunnerConfig:
 
     def test_datasets_benign_count(self):
         import importlib
-        mod = importlib.import_module("scripts.run_neurips_defense_experiments")
+        mod = importlib.import_module("scripts.run_defense_experiments")
         benign = [d for d in mod.DATASETS if d[0] == "hbb_benign"]
         assert len(benign) == 1
         assert benign[0][2] == 42

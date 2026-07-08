@@ -75,7 +75,7 @@ def _redcode_scorers(config: ExperimentConfig) -> list[Scorer]:
 def _shorthand() -> ShorthandSpec:
     """RedCode-Gen YAML shorthand — declarative, resolved by the shared kit.
 
-    ``metadata.redcode_gen_condition`` resolves the same named ICML topology
+    ``metadata.redcode_gen_condition`` resolves the same named topology
     presets as ``-T condition=...``; ``redcode_gen_attack_preset`` /
     ``redcode_gen_defense_preset`` use the same ``presets`` primitives as the
     ``-T`` factory. New with the kit — the YAML path previously had no
@@ -140,7 +140,7 @@ def redcode_gen(
         max_turns: Maximum turns per task.
         max_time_seconds: Maximum wall-clock time per task.
         topology_file: Custom topology YAML path or ``"default"``.
-        condition: Named ICML condition (e.g. ``"single_agent"``,
+        condition: Named condition (e.g. ``"single_agent"``,
             ``"star_specialist"``). Overrides ``topology_file``.
         attack_preset: Attack preset name (e.g. ``"jailbreak"``).
         defense_preset: Defense preset name (e.g. ``"prompt_vaccination"``).

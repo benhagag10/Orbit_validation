@@ -20,7 +20,7 @@ set -a && source .env && set +a
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] MONITOR: $*" | tee -a "$LOGFILE"; }
 
 # Determine expected eval count for this model+defense
-EXPECTED=$(uv run python scripts/run_neurips_defense_experiments.py \
+EXPECTED=$(uv run python scripts/run_defense_experiments.py \
     --model "$MODEL" --defense "$DEFENSE" --dry-run 2>/dev/null \
     | grep -cE "DRY RUN|SKIPPED" || echo 0)
 log "Expected evals: $EXPECTED for $MODEL/$DEFENSE"
@@ -57,7 +57,7 @@ restart_service() {
 
 restart_runner() {
     log "Restarting experiment runner..."
-    pkill -f "run_neurips_defense_experiments" 2>/dev/null || true
+    pkill -f "run_defense_experiments" 2>/dev/null || true
     sleep 2
     pkill -9 -f "orbit browserart" 2>/dev/null || true
     sleep 2
@@ -65,7 +65,7 @@ restart_runner() {
     # Delete any bad evals so they get re-run
     uv run python scripts/validate_defense_evals.py neurips/logs_defenses/ --delete-bad 2>/dev/null | tee -a "$LOGFILE"
 
-    nohup uv run python scripts/run_neurips_defense_experiments.py \
+    nohup uv run python scripts/run_defense_experiments.py \
         --parallel 1 \
         --model "$MODEL" \
         --defense "$DEFENSE" >> "$HOME/gcp_run.log" 2>&1 &

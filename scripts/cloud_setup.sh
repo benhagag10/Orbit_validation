@@ -10,7 +10,7 @@
 #   cd ~/orbit
 #   export OPENAI_API_KEY="sk-..."
 #   tmux new -s sweep
-#   uv run python scripts/run_osharm_icml_experiments.py \
+#   uv run python scripts/run_osharm_experiments.py \
 #     --model openai/gpt-4o --seed 42 --max-samples 20
 #
 # To sync logs back to your local machine:
@@ -170,12 +170,12 @@ echo "  Quick start:"
 echo "    cd $INSTALL_DIR"
 echo "    export OPENAI_API_KEY='sk-...'"
 echo "    tmux new -s sweep"
-echo "    uv run python scripts/run_osharm_icml_experiments.py \\"
+echo "    uv run python scripts/run_osharm_experiments.py \\"
 echo "      --model openai/gpt-4o --seed 42 \\"
 echo "      --parallel $SUGGESTED_WORKERS --max-samples $SUGGESTED_SAMPLES"
 echo ""
 echo "  Smoke test first (3 samples, fast):"
-echo "    uv run python scripts/run_osharm_icml_experiments.py \\"
+echo "    uv run python scripts/run_osharm_experiments.py \\"
 echo "      --smoke --model openai/gpt-4o --max-samples 3"
 echo ""
 echo "  Sync logs to local machine:"

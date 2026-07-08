@@ -14,8 +14,8 @@ Paper metrics per table:
 Supports multi-seed runs (mean ± std).
 
 Usage:
-    python scripts/analyze_icml_experiments.py [--log-root logs/icml_gpt4o/] [--latex] [--csv]
-    python scripts/analyze_icml_experiments.py --seeds 42 43 44
+    python scripts/analyze_experiments.py [--log-root logs/icml_gpt4o/] [--latex] [--csv]
+    python scripts/analyze_experiments.py --seeds 42 43 44
 """
 
 from __future__ import annotations

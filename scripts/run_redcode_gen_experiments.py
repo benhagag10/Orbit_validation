@@ -1,21 +1,16 @@
 #!/usr/bin/env python3
 """
-Batch runner for ICML BrowserART experiments (GPT-4o, paper-matching).
+Batch runner for ICML RedCode-Gen experiments (13 conditions).
 
-Runs 9 conditions x 2 datasets (hbb, hbb_benign) = 18 eval runs.
+Runs 13 conditions x 160 tasks (all malware categories) = 13 eval runs.
 Supports parallel execution, skip-existing, and multi-seed runs.
 
-Paper: "Architecture Matters for Multi-Agent Security"
-  - Table 1: Role Distribution (5 conditions)
-  - Table 2: Communication Topology (3 conditions)
-  - Table 3: Memory & State Visibility (4 conditions)
-  - 9 unique conditions total
-
 Usage:
-    python scripts/run_icml_experiments.py [--smoke] [--dry-run] [--skip-existing]
-    python scripts/run_icml_experiments.py --condition single_agent --dataset hbb_benign
-    python scripts/run_icml_experiments.py --harmful-only
-    python scripts/run_icml_experiments.py --parallel 4
+    python scripts/run_redcode_gen_experiments.py --dry-run
+    python scripts/run_redcode_gen_experiments.py --smoke --model openai/gpt-4o
+    python scripts/run_redcode_gen_experiments.py --model openai/gpt-4o
+    python scripts/run_redcode_gen_experiments.py --condition single_agent --model openai/gpt-4o
+    python scripts/run_redcode_gen_experiments.py --model openai/gpt-4o --parallel 3
 """
 
 from __future__ import annotations
@@ -30,52 +25,54 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
-# ── Experiment matrix (13 conditions matching paper) ──────────────────────────
+# ── Experiment matrix (13 conditions matching ICML paper) ─────────────────────
 
 EXPERIMENTS = [
     # (dir_name, condition_code, paper_name, tables)
     # Table 1: Role Distribution
-    ("single_agent",          "single_agent",          "Standalone Agent",                    [1, 2]),
-    ("star_batch_relaxed",    "star_batch_relaxed",     "Star + Single Executor",              [1]),
-    ("star_batch",            "star_batch",             "Star + Batch Executor",               [1]),
-    ("star_step",             "star_step",              "Star + Stepwise",                     [1]),
-    ("star_2_specialist",     "star_2_specialist",      "Star + 2 Specialist",                 [1]),
-    ("star_3_specialist",     "star_3_specialist",      "Star + 3 Specialist",                 [1]),
-    ("star_specialist",       "star_specialist",        "Star + Specialized",                  [1, 2]),
+    ("single_agent",          "single_agent",          "Standalone Agent",                   [1, 2]),
+    ("star_batch_relaxed",    "star_batch_relaxed",    "Star + Single Executor",             [1]),
+    ("star_batch",            "star_batch",            "Star + Batch Executor",              [1]),
+    ("star_step",             "star_step",             "Star + Stepwise",                    [1]),
+    ("star_2_specialist",     "star_2_specialist",     "Star + 2 Specialist",                [1]),
+    ("star_3_specialist",     "star_3_specialist",     "Star + 3 Specialist",                [1]),
+    ("star_specialist",       "star_specialist",       "Star + Specialized",                 [1, 2, 3]),
     # Table 2: Communication Topology
-    ("mesh_round_robin",      "mesh_round_robin",       "Chain + Specialized",                 [2]),
-    ("mesh_delegation",       "mesh_delegation",        "Mesh + Specialized",                  [2]),
+    ("mesh_round_robin",      "mesh_round_robin",      "Chain + Specialized",                [2]),
+    ("mesh_delegation",       "mesh_delegation",       "Mesh + Specialized",                 [2, 3]),
     # Table 3: Memory & State Visibility
-    ("memory_own_reasoning",  "memory_own_reasoning",   "Star + Specialized + CoT",            [3]),
-    ("memory_full",           "memory_full",            "Star + Specialized + Shared Memory",  [3]),
-    ("mesh_delegation_cot",   "mesh_delegation_cot",    "Mesh + Specialized + CoT",            [3]),
-    ("mesh_delegation_full",  "mesh_delegation_full",   "Mesh + Specialized + Shared Memory",  [3]),
+    ("memory_own_reasoning",  "memory_own_reasoning",  "Star + Specialized + CoT",           [3]),
+    ("memory_full",           "memory_full",           "Star + Specialized + Shared Memory", [3]),
+    ("mesh_delegation_cot",   "mesh_delegation_cot",   "Mesh + Specialized + CoT",           [3]),
+    ("mesh_delegation_full",  "mesh_delegation_full",  "Mesh + Specialized + Shared Memory", [3]),
 ]
 
-DATASETS = [
-    ("hbb_benign", "benign", 59),
-    ("hbb",        "harmful", 100),
-]
+# All 160 tasks (8 categories x 20)
+TOTAL_TASKS = 160
 
-# ── Defaults ─────────────────────────────────────────────────────────────────
+# ── Defaults ──────────────────────────────────────────────────────────────────
 
 DEFAULT_MODEL = "openai/gpt-4o"
-DEFAULT_CLASSIFIER = "openai/gpt-4o"
+DEFAULT_JUDGE_MODEL = "openai/gpt-4.1"
 DEFAULT_SEED = 42
-DEFAULT_MAX_TURNS = 15
+DEFAULT_MAX_TURNS = 100
+DEFAULT_MAX_TIME = 300.0   # seconds per task (5 min)
+DEFAULT_MAX_SAMPLES = 8    # parallel samples per condition
 DEFAULT_RETRY_ON_ERROR = 1
-DEFAULT_LOG_ROOT = Path("logs/icml_gpt4o")
+DEFAULT_LOG_ROOT = Path("logs/redcode_gen_icml")
 
 SMOKE_LIMIT = 3
-SMOKE_MAX_TURNS = 5
+SMOKE_MAX_TURNS = 10
+SMOKE_MAX_TIME = 120.0
+
+# Per-condition subprocess timeout.
+RUN_TIMEOUT_SECONDS = 7200  # 2h generous
 
 
 @dataclass
 class RunResult:
     experiment: str
     condition: str
-    dataset: str
-    dataset_label: str
     status: str  # success, failed, skipped, dry-run
     sample_count: int
     duration_seconds: float
@@ -107,8 +104,8 @@ def find_completed_eval(log_dir: Path, expected_samples: int) -> Path | None:
     return None
 
 
-def validate_eval(eval_path: Path, dataset: str, expected_samples: int) -> tuple[bool, str]:
-    """Validate a completed eval log. Returns (ok, message)."""
+def validate_eval(eval_path: Path, expected_samples: int) -> tuple[bool, str]:
+    """Validate a completed eval log."""
     try:
         with zipfile.ZipFile(eval_path) as z:
             header = json.loads(z.read("header.json"))
@@ -127,16 +124,8 @@ def validate_eval(eval_path: Path, dataset: str, expected_samples: int) -> tuple
             for sf in sample_files[:5]:
                 sample = json.loads(z.read(sf))
                 scores = sample.get("scores", {})
-                if "browserart_scorer" not in scores:
-                    errors.append(f"{sf}: missing browserart_scorer")
-
-                if dataset == "hbb_benign":
-                    ba = scores.get("browserart_scorer", {})
-                    val = ba.get("value", {})
-                    if isinstance(val, dict):
-                        as_val = val.get("attack_success", 0.0)
-                        if as_val > 0:
-                            errors.append(f"{sf}: benign AS={as_val}")
+                if "redcode_gen_scorer" not in scores:
+                    errors.append(f"{sf}: missing redcode_gen_scorer")
 
             if errors:
                 return False, "; ".join(errors[:3])
@@ -148,59 +137,66 @@ def validate_eval(eval_path: Path, dataset: str, expected_samples: int) -> tuple
 
 def run_experiment(
     condition: str,
-    dataset: str,
     log_dir: Path,
     model: str,
-    classifier: str,
+    judge_model: str,
     seed: int,
     max_turns: int,
+    max_time: float,
     retry_on_error: int,
     limit: int | None = None,
+    max_samples: int | None = None,
+    categories: str | None = None,
 ) -> tuple[bool, str]:
-    """Run a single experiment via subprocess. Returns (success, output)."""
+    """Run a single experiment via subprocess."""
     cmd = [
-        "uv", "run", "orbit", "browserart",
+        "uv", "run", "orbit", "redcode-gen",
         "--model", model,
-        "--dataset", dataset,
         "--condition", condition,
         "--max-turns", str(max_turns),
-        "--judge-model", classifier,
+        "--max-time-seconds", str(max_time),
+        "--judge-model", judge_model,
         "--retry-on-error", str(retry_on_error),
         "--log-dir", str(log_dir),
     ]
     if limit is not None:
         cmd.extend(["--limit", str(limit)])
+    if max_samples is not None:
+        cmd.extend(["--max-samples", str(max_samples)])
+    if categories is not None:
+        cmd.extend(["--categories", categories])
 
     try:
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
-            timeout=7200,  # 2 hour timeout per run
+            timeout=RUN_TIMEOUT_SECONDS,
         )
         if result.returncode != 0:
             return False, f"Exit code {result.returncode}\n{result.stderr[-500:]}"
         return True, result.stdout[-200:]
     except subprocess.TimeoutExpired:
-        return False, "Timed out after 2 hours"
+        return False, f"Timed out after {RUN_TIMEOUT_SECONDS // 3600}h"
     except Exception as e:
         return False, str(e)
 
 
 def _run_single(run_spec: dict) -> RunResult:
-    """Execute a single run (used by both sequential and parallel modes)."""
+    """Execute a single run."""
     exp_name = run_spec["exp_name"]
     condition = run_spec["condition"]
-    dataset = run_spec["dataset"]
-    label = run_spec["label"]
     expected_count = run_spec["expected_count"]
     log_dir = Path(run_spec["log_dir"])
     model = run_spec["model"]
-    classifier = run_spec["classifier"]
+    judge_model = run_spec["judge_model"]
     seed = run_spec["seed"]
     max_turns = run_spec["max_turns"]
+    max_time = run_spec["max_time"]
     retry_on_error = run_spec["retry_on_error"]
     limit = run_spec.get("limit")
+    max_samples = run_spec.get("max_samples")
+    categories = run_spec.get("categories")
     effective_expected = limit if limit else expected_count
 
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -208,21 +204,23 @@ def _run_single(run_spec: dict) -> RunResult:
 
     success, output = run_experiment(
         condition=condition,
-        dataset=dataset,
         log_dir=log_dir,
         model=model,
-        classifier=classifier,
+        judge_model=judge_model,
         seed=seed,
         max_turns=max_turns,
+        max_time=max_time,
         retry_on_error=retry_on_error,
         limit=limit,
+        max_samples=max_samples,
+        categories=categories,
     )
     duration = time.time() - t0
 
     if success:
         completed = find_completed_eval(log_dir, effective_expected)
         if completed:
-            ok, msg = validate_eval(completed, dataset, effective_expected)
+            ok, msg = validate_eval(completed, effective_expected)
             status = "success" if ok else "failed"
         else:
             status = "failed"
@@ -233,7 +231,6 @@ def _run_single(run_spec: dict) -> RunResult:
 
     return RunResult(
         experiment=exp_name, condition=condition,
-        dataset=dataset, dataset_label=label,
         status=status, sample_count=effective_expected,
         duration_seconds=duration,
         log_path=str(log_dir),
@@ -242,23 +239,13 @@ def _run_single(run_spec: dict) -> RunResult:
     )
 
 
-def print_progress(idx: int, total: int, exp_name: str, dataset_label: str,
-                   condition: str, expected: int, action: str):
-    """Print progress line."""
-    print(
-        f"[{idx}/{total}] {exp_name}/{dataset_label}: "
-        f"{condition} ({expected} samples) — {action}"
-    )
-
-
 def main():
     parser = argparse.ArgumentParser(
-        description="Run ICML BrowserART experiments (GPT-4o, paper-matching)"
+        description="Run ICML RedCode-Gen experiments (13 conditions)"
     )
     parser.add_argument(
         "--smoke", action="store_true",
-        help=f"Smoke test: {SMOKE_LIMIT} samples per condition, "
-             f"max-turns={SMOKE_MAX_TURNS}",
+        help=f"Smoke test: {SMOKE_LIMIT} samples per condition",
     )
     parser.add_argument(
         "--dry-run", action="store_true",
@@ -277,33 +264,28 @@ def main():
         help="Run only this condition (e.g., single_agent)",
     )
     parser.add_argument(
-        "--dataset", type=str, default=None,
-        choices=["hbb", "hbb_benign"],
-        help="Run only this dataset",
-    )
-    parser.add_argument(
-        "--benign-only", action="store_true",
-        help="Run only benign (hbb_benign) dataset",
-    )
-    parser.add_argument(
-        "--harmful-only", action="store_true",
-        help="Run only harmful (hbb) dataset",
+        "--categories", type=str, default=None,
+        help="Comma-separated malware categories (e.g. spyware,ransomware)",
     )
     parser.add_argument(
         "--model", type=str, default=DEFAULT_MODEL,
         help=f"Model (default: {DEFAULT_MODEL})",
     )
     parser.add_argument(
-        "--judge-model", type=str, default=DEFAULT_CLASSIFIER,
-        help=f"Judge model (default: {DEFAULT_CLASSIFIER})",
+        "--judge-model", type=str, default=DEFAULT_JUDGE_MODEL,
+        help=f"Judge model (default: {DEFAULT_JUDGE_MODEL})",
     )
     parser.add_argument(
         "--seed", type=int, nargs="+", default=[DEFAULT_SEED],
-        help=f"Seed(s) to run (default: {DEFAULT_SEED}). "
-             "Pass multiple for mean±std: --seed 42 43 44",
+        help=f"Seed(s) (default: {DEFAULT_SEED})",
     )
     parser.add_argument(
         "--max-turns", type=int, default=DEFAULT_MAX_TURNS,
+        help=f"Max agent turns per task (default: {DEFAULT_MAX_TURNS})",
+    )
+    parser.add_argument(
+        "--max-time-seconds", dest="max_time", type=float, default=DEFAULT_MAX_TIME,
+        help=f"Max seconds per task (default: {DEFAULT_MAX_TIME})",
     )
     parser.add_argument(
         "--retry-on-error", type=int, default=DEFAULT_RETRY_ON_ERROR,
@@ -314,43 +296,36 @@ def main():
     )
     parser.add_argument(
         "--parallel", type=int, default=1,
-        help="Max parallel runs (default: 1 = sequential). "
-             "Use --parallel 4 to run 4 conditions simultaneously.",
+        help="Max parallel condition workers (default: 1)",
+    )
+    parser.add_argument(
+        "--max-samples", type=int, default=DEFAULT_MAX_SAMPLES,
+        help="Max parallel samples per condition.",
     )
     parser.add_argument(
         "--limit", type=int, default=None,
-        help="Limit number of samples per run (overrides --smoke limit)",
+        help="Limit number of samples per run",
     )
     args = parser.parse_args()
 
     if args.rerun:
         args.skip_existing = False
 
-    seeds = args.seed  # list of ints
+    seeds = args.seed
 
     # Build run list
     runs: list[dict] = []
     for dir_name, condition, paper_name, tables in EXPERIMENTS:
         if args.condition and condition != args.condition:
             continue
-        for dataset, label, count in DATASETS:
-            if args.dataset and dataset != args.dataset:
-                continue
-            if args.benign_only and label != "benign":
-                continue
-            if args.harmful_only and label != "harmful":
-                continue
-            for seed in seeds:
-                seed_suffix = f"/seed_{seed}" if len(seeds) > 1 else ""
-                runs.append({
-                    "exp_name": dir_name,
-                    "condition": condition,
-                    "paper_name": paper_name,
-                    "dataset": dataset,
-                    "label": label,
-                    "expected_count": count,
-                    "seed": seed,
-                })
+        for seed in seeds:
+            runs.append({
+                "exp_name": dir_name,
+                "condition": condition,
+                "paper_name": paper_name,
+                "expected_count": TOTAL_TASKS,
+                "seed": seed,
+            })
 
     if not runs:
         print("No runs match the given filters.")
@@ -359,20 +334,25 @@ def main():
     # Determine params
     limit = args.limit if args.limit is not None else (SMOKE_LIMIT if args.smoke else None)
     max_turns = SMOKE_MAX_TURNS if args.smoke else args.max_turns
-    log_root = args.log_root.parent / "icml_gpt4o_smoke" if args.smoke else args.log_root
+    max_time = SMOKE_MAX_TIME if args.smoke else args.max_time
+    smoke_suffix = "_smoke" if args.smoke else ""
+    log_root = args.log_root.parent / f"{args.log_root.name}{smoke_suffix}" if args.smoke else args.log_root
 
-    # Compute log dirs and populate run specs
+    # Populate run specs
     for run in runs:
         seed_suffix = f"seed_{run['seed']}" if len(seeds) > 1 else ""
         if seed_suffix:
-            run["log_dir"] = str(log_root / run["exp_name"] / run["label"] / seed_suffix)
+            run["log_dir"] = str(log_root / run["exp_name"] / seed_suffix)
         else:
-            run["log_dir"] = str(log_root / run["exp_name"] / run["label"])
+            run["log_dir"] = str(log_root / run["exp_name"])
         run["model"] = args.model
-        run["classifier"] = args.judge_model
+        run["judge_model"] = args.judge_model
         run["max_turns"] = max_turns
+        run["max_time"] = max_time
         run["retry_on_error"] = args.retry_on_error
         run["limit"] = limit
+        run["max_samples"] = args.max_samples
+        run["categories"] = args.categories
 
     total = len(runs)
     results: list[RunResult] = []
@@ -380,14 +360,17 @@ def main():
     print(f"\n{'='*60}")
     mode = "SMOKE TEST" if args.smoke else "FULL RUN"
     seed_str = ", ".join(str(s) for s in seeds)
-    print(f"  ICML BrowserART Experiments — {mode}")
+    print(f"  ICML RedCode-Gen Experiments — {mode}")
     print(f"  {total} runs, model={args.model}, seed(s)={seed_str}")
+    print(f"  Judge: {args.judge_model}")
+    print(f"  Max turns: {max_turns}, max time: {max_time}s/task")
     print(f"  Parallel workers: {args.parallel}")
     if args.smoke:
-        print(f"  Limit: {SMOKE_LIMIT} samples/run, max_turns={SMOKE_MAX_TURNS}")
+        print(f"  Smoke: {SMOKE_LIMIT} samples/run")
+    print(f"  Log root: {log_root}")
     print(f"{'='*60}\n")
 
-    # Check for skips first
+    # Check for skips
     to_run: list[dict] = []
     for idx, run in enumerate(runs, 1):
         effective_expected = limit if limit else run["expected_count"]
@@ -396,14 +379,11 @@ def main():
         if args.skip_existing and not args.smoke:
             existing = find_completed_eval(log_dir, effective_expected)
             if existing:
-                ok, msg = validate_eval(existing, run["dataset"], effective_expected)
+                ok, msg = validate_eval(existing, effective_expected)
                 if ok:
-                    print_progress(idx, total, run["exp_name"], run["label"],
-                                   run["condition"], effective_expected,
-                                   f"SKIPPED (exists: {existing.name})")
+                    print(f"[{idx}/{total}] {run['exp_name']}: SKIPPED (exists)")
                     results.append(RunResult(
                         experiment=run["exp_name"], condition=run["condition"],
-                        dataset=run["dataset"], dataset_label=run["label"],
                         status="skipped", sample_count=effective_expected,
                         duration_seconds=0, log_path=str(existing),
                         message=msg, seed=run["seed"],
@@ -411,12 +391,9 @@ def main():
                     continue
 
         if args.dry_run:
-            print_progress(idx, total, run["exp_name"], run["label"],
-                           run["condition"], effective_expected,
-                           "DRY RUN (would execute)")
+            print(f"[{idx}/{total}] {run['exp_name']}: DRY RUN")
             results.append(RunResult(
                 experiment=run["exp_name"], condition=run["condition"],
-                dataset=run["dataset"], dataset_label=run["label"],
                 status="dry-run", sample_count=effective_expected,
                 duration_seconds=0, log_path=str(log_dir),
                 seed=run["seed"],
@@ -425,7 +402,7 @@ def main():
 
         to_run.append(run)
 
-    # Execute runs (parallel or sequential)
+    # Execute runs
     if to_run:
         if args.parallel > 1:
             print(f"\nLaunching {len(to_run)} runs with {args.parallel} parallel workers...\n")
@@ -440,26 +417,27 @@ def main():
                     except Exception as e:
                         result = RunResult(
                             experiment=run["exp_name"], condition=run["condition"],
-                            dataset=run["dataset"], dataset_label=run["label"],
                             status="failed", sample_count=run["expected_count"],
                             duration_seconds=0, log_path=run["log_dir"],
                             message=str(e), seed=run["seed"],
                         )
                     status_icon = "OK" if result.status == "success" else "FAIL"
-                    print(f"  [{status_icon}] {result.experiment}/{result.dataset_label} "
-                          f"(seed={result.seed}, {result.duration_seconds:.0f}s): {result.message[:80]}")
+                    print(f"  [{status_icon}] {result.experiment} "
+                          f"(seed={result.seed}, {result.duration_seconds:.0f}s): "
+                          f"{result.message[:80]}")
                     results.append(result)
         else:
             for run in to_run:
                 effective_expected = limit if limit else run["expected_count"]
-                print(f"  Running {run['exp_name']}/{run['label']} "
+                print(f"  Running {run['exp_name']} "
                       f"(seed={run['seed']}, {effective_expected} samples)...")
                 result = _run_single(run)
                 status_icon = "OK" if result.status == "success" else "FAIL"
-                print(f"    → [{status_icon}] ({result.duration_seconds:.0f}s): {result.message[:80]}")
+                print(f"    -> [{status_icon}] ({result.duration_seconds:.0f}s): "
+                      f"{result.message[:80]}")
                 results.append(result)
 
-    # ── Summary ──────────────────────────────────────────────────────────
+    # ─��� Summary ─��────────────────────────────────────────────────────────
     print(f"\n{'='*60}")
     print("SUMMARY")
     print(f"{'='*60}")
@@ -482,14 +460,14 @@ def main():
     if failed:
         print("\nFailed runs:")
         for r in failed:
-            print(f"  {r.experiment}/{r.dataset_label} (seed={r.seed}): {r.message[:100]}")
+            print(f"  {r.experiment} (seed={r.seed}): {r.message[:100]}")
 
     # Print table
-    print(f"\n{'Experiment':<25} {'Dataset':<10} {'Seed':<6} {'Status':<10} {'Samples':<8} {'Time':<8}")
-    print("-" * 70)
+    print(f"\n{'Experiment':<25} {'Seed':<6} {'Status':<10} {'Samples':<8} {'Time':<8}")
+    print("-" * 60)
     for r in results:
         t = f"{r.duration_seconds:.0f}s" if r.duration_seconds > 0 else "-"
-        print(f"{r.experiment:<25} {r.dataset_label:<10} {r.seed:<6} {r.status:<10} {r.sample_count:<8} {t:<8}")
+        print(f"{r.experiment:<25} {r.seed:<6} {r.status:<10} {r.sample_count:<8} {t:<8}")
 
     if failed:
         sys.exit(1)

@@ -11,12 +11,12 @@ Datasets:   hbb (harmful → ASR), hbb_benign (benign → Benign TC)
 Defenses:   system_prompt, llm_monitor, guardian
 
 Usage:
-    python scripts/run_neurips_defense_experiments.py --smoke
-    python scripts/run_neurips_defense_experiments.py --dry-run
-    python scripts/run_neurips_defense_experiments.py --model openai/gpt-5.4
-    python scripts/run_neurips_defense_experiments.py --defense system_prompt
-    python scripts/run_neurips_defense_experiments.py --condition single_agent
-    python scripts/run_neurips_defense_experiments.py --parallel 4
+    python scripts/run_defense_experiments.py --smoke
+    python scripts/run_defense_experiments.py --dry-run
+    python scripts/run_defense_experiments.py --model openai/gpt-5.4
+    python scripts/run_defense_experiments.py --defense system_prompt
+    python scripts/run_defense_experiments.py --condition single_agent
+    python scripts/run_defense_experiments.py --parallel 4
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ from pathlib import Path
 
 CONDITIONS = [
     # (dir_name, condition_code, paper_name)
-    # dir_names match analyze_icml_experiments.py expectations
+    # dir_names match analyze_experiments.py expectations
     ("single_agent",    "single_agent",    "Baseline"),
     ("star_specialist", "star_specialist",  "Star"),
     ("mesh_delegation", "mesh_delegation",  "Mesh"),

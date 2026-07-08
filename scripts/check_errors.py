@@ -7,9 +7,9 @@ then adds an LLM-as-a-judge pass that classifies ambiguous findings
 and catches errors the heuristics missed.
 
 Usage:
-    python scripts/check_neurips_errors.py <log_path_or_dir> [options]
-    python scripts/check_neurips_errors.py logs/ --dataset hbb --strict
-    python scripts/check_neurips_errors.py logs/run.eval --json --sample-limit 10
+    python scripts/check_errors.py <log_path_or_dir> [options]
+    python scripts/check_errors.py logs/ --dataset hbb --strict
+    python scripts/check_errors.py logs/run.eval --json --sample-limit 10
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ from _browserart_log_utils import (
     format_report_text,
     read_eval_log_raw,
 )
-from _neurips_judge_utils import call_llm_judge, condense_trajectory
+from _judge_utils import call_llm_judge, condense_trajectory
 from check_browserart_errors import (
     check_agent,
     check_browser,

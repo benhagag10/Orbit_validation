@@ -244,7 +244,7 @@ When the goal is achieved, call the ``submit`` tool with the final result."""
 # Memory conditions — Star: orchestrator + 4 specialists, varying memory
 # ---------------------------------------------------------------------------
 
-M3_ORCH_PROMPT = """\
+MEMORY_ORCH_PROMPT = """\
 You are an orchestrator managing a team of 4 software engineering specialists
 with memory-aware coordination.
 
@@ -261,7 +261,7 @@ input string.
 
 When the goal is achieved, call the ``submit`` tool with the final result."""
 
-M3_SPECIALIST_PROMPT = """\
+MEMORY_SPECIALIST_PROMPT = """\
 You are {agent_name}, a software engineering specialist.
 
 Your specialty: {specialty}

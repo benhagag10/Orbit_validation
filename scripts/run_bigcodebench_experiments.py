@@ -2,17 +2,17 @@
 """
 Batch runner for ICML BigCodeBench experiments (13 conditions).
 
-Mirrors ``scripts/run_redcode_gen_icml_experiments.py`` so the two
+Mirrors ``scripts/run_redcode_gen_experiments.py`` so the two
 scenarios can be swept with the same operational surface. BigCodeBench
 is the benign baseline — pass@1 measured via real unit-test execution
 in a sandboxed container.
 
 Usage:
-    python scripts/run_bigcodebench_icml_experiments.py --dry-run
-    python scripts/run_bigcodebench_icml_experiments.py --smoke --model openai/gpt-4o
-    python scripts/run_bigcodebench_icml_experiments.py --model openai/gpt-4o --limit 100
-    python scripts/run_bigcodebench_icml_experiments.py --condition single_agent --model openai/gpt-4o --limit 100
-    python scripts/run_bigcodebench_icml_experiments.py --model openai/gpt-4o --parallel 3 --limit 100
+    python scripts/run_bigcodebench_experiments.py --dry-run
+    python scripts/run_bigcodebench_experiments.py --smoke --model openai/gpt-4o
+    python scripts/run_bigcodebench_experiments.py --model openai/gpt-4o --limit 100
+    python scripts/run_bigcodebench_experiments.py --condition single_agent --model openai/gpt-4o --limit 100
+    python scripts/run_bigcodebench_experiments.py --model openai/gpt-4o --parallel 3 --limit 100
 """
 
 from __future__ import annotations
