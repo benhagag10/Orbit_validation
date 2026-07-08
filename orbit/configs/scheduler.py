@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field, model_validator
 from orbit.configs.execution import HaltConditionConfig, SchedulerHooks
 
 
-class SchedulerConfig(BaseModel, frozen=True):
+class SchedulerConfig(BaseModel, frozen=True, extra="forbid"):
     """System-level experiment controller configuration."""
 
     max_turns: int = 100

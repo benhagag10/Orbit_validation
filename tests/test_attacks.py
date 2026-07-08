@@ -56,7 +56,7 @@ class TestDirectInjectionAttack:
             name="test",
             attack_type="direct_injection",
             target_agent="a",
-            config={"payload": "test payload"},
+            payload="test payload",
         )
         attack = DirectInjectionAttack(config)
         assert attack.should_activate(turn=0, phase="runtime") is True
@@ -120,7 +120,7 @@ class TestIndirectInjectionAttack:
             name="test",
             attack_type="indirect_injection",
             target_agent="a",
-            config={"payload": "malicious content"},
+            payload="malicious content",
         )
         attack = IndirectInjectionAttack(config)
         assert attack.should_activate(turn=0, phase="runtime") is True

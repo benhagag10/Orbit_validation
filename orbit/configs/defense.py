@@ -37,7 +37,7 @@ DEFENSE_TYPE_TO_CATEGORY: dict[str, "DefenseCategory"] = {
 from orbit.configs.setup import AgentSpec
 
 
-class DefenseConfig(BaseModel, frozen=True):
+class DefenseConfig(BaseModel, frozen=True, extra="forbid"):
     """Defense mechanism specification.
 
     Read by defenses/registry.py to instantiate the correct DefenseBase subclass.

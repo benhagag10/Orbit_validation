@@ -24,7 +24,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, model_validator
 
 
-class AgentMemoryAccess(BaseModel, frozen=True):
+class AgentMemoryAccess(BaseModel, frozen=True, extra="forbid"):
     """Per-agent memory visibility flags.
 
     Controls what context each agent sees across turns. Used by any solver
@@ -54,7 +54,7 @@ class AgentMemoryAccess(BaseModel, frozen=True):
     """Whether the agent sees accumulated orchestrator instructions."""
 
 
-class MemoryConfig(BaseModel, frozen=True):
+class MemoryConfig(BaseModel, frozen=True, extra="forbid"):
     """Memory sharing configuration for the multi-agent system.
 
     Controls whether agents share state via Inspect's StoreModel or operate
@@ -75,7 +75,7 @@ class MemoryConfig(BaseModel, frozen=True):
     (backward-compatible default)."""
 
 
-class AgentSpec(BaseModel, frozen=True):
+class AgentSpec(BaseModel, frozen=True, extra="forbid"):
     """Specification for a single agent in the multi-agent system.
 
     The orchestrator reads this to build an Inspect @agent (or react() agent)
@@ -163,7 +163,7 @@ class AgentSpec(BaseModel, frozen=True):
         return self
 
 
-class TopologyEdge(BaseModel, frozen=True):
+class TopologyEdge(BaseModel, frozen=True, extra="forbid"):
     """A directed communication edge between two agents.
 
     Defines how agent A can invoke/delegate to agent B. The orchestrator reads
@@ -184,7 +184,7 @@ class TopologyEdge(BaseModel, frozen=True):
     """
 
 
-class SetupConfig(BaseModel, frozen=True):
+class SetupConfig(BaseModel, frozen=True, extra="forbid"):
     """Multi-agent system setup configuration.
 
     Extensible, multi-dimensional setup. The topology is defined by agents + edges

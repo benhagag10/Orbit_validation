@@ -16,8 +16,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import ssl
 import sys
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
 REVISION = "e23b3fe60a0da9037314b88e5ee3a0c054970dad"
@@ -42,6 +44,33 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: f.read(8192), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def _ssl_context() -> ssl.SSLContext:
+    """TLS context preferring certifi's CA bundle when available.
+
+    Stock macOS Python ships no CA bundle for stdlib ``ssl``, so a plain
+    ``urlopen`` fails with ``SSL: CERTIFICATE_VERIFY_FAILED``.
+    """
+    try:
+        import certifi
+    except ImportError:
+        return ssl.create_default_context()
+    return ssl.create_default_context(cafile=certifi.where())
+
+
+_SSL_CONTEXT = _ssl_context()
+
+
+def _download(url: str) -> bytes:
+    try:
+        with urlopen(url, context=_SSL_CONTEXT) as resp:
+            return resp.read()
+    except (HTTPError, URLError) as exc:
+        raise SystemExit(
+            f"Failed to download {url}: {exc}. Check network and the "
+            f"pinned revision."
+        ) from exc
 
 
 def main() -> int:
@@ -69,9 +98,7 @@ def main() -> int:
             continue
         url = f"{BASE_URL}/{name}"
         print(f"↓ downloading {name} from {url}")
-        with urlopen(url) as resp:
-            raw = resp.read()
-        dst.write_bytes(raw)
+        dst.write_bytes(_download(url))
         any_changed = True
 
     # Verify canary on every file

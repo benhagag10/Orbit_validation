@@ -31,8 +31,8 @@ class CheckResult:
     warning: bool = False
 
 
-def _check_dotenv_for_api_keys() -> bool:
-    """Check if .env file in the working directory contains an API key."""
+def _dotenv_has_key(*names: str) -> bool:
+    """Check if .env in the working directory sets any of the named keys."""
     from pathlib import Path
 
     dotenv_path = Path.cwd() / ".env"
@@ -45,7 +45,7 @@ def _check_dotenv_for_api_keys() -> bool:
                 continue
             key = stripped.split("=", 1)[0].strip()
             value = stripped.split("=", 1)[1].strip().strip("\"'")
-            if key in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY") and value:
+            if key in names and value:
                 return True
     except OSError:
         return False
@@ -73,7 +73,7 @@ def check_common() -> list[CheckResult]:
     )
     dotenv_has_key = False
     if not has_key:
-        dotenv_has_key = _check_dotenv_for_api_keys()
+        dotenv_has_key = _dotenv_has_key("OPENAI_API_KEY", "ANTHROPIC_API_KEY")
     if has_key or dotenv_has_key:
         source = ".env file" if dotenv_has_key and not has_key else ""
         results.append(CheckResult(
@@ -195,6 +195,16 @@ def check_swe_bench() -> list[CheckResult]:
 
     # Docker reachable
     results.append(_check_docker())
+
+    # GITHUB_TOKEN — required for SWE-Bench repo access; fail fast here
+    # rather than partway into the multi-GB Docker image builds.
+    if os.environ.get("GITHUB_TOKEN") or _dotenv_has_key("GITHUB_TOKEN"):
+        results.append(CheckResult("GITHUB_TOKEN set", passed=True))
+    else:
+        results.append(CheckResult(
+            "GITHUB_TOKEN set", passed=False,
+            message="Set GITHUB_TOKEN in environment or .env (required for SWE-Bench)",
+        ))
 
     # ARM warning
     machine = platform.machine()

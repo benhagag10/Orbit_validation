@@ -558,3 +558,52 @@ class TestSchedulerConfigRetries:
         data = config.model_dump()
         restored = SchedulerConfig(**data)
         assert restored.max_retries_per_turn == 2
+
+
+class TestUnknownKeysRejected:
+    """Config models forbid unknown keys (issue #43 item 3).
+
+    Under Pydantic's default extra="ignore", a misspelled *optional* key
+    (e.g. ``vacination_prompt``, ``target_agents``) was silently dropped,
+    yielding a quietly misconfigured experiment. All orbit.configs models
+    now use extra="forbid" so typos fail loudly at load time.
+    """
+
+    def test_attack_config_rejects_unknown_key(self):
+        with pytest.raises(Exception, match="target_agents"):
+            AttackConfig(
+                name="a", attack_type="direct_injection",
+                target_agents="worker",  # real field is target_agent
+            )
+
+    def test_defense_config_rejects_unknown_key(self):
+        with pytest.raises(Exception, match="vacination_prompt"):
+            DefenseConfig(
+                name="d", defense_type="prompt_vaccination",
+                vacination_prompt="be careful",  # typo of vaccination
+            )
+
+    def test_nested_typo_rejected_via_yaml_loader(self, tmp_path):
+        from orbit.wrapper.yaml_loader import load_experiment_config
+
+        cfg = tmp_path / "typo.yaml"
+        cfg.write_text(
+            """
+name: typo-test
+setup:
+  agents:
+    - name: solo
+      role: worker
+      is_compromized: true  # typo of is_compromised
+scenario:
+  type: generic
+  name: generic
+"""
+        )
+        with pytest.raises(ValueError, match="is_compromized"):
+            load_experiment_config(cfg)
+
+    def test_metrics_legacy_execution_rate_still_accepted(self):
+        """The documented legacy alias must keep working under extra=forbid."""
+        cfg = MetricsConfig(execution_rate=False)
+        assert cfg.execution_reach is False

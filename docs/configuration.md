@@ -29,7 +29,7 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_ro
 | `--headless / --no-headless` | bool | true | Run browser headlessly |
 | `--record-video-dir` | string | — | Save browser recordings to this directory |
 | `--judge-model` | string | openai/gpt-4.1 | Model for the safety classifier |
-| `--topology-file` | string | `default` | Custom topology YAML path (advanced) |
+| `--topology-file` | string | `default` | Custom topology YAML path, e.g. `examples/topologies/…` (advanced) |
 
 ### Examples
 
@@ -75,7 +75,7 @@ uv run inspect eval orbit/browserart_safety \
 | `headless` | bool | true | Run browser headlessly |
 | `record_video_dir` | string | — | Save browser recordings to this directory |
 | `judge_model` | string | openai/gpt-4o | Model for the safety classifier |
-| `topology_file` | string | `default` | Custom topology YAML path (advanced) |
+| `topology_file` | string | `default` | Custom topology YAML path, e.g. `examples/topologies/…` (advanced) |
 | `data_path` | string | — | Override path to hbb.json dataset |
 
 ---
@@ -239,7 +239,7 @@ setup:
 | `tools` | list | [] | Tool names |
 | `temperature` | float | 0.0 | LLM temperature |
 | `max_messages` | int | 50 | Max messages before forced stop |
-| `framework` | string | "inspect" | `"inspect"`, `"langgraph"`, or `"custom"` |
+| `framework` | string | "inspect" | `"inspect"`, `"langgraph"` (needs `uv sync --extra langgraph`), or `"custom"` |
 | `is_compromised` | bool | false | Starts as compromised agent |
 
 #### Edge Mechanisms
@@ -457,7 +457,7 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_ro
 | `--headless / --no-headless` | Run browser headlessly (default: on) |
 | `--record-video-dir PATH` | Directory for video recordings |
 | `--judge-model TEXT` | Model for scoring classifier |
-| `--topology-file PATH` | Custom topology YAML path (advanced) |
+| `--topology-file PATH` | Custom topology YAML path, e.g. `examples/topologies/…` (advanced) |
 | `-v, --verbose` | Verbose logging |
 
 ### `orbit run`

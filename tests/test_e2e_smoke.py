@@ -32,9 +32,25 @@ from orbit.wrapper.yaml_loader import load_experiment_config
 # Helpers
 # ---------------------------------------------------------------------------
 
-EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "orbit" / "examples"
+EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "examples"
 
-EXAMPLE_YAMLS = sorted(EXAMPLES_DIR.glob("*.yaml")) if EXAMPLES_DIR.exists() else []
+# Self-contained smoke configs: no sandbox, no optional extra, no data fetch.
+# These get the deeper load + dry-run treatment; every other example is
+# covered by TestAllExamplesOrbitValidate below.
+SMOKE_EXAMPLE_YAMLS = [
+    EXAMPLES_DIR / name
+    for name in (
+        "simple_no_sandbox.yaml",
+        "chain_compromised_agent.yaml",
+        "supervisor_workers_injection.yaml",
+    )
+]
+
+# Everything shipped under examples/, including topology snippets in
+# examples/topologies/ (SetupConfig-shaped; `orbit validate` detects those).
+ALL_EXAMPLE_YAMLS = (
+    sorted(EXAMPLES_DIR.rglob("*.yaml")) if EXAMPLES_DIR.exists() else []
+)
 
 
 def _has_api_key() -> bool:
@@ -185,12 +201,12 @@ def per_agent_model_yaml(tmp_path: Path) -> Path:
 
 
 class TestExampleConfigsValidate:
-    """All shipped example YAML configs should load and validate."""
+    """Self-contained smoke example configs should load and dry-run."""
 
     @pytest.mark.parametrize(
         "yaml_path",
-        EXAMPLE_YAMLS,
-        ids=[p.name for p in EXAMPLE_YAMLS],
+        SMOKE_EXAMPLE_YAMLS,
+        ids=[p.name for p in SMOKE_EXAMPLE_YAMLS],
     )
     def test_example_loads(self, yaml_path: Path):
         config = load_experiment_config(yaml_path)
@@ -199,8 +215,8 @@ class TestExampleConfigsValidate:
 
     @pytest.mark.parametrize(
         "yaml_path",
-        EXAMPLE_YAMLS,
-        ids=[p.name for p in EXAMPLE_YAMLS],
+        SMOKE_EXAMPLE_YAMLS,
+        ids=[p.name for p in SMOKE_EXAMPLE_YAMLS],
     )
     def test_example_dry_run(self, yaml_path: Path):
         result = dry_run(yaml_path)
@@ -209,6 +225,41 @@ class TestExampleConfigsValidate:
         assert result["models"]
         assert isinstance(result["agents"], list)
         assert len(result["agents"]) > 0
+
+
+class TestAllExamplesOrbitValidate:
+    """Every YAML shipped under examples/ must pass `orbit validate`.
+
+    Full ExperimentConfig examples validate against the experiment schema;
+    the SetupConfig topology snippets under examples/topologies/ are detected
+    by shape and validated as topology files. Examples whose scenario needs
+    an optional extra that is not installed are skipped, mirroring how the
+    scenario registry gates them at load time.
+    """
+
+    @pytest.mark.parametrize(
+        "yaml_path",
+        ALL_EXAMPLE_YAMLS,
+        ids=[str(p.relative_to(EXAMPLES_DIR)) for p in ALL_EXAMPLE_YAMLS],
+    )
+    def test_orbit_validate(self, yaml_path: Path):
+        from click.testing import CliRunner
+
+        from orbit.wrapper.cli import cli
+
+        result = CliRunner().invoke(cli, ["validate", str(yaml_path)])
+        # result.output includes stderr on every click version (<8.2 mixes the
+        # streams by default; >=8.2 interleaves them); reading result.stderr
+        # raises ValueError on click <8.2.
+        output = result.output
+        if result.exit_code != 0 and "needs the optional" in output:
+            pytest.skip(f"optional extra not installed: {output.strip().splitlines()[-1]}")
+        assert result.exit_code == 0, output
+
+    def test_examples_discovered(self):
+        """Both example flavors are present — guards the glob itself."""
+        assert len(ALL_EXAMPLE_YAMLS) > 40
+        assert any(p.parent.name == "topologies" for p in ALL_EXAMPLE_YAMLS)
 
 
 class TestDryRunOutputStructure:

@@ -356,7 +356,7 @@ uv run orbit run examples/osworld_osharm_basic.yaml --model openai/gpt-4o
 | `defense_preset` | string | — | Defense preset name |
 | `attack_preset` | string | — | Attack preset name |
 | `instructions` | string | — | Instruction detail level (`detailed`, `relaxed`). Used with `agents` |
-| `topology_file` | string | default | Path to custom SetupConfig YAML (mutually exclusive with `condition`/`agents`) |
+| `topology_file` | string | default | Path to custom SetupConfig YAML, e.g. under `examples/topologies/` (mutually exclusive with `condition`/`agents`) |
 | `judge_model` | string | openai/gpt-4o | Model for the safety judge scorer |
 
 ### Condition Presets

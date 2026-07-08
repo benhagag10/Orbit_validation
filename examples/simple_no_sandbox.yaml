@@ -2,7 +2,7 @@
 # Good for testing the wrapper pipeline end-to-end.
 #
 # To run:
-#   orbit run orbit/examples/simple_no_sandbox.yaml --model openai/gpt-4o
+#   orbit run examples/simple_no_sandbox.yaml --model openai/gpt-4o
 
 name: "simple_injection_test"
 description: "Single-agent direct injection test without sandbox"
@@ -52,7 +52,7 @@ scheduler:
   halt_on_attack_success: true
 
 metrics:
-  asr: true
+  attack_success_rate: true
   defense_bypass_rate: true
   utility_preservation: true
 

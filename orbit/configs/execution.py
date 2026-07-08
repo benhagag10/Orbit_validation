@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from orbit.scenarios.cooperative_allocation.dcop.models import DCOPExecutionConfig
 
 
-class AgentGroup(BaseModel, frozen=True):
+class AgentGroup(BaseModel, frozen=True, extra="forbid"):
     """A named group of agents that work together on a task.
 
     Used by the ScheduledExecutor (AgentScheduler) to group agents by goal (e.g., one
@@ -35,7 +35,7 @@ class AgentGroup(BaseModel, frozen=True):
     """What this group is trying to accomplish."""
 
 
-class ObservationConfig(BaseModel, frozen=True):
+class ObservationConfig(BaseModel, frozen=True, extra="forbid"):
     """Controls what agents observe about other agents' activity.
 
     Used by AgentScheduler to inject summaries of other agents'
@@ -57,7 +57,7 @@ class ObservationConfig(BaseModel, frozen=True):
     """If True, only include activity from agents in the same group."""
 
 
-class HaltConditionConfig(BaseModel, frozen=True):
+class HaltConditionConfig(BaseModel, frozen=True, extra="forbid"):
     """User-defined halt condition (beyond the built-in ones)."""
 
     name: str
@@ -78,7 +78,7 @@ class HaltConditionConfig(BaseModel, frozen=True):
     """Halt-condition-specific parameters."""
 
 
-class SchedulerHooks(BaseModel, frozen=True):
+class SchedulerHooks(BaseModel, frozen=True, extra="forbid"):
     """Optional callbacks at turn boundaries.
 
     Each is a dotted module.function path that will be imported and called
@@ -95,7 +95,7 @@ class SchedulerHooks(BaseModel, frozen=True):
     """Called when the experiment halts."""
 
 
-class ExecutionConfig(BaseModel, frozen=True):
+class ExecutionConfig(BaseModel, frozen=True, extra="forbid"):
     """Top-level execution configuration for multi-agent experiments.
 
     Controls how agents are grouped and scheduled. If no agent_groups
