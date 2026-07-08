@@ -321,7 +321,19 @@ defenses:
 | `guardian_agent` | Dedicated agent that monitors others |
 | `monitor` | Passive monitoring with alerts |
 | `tool_wrapper` | Intercept and filter tool calls |
-| `secure_model` | Replace agent's model with a hardened one |
+| `secure_model` | Wrap the agent's model with a safety system prompt and an optional output content filter |
+
+> **Response-caching caveat.** `prompt_vaccination` and `secure_model` are
+> applied as model filters *below* Inspect's response cache (the same is true
+> of memory-context injection), so they are incompatible with Inspect's
+> `cache=True` / `CachePolicy` response caching. The cache key is built from
+> the pre-filter input — a defended and an undefended run of the same sample
+> share cache entries by construction — and a cache hit returns before the
+> filters run, so a "defended" run silently measures undefended behavior.
+> Orbit never enables response caching itself; if you add it in custom code,
+> keep it away from filter-bearing runs. The construct-validity checker
+> (`scripts/verify_construct_validity.py`, check `cache_filter_bypass`) fails
+> any log that combines the two.
 
 ### `scheduler`
 
