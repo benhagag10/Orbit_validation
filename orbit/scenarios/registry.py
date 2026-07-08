@@ -67,7 +67,7 @@ class TopologySource(str, Enum):
     count or drop shared memory).
 
     ``SCENARIO``: the scenario *derives* its roster from a scenario-native
-    selector (tau2/agentharm build per-task rosters from their condition) and
+    selector (tau2 builds per-task rosters from its condition) and
     deliberately ignores ``config.setup``; the builder skips the floor and the
     shared resolver arbitrates a declared inline setup against the roster the
     condition will actually build.
@@ -187,7 +187,7 @@ class ScenarioPlugin:
     ``CONFIG`` (the default) means ``expand`` threads ``config.setup`` into
     every produced config and the builder enforces the topology floor (a
     produced config may not have FEWER agents than the resolved config, nor
-    drop shared memory). ``SCENARIO`` (tau2/agentharm) means the roster is
+    drop shared memory). ``SCENARIO`` (tau2) means the roster is
     derived from the scenario's own condition selector; the floor is skipped
     and a declared inline ``setup`` is arbitrated by the shared resolver."""
 
@@ -216,7 +216,6 @@ _LOADERS: dict[str, str] = {
     "redcode_gen": "orbit.scenarios.coding.redcode_gen.task",
     "code_ipi": "orbit.scenarios.coding.code_ipi.task",
     "bigcodebench": "orbit.scenarios.coding.bigcodebench.task",
-    "agentharm": "orbit.scenarios.agentharm.task",
     "tau2": "orbit.scenarios.customer_service.tau2.task",
     "converse": "orbit.scenarios.customer_service.converse.task",
     "jira_ticket": "orbit.scenarios.cooperative_allocation.jira_ticket.task",

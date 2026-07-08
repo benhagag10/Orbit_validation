@@ -275,7 +275,7 @@ def _detect_text_dispatch(messages: list, agent_names: set[str]) -> set[str]:
 def _misuse_probe_scenario(sample: EvalSample) -> str | None:
     """Return the scenario marker when this sample is a misuse-threat run.
 
-    Misuse scenarios (agentharm / os-harm) configure NO injection attacks;
+    Misuse scenarios (e.g. os-harm) configure NO injection attacks;
     the scenario grades the harmful behavior itself into AttackLog as
     scenario-marked probes (same shape classification as
     :func:`check_attack_placement`). Returns the scenario name of the first
@@ -576,7 +576,7 @@ def check_attack_placement(sample: EvalSample) -> CheckResult:
     if not attacks:
         if attempts == 0:
             return CheckResult("attack_placement", True, "No attacks configured, none attempted — correct")
-        # Misuse-threat scenarios (e.g. agentharm) grade the harmful behavior
+        # Misuse-threat scenarios (e.g. os-harm) grade the harmful behavior
         # itself into AttackLog with no configured injection attack (#27).
         # Classify by attempt_details shape: a detail carrying an "attack" name
         # is a mis-fired injection (FAIL); a detail carrying a scenario marker

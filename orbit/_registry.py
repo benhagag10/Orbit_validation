@@ -16,7 +16,6 @@ Registered tasks:
     - osworld_safety: OSWorld computer-use agent safety evaluation
     - redcode_gen: RedCode-Gen malware code generation safety evaluation
     - bigcodebench: BigCodeBench benign code generation baseline
-    - agentharm: AgentHarm harmful tool-use safety evaluation
     - converse_safety: ConVerse contextual-safety benchmark (privacy + security)
     - code_ipi: CodeIPI indirect prompt injection for coding agents
 
@@ -77,10 +76,6 @@ except ImportError as _bcb_err:
         async def _score(state, target: Target) -> Score:
             return Score(value=0.0, explanation="inspect-evals not installed")
         return _score
-
-# --- AgentHarm (no external dependencies; vendored data + tools) ---
-from orbit.scenarios.agentharm.task import agentharm  # noqa: F401
-from orbit.scenarios.agentharm.scorer import agentharm_scorer  # noqa: F401
 
 # --- ConVerse (no external dependencies) ---
 from orbit.scenarios.customer_service.converse.task import converse_safety  # noqa: F401

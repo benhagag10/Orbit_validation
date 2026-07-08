@@ -91,7 +91,7 @@ class ShorthandSpec:
     """Resolve a condition name to its topology — a ``SetupConfig``, or an
     object with ``.setup`` (and optionally ``.execution``) attributes such as
     browserart's ``ConditionSetup``. For ``topology_source=SCENARIO`` plugins
-    (tau2/agentharm) leave this ``None``: their expansion consumes the
+    (tau2) leave this ``None``: their expansion consumes the
     condition natively and the resolver only *arbitrates* (see
     ``expected_roster``)."""
 
@@ -148,8 +148,8 @@ def _arbitrate_scenario_topology(
 ) -> None:
     """Condition-vs-inline-setup arbitration for SCENARIO-source plugins.
 
-    tau2/agentharm derive their roster from ``{prefix}_condition`` inside
-    ``expand`` and deliberately ignore ``config.setup``; the key is therefore
+    SCENARIO-source plugins (tau2) derive their roster from ``{prefix}_condition``
+    inside ``expand`` and deliberately ignore ``config.setup``; the key is therefore
     NOT consumed here. An inline setup whose roster matches what the condition
     will build is redundant documentation (group validation forces the block to
     exist — issue #32) and passes silently; a materially different roster means

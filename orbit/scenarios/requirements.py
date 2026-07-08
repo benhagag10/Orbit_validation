@@ -143,11 +143,6 @@ SCENARIO_REQUIREMENTS: dict[str, ScenarioRequirements] = {
         needs_docker=True,  # per-sample Docker sandbox
         data_step=None,  # prompts vendored in the repo
     ),
-    "agentharm": ScenarioRequirements(
-        scenario="agentharm",
-        extra=None,
-        data_step="uv run python scripts/build_agentharm_data.py",
-    ),
     "tau2": ScenarioRequirements(
         scenario="tau2",
         extra=None,

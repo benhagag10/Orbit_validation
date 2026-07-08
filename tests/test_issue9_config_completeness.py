@@ -274,8 +274,8 @@ class TestBuilderEnforcesTopologyFloor:
 
 class TestExpandingPluginsPreserveDimensions:
     """Every real expanding plugin must thread config.attacks/defenses into the
-    per-sample configs it produces. agentharm and tau2 — the two that dropped
-    them before this fix — are locked here against regression.
+    per-sample configs it produces. tau2 — which dropped them before this fix —
+    is locked here against regression.
     """
 
     def _build_or_skip(self, config: ExperimentConfig):
@@ -288,25 +288,6 @@ class TestExpandingPluginsPreserveDimensions:
             return build_scenario_task(config, plugin=plugin)
         except Exception as exc:  # missing dataset / optional dep
             _skip_if_missing_dep(exc)
-
-    def test_agentharm_threads_attacks_defenses(self):
-        from orbit.scenarios.agentharm.configs import AgentHarmScenarioConfig
-
-        meta = {
-            "agentharm_scenario_config": AgentHarmScenarioConfig().model_dump(),
-            "agentharm_condition": "single_agent",
-        }
-        # agentharm derives its roster from agentharm_condition (SCENARIO
-        # topology source); an inline setup that doesn't mirror the condition's
-        # roster is a hard conflict (issue #32), so declare none.
-        task = self._build_or_skip(
-            _exp("agentharm", setup=SetupConfig(agents=[], edges=[]), metadata=meta)
-        )
-        configs = _sample_configs(task)
-        assert configs
-        for exp in configs:
-            assert "indirect_injection" in [a.attack_type for a in exp.attacks]
-            assert "prompt_vaccination" in [d.defense_type for d in exp.defenses]
 
     def test_tau2_threads_attacks_defenses(self):
         # tau2 derives its roster from tau2_condition (SCENARIO topology
