@@ -234,8 +234,8 @@ def browserart_safety(
         condition: Condition preset name (e.g. ``"star_specialist"``,
             ``"memory_full"``). When set, overrides topology with the
             condition's setup and routes to the appropriate solver.
-        dataset: Dataset variant: ``"hbb"`` (default), ``"hbb_hr"``,
-            ``"hbb_benign"``, or ``"hbb_extension"`` (10 multi-step tasks).
+        dataset: Dataset variant: ``"hbb"`` (default), ``"hbb_benign"``,
+            or ``"hbb_extension"`` (10 multi-step tasks).
         task_ids: Comma-separated list of task IDs to include (e.g.
             ``"227,228,229"``). ``None`` means all tasks in the dataset.
         verbose: Show all warnings (gymnasium registration, browser overlay

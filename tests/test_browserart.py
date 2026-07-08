@@ -105,7 +105,7 @@ class TestBrowserARTScenarioConfig:
     def test_frozen(self):
         cfg = BrowserARTScenarioConfig()
         with pytest.raises(Exception):
-            cfg.dataset = "hbb_hr"
+            cfg.dataset = "hbb_benign"
 
 
 # ---------------------------------------------------------------------------

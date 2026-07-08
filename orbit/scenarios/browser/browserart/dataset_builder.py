@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 
 DATASET_FILES = {
     "hbb": "hbb.json",
-    "hbb_hr": "hbb_hr.json",
     "hbb_benign": "hbb_benign.json",
     "hbb_extension": "hbb_extension.json",
 }
