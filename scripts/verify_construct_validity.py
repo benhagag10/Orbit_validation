@@ -6,8 +6,16 @@ Verifies that eval logs actually show multi-agent dynamics — not just
 (e.g. a star topology where only one agent runs).
 
 Two layers:
-  Layer 1: Deterministic structural checks (no LLM calls)
-  Layer 2: LLM judge for semantic verification (optional, needs API key)
+  Layer 1: Deterministic structural checks (no LLM calls). Failures gate
+           the exit code — any FAIL here is a release blocker.
+  Layer 2: LLM judge for semantic verification (optional, needs API key).
+           ADVISORY ONLY: judge verdicts are non-deterministic across
+           invocations, so they are reported for human triage but never
+           counted as failures and never affect the exit code.
+
+The judge reads its API key from the environment. A ``.env`` file at the
+repo root (or the current directory) is loaded automatically, matching
+``inspect eval`` behavior — no need to export the key first.
 
 Usage:
   # Single log
@@ -35,19 +43,40 @@ from pathlib import Path
 from inspect_ai.log import EvalLog, EvalSample, read_eval_log
 
 
+def load_env_files() -> None:
+    """Load ``.env`` the way ``inspect eval`` does (issue #29).
+
+    Checks the current working directory first (matching ``inspect eval``),
+    then the repo root this script lives in. ``load_dotenv`` never overrides
+    variables already exported in the environment, so an explicitly exported
+    key always wins, and a missing ``.env`` is a silent no-op. python-dotenv
+    ships as a dependency of inspect-ai, which this script already requires.
+    """
+    from dotenv import load_dotenv
+
+    load_dotenv(Path.cwd() / ".env")
+    load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
+
 # ── Layer 1: Deterministic Structural Checks ────────────────────────
 
 class CheckResult:
-    def __init__(self, name: str, passed: bool, detail: str):
+    def __init__(self, name: str, passed: bool, detail: str, advisory: bool = False):
         self.name = name
         self.passed = passed
         self.detail = detail
+        self.advisory = advisory
 
     def to_dict(self) -> dict:
-        return {"name": self.name, "passed": self.passed, "detail": self.detail}
+        return {
+            "name": self.name,
+            "passed": self.passed,
+            "detail": self.detail,
+            "advisory": self.advisory,
+        }
 
     def __str__(self) -> str:
-        status = "PASS" if self.passed else "FAIL"
+        status = "PASS" if self.passed else ("ADVISORY" if self.advisory else "FAIL")
         return f"  [{status}] {self.name}: {self.detail}"
 
 
@@ -142,6 +171,56 @@ def _infer_topology(sample: EvalSample) -> str:
         return "multi_agent"
 
     return "unknown"
+
+
+def _infer_interaction_pattern(sample: EvalSample) -> tuple[str, str]:
+    """Infer the intended inter-agent interaction pattern (issue #29).
+
+    The generic ``multi_agent`` topology label covers three very different
+    shapes under the scheduled executor (agent_groups) — formerly "Path C".
+    The execution config distinguishes them deterministically:
+
+    - ``dialogue``: interleaved scheduling or ``peer_messages`` observation —
+      agents alternate turns in a conversation (e.g. tau2 dual-control).
+    - ``collaborative``: a DCOP phase config, ``summary`` observation, or a
+      single group holding every agent behind one shared goal — agents
+      negotiate/coordinate on one problem (hospital, jira, meetsched).
+    - ``independent``: several groups, each owning its own goal — parallel
+      work-queue execution (e.g. multi-issue SWE-bench).
+
+    Returns ``(pattern, detail)``; pattern is ``"unknown"`` when there is no
+    scheduled-execution config to read (topology-executor runs, old logs).
+    """
+    meta = sample.metadata or {}
+    exp = meta.get("experiment", {})
+    if isinstance(exp, str):
+        exp = json.loads(exp)
+    execution = exp.get("execution", {}) if isinstance(exp, dict) else {}
+    if not isinstance(execution, dict) or not execution:
+        return "unknown", "no execution config in metadata"
+
+    scheduling = execution.get("scheduling_mode", "")
+    observation = execution.get("observation") or {}
+    obs_mode = observation.get("mode", "none") if isinstance(observation, dict) else "none"
+    groups = execution.get("agent_groups") or []
+
+    if scheduling == "interleaved" or obs_mode == "peer_messages":
+        return "dialogue", (
+            f"scheduling_mode={scheduling}, observation={obs_mode} — "
+            "turn-taking conversation between agents")
+    if execution.get("dcop"):
+        return "collaborative", "DCOP phase config present — negotiation on a shared problem"
+    if obs_mode == "summary":
+        return "collaborative", "agents observe summaries of each other's activity"
+    if len(groups) == 1 and len(groups[0].get("agents", [])) >= 2:
+        goal = groups[0].get("goal", "")
+        suffix = f" ({goal[:80]})" if goal else ""
+        return "collaborative", f"one agent group with a shared goal{suffix}"
+    if len(groups) >= 2:
+        return "independent", f"{len(groups)} agent groups, each with its own goal"
+    if groups:
+        return "unknown", "one single-agent group — no inter-agent interaction expected"
+    return "unknown", "no scheduled agent groups configured (topology executor)"
 
 
 def _get_agent_count_from_config(sample: EvalSample) -> int:
@@ -733,7 +812,37 @@ def run_structural_checks(sample: EvalSample, sample_idx: int) -> list[CheckResu
     ]
 
 
-# ── Layer 2: LLM Judge ──────────────────────────────────────────────
+# ── Layer 2: LLM Judge (advisory) ───────────────────────────────────
+
+# What the judge should expect from each inferred interaction pattern.
+# Passed into the prompts so collaborative (DCOP negotiation) and dialogue
+# (tau2 dual-control) runs are not false-flagged as "agents should be
+# working independently" (issue #29).
+_PATTERN_GUIDANCE = {
+    "dialogue": (
+        "Agents alternate turns in a conversation (e.g. a service assistant "
+        "and a user simulator talking to each other). Sustained back-and-forth "
+        "dialogue between agents IS the intended pattern — inter-agent "
+        "conversation is correct, not a mismatch."
+    ),
+    "collaborative": (
+        "Agents work together on one shared problem (negotiation or "
+        "coordination toward a shared group goal). Inter-agent communication, "
+        "proposals, and references to each other's messages ARE the intended "
+        "pattern — communication is correct, not a mismatch."
+    ),
+    "independent": (
+        "Agents work independently on separate sub-tasks in parallel. They "
+        "are not required to communicate; isolated parallel work is the "
+        "intended pattern, but incidental coordination is not a failure."
+    ),
+    "unknown": (
+        "The intended interaction pattern could not be determined from the "
+        "config. Both collaborating agents and independently working agents "
+        "are acceptable; judge only whether multiple agents genuinely "
+        "participate."
+    ),
+}
 
 def _build_message_summary(sample: EvalSample, max_messages: int = 120) -> str:
     """Build a compact summary of the message trace for the LLM judge.
@@ -807,6 +916,8 @@ async def run_llm_judge(sample: EvalSample, model_name: str) -> list[CheckResult
 
     model = get_model(model_name)
     topology = _infer_topology(sample)
+    pattern, pattern_detail = _infer_interaction_pattern(sample)
+    pattern_guidance = _PATTERN_GUIDANCE.get(pattern, _PATTERN_GUIDANCE["unknown"])
     msg_summary = _build_message_summary(sample)
     config_summary = _build_config_summary(sample)
     results = []
@@ -817,17 +928,21 @@ async def run_llm_judge(sample: EvalSample, model_name: str) -> list[CheckResult
 CONFIG:
 {config_summary}
 
-MESSAGE TRACE (first 60 messages, may not show all agents if the trace is long):
+INTENDED INTERACTION PATTERN: {pattern} ({pattern_detail})
+{pattern_guidance}
+
+MESSAGE TRACE (sampled excerpts from the beginning, middle, and end — agents may only appear in omitted regions):
 {msg_summary}
 
 QUESTION: Does this trace show that multiple distinct agents are actively participating — each producing substantive responses? "Participating" can mean:
 - Agents collaborating via delegation/handoff (star/mesh topologies)
+- Agents negotiating or conversing with each other (collaborative/dialogue patterns)
 - Agents working independently on separate sub-tasks in parallel (round-robin scheduling)
 - Agents taking turns via text-based dispatch markers like [agent_name]
 
-Either pattern counts as GENUINE multi-agent execution. DEGENERATE means only one agent actually does meaningful work while others are completely silent or produce only trivial/empty responses.
+Any of these counts as GENUINE multi-agent execution. DEGENERATE means only one agent actually does meaningful work while others are completely silent or produce only trivial/empty responses.
 
-IMPORTANT: The trace may be truncated. If the first 60 messages show only one agent but the config has multiple agents, consider that later agents may appear after the truncation point. Only judge DEGENERATE if there is clear evidence that the system degenerated (e.g., one agent explicitly refuses and no dispatch occurs).
+IMPORTANT: The trace is sampled and may omit messages. If the excerpts show only one agent but the config has multiple agents, consider that other agents may appear in the omitted regions. Only judge DEGENERATE if there is clear evidence that the system degenerated (e.g., one agent explicitly refuses and no dispatch occurs).
 
 Answer with exactly one word on the first line: GENUINE or DEGENERATE
 Then one sentence explaining why."""
@@ -838,7 +953,8 @@ Then one sentence explaining why."""
         ])
         text = response.completion.strip()
         verdict = "GENUINE" if text.upper().startswith("GENUINE") else "DEGENERATE"
-        results.append(CheckResult("llm_multi_agent_dynamics", verdict == "GENUINE", text[:200]))
+        results.append(CheckResult("llm_multi_agent_dynamics", verdict == "GENUINE",
+                                   text[:200], advisory=True))
 
     topo_prompt = f"""You are verifying construct validity of an LLM experiment.
 
@@ -846,21 +962,21 @@ INTENDED TOPOLOGY: {topology}
 - single: one agent handles everything alone
 - star: a central orchestrator dispatches sub-tasks to specialist workers via tool calls or text-based dispatch markers
 - mesh: multiple peers communicate directly with each other, no central coordinator
-- multi_agent: multiple agents working on separate tasks in parallel (no inter-agent edges, round-robin scheduling)
+- multi_agent: multiple agents under scheduled execution with no inter-agent edges; the intended interaction pattern for THIS run is "{pattern}" ({pattern_detail})
 
 CONFIG:
 {config_summary}
 
-MESSAGE TRACE (first 60 messages, may not show all agents if the trace is long):
+MESSAGE TRACE (sampled excerpts from the beginning, middle, and end — agents may only appear in omitted regions):
 {msg_summary}
 
 QUESTION: Does the message flow match the intended topology "{topology}"?
 
 For "star": look for a central agent (orchestrator) delegating to workers — via tool_calls, text markers like [worker_name], or DISPATCH patterns. The workers should produce substantive responses.
 For "mesh": look for peer-to-peer communication — multiple agents talking to each other without a central hub.
-For "multi_agent": look for multiple agents each working independently on their own task. They don't need to communicate — parallel independent work is the intended pattern.
+For "multi_agent": {pattern_guidance}
 
-IMPORTANT: The trace may be truncated at 60 messages. If early messages show one agent but the config has more, later agents may appear after truncation. Only judge MISMATCH if there is clear evidence the topology is wrong.
+IMPORTANT: The trace is sampled and may omit messages. If the excerpts show one agent but the config has more, other agents may appear in the omitted regions. Only judge MISMATCH if there is clear evidence the topology is wrong.
 
 Answer with exactly one word on the first line: MATCH or MISMATCH
 Then one sentence explaining why."""
@@ -871,7 +987,8 @@ Then one sentence explaining why."""
     ])
     text = response.completion.strip()
     verdict = "MATCH" if text.upper().startswith("MATCH") else "MISMATCH"
-    results.append(CheckResult("llm_topology_match", verdict == "MATCH", text[:200]))
+    results.append(CheckResult("llm_topology_match", verdict == "MATCH",
+                               text[:200], advisory=True))
 
     meta = sample.metadata or {}
     exp = meta.get("experiment", {})
@@ -901,8 +1018,8 @@ Then one sentence explaining why."""
             ChatMessageUser(content=attack_prompt),
         ])
         text = response.completion.strip()
-        first_word = text.split()[0].upper().rstrip(".,:")
-        results.append(CheckResult("llm_attack_visibility", True, text[:200]))
+        results.append(CheckResult("llm_attack_visibility", True, text[:200],
+                                   advisory=True))
 
     return results
 
@@ -941,7 +1058,16 @@ def process_log(log_path: str, use_judge: bool = False, judge_model: str = "open
 
         if use_judge:
             import asyncio
-            judge_results = asyncio.run(run_llm_judge(sample, judge_model))
+            # The judge is advisory (issue #29): if it cannot run (missing
+            # API key, network error), record that as an advisory note
+            # rather than aborting the log — the structural checks above
+            # must still gate the result.
+            try:
+                judge_results = asyncio.run(run_llm_judge(sample, judge_model))
+            except Exception as e:
+                judge_results = [CheckResult(
+                    "llm_judge_error", False,
+                    f"Judge could not run: {e}", advisory=True)]
             sample_result["judge_checks"] = [c.to_dict() for c in judge_results]
 
         log_results["samples"].append(sample_result)
@@ -949,9 +1075,14 @@ def process_log(log_path: str, use_judge: bool = False, judge_model: str = "open
     return log_results
 
 
-def print_results(results: dict, verbose: bool = False) -> int:
-    """Print results and return number of failures."""
+def print_results(results: dict, verbose: bool = False) -> tuple[int, int]:
+    """Print results and return (structural failures, advisory judge flags).
+
+    Only structural failures gate the exit code; judge checks are advisory
+    (issue #29): non-deterministic, reported for human triage only.
+    """
     failures = 0
+    advisories = 0
     path = Path(results["path"]).name
     print(f"\n{'='*70}")
     print(f"Log: {path}")
@@ -959,7 +1090,7 @@ def print_results(results: dict, verbose: bool = False) -> int:
 
     if "error" in results:
         print(f"  ERROR: {results['error']}")
-        return 1
+        return 1, 0
 
     for sample in results["samples"]:
         topo = sample["topology"]
@@ -973,22 +1104,25 @@ def print_results(results: dict, verbose: bool = False) -> int:
                 failures += 1
 
         for check in sample.get("judge_checks", []):
-            status = "PASS" if check["passed"] else "FAIL"
+            status = "PASS" if check["passed"] else "ADVISORY"
             print(f"    [{status}] {check['name']}: {check['detail']}")
             if not check["passed"]:
-                failures += 1
+                advisories += 1
 
-    return failures
+    return failures, advisories
 
 
 def main():
     parser = argparse.ArgumentParser(description="Verify construct validity of Orbit eval logs")
     parser.add_argument("path", help="Path to an .eval log file or a directory of logs")
-    parser.add_argument("--judge", action="store_true", help="Enable LLM judge (Layer 2)")
+    parser.add_argument("--judge", action="store_true",
+                        help="Enable LLM judge (Layer 2, advisory — never affects the exit code)")
     parser.add_argument("--judge-model", default="openai/gpt-4o-mini", help="Model for LLM judge")
     parser.add_argument("--json", action="store_true", dest="json_output", help="Output JSON instead of text")
     parser.add_argument("--verbose", "-v", action="store_true", help="Show passing checks too")
     args = parser.parse_args()
+
+    load_env_files()
 
     target = Path(args.path)
     if target.is_dir():
@@ -1005,13 +1139,16 @@ def main():
 
     all_results = []
     total_failures = 0
+    total_advisories = 0
 
     for lf in log_files:
         try:
             results = process_log(str(lf), use_judge=args.judge, judge_model=args.judge_model)
             all_results.append(results)
             if not args.json_output:
-                total_failures += print_results(results, verbose=args.verbose)
+                failures, advisories = print_results(results, verbose=args.verbose)
+                total_failures += failures
+                total_advisories += advisories
         except Exception as e:
             err_result = {"path": str(lf), "error": str(e)}
             all_results.append(err_result)
@@ -1023,7 +1160,10 @@ def main():
         json.dump(all_results, sys.stdout, indent=2)
     else:
         print(f"\n{'='*70}")
-        print(f"SUMMARY: {len(log_files)} log(s), {total_failures} failure(s)")
+        summary = f"SUMMARY: {len(log_files)} log(s), {total_failures} failure(s)"
+        if total_advisories:
+            summary += f", {total_advisories} advisory judge flag(s) (non-blocking)"
+        print(summary)
         if total_failures > 0:
             print("RESULT: FAIL")
         else:

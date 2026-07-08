@@ -13,6 +13,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from scripts.verify_construct_validity import (
+    CheckResult,
     check_agent_participation,
     check_attack_placement,
     check_defense_activation,
@@ -21,6 +22,8 @@ from scripts.verify_construct_validity import (
     check_topology_wiring,
     check_turn_balance,
     check_vaccination_effect,
+    print_results,
+    _infer_interaction_pattern,
     _infer_topology,
 )
 
@@ -50,6 +53,7 @@ def _make_sample(
     defense_detections: list[dict] | None = None,
     messages: list[dict] | None = None,
     scores: dict | None = None,
+    execution: dict | None = None,
 ) -> MagicMock:
     """Build a fake EvalSample with controlled fields."""
     sample = MagicMock()
@@ -65,6 +69,8 @@ def _make_sample(
         "defenses": defenses or [],
         "scenario": {"name": scenario_name},
     }
+    if execution is not None:
+        experiment["execution"] = execution
     sample.metadata = {"experiment": experiment}
 
     store = {
@@ -1352,3 +1358,203 @@ class TestChainTopology:
         result = check_agent_participation(sample)
         assert not result.passed
         assert "under-recording" in result.detail
+
+
+# ── Interaction Pattern Inference (issue #29) ────────────────────────
+
+
+class TestInferInteractionPattern:
+    """The judge needs the intended interaction pattern so it stops
+    false-flagging collaborative (DCOP) and dialogue (tau2 dual-control)
+    runs as 'agents should be working independently' (issue #29)."""
+
+    def test_tau2_dual_control_is_dialogue(self):
+        """Interleaved scheduling + peer_messages observation → dialogue."""
+        sample = _make_sample(
+            agents=[_agent("assistant"), _agent("user_sim")],
+            execution={
+                "scheduling_mode": "interleaved",
+                "observation": {"mode": "peer_messages"},
+                "agent_groups": [
+                    {"name": "dual", "agents": ["assistant", "user_sim"], "goal": ""}
+                ],
+            },
+        )
+        pattern, detail = _infer_interaction_pattern(sample)
+        assert pattern == "dialogue"
+        assert "interleaved" in detail
+
+    def test_peer_messages_alone_is_dialogue(self):
+        """tau2 round_robin variants still use peer_messages observation."""
+        sample = _make_sample(
+            agents=[_agent("assistant"), _agent("user_sim")],
+            execution={
+                "scheduling_mode": "round_robin",
+                "observation": {"mode": "peer_messages"},
+                "agent_groups": [
+                    {"name": "dual", "agents": ["assistant", "user_sim"], "goal": ""}
+                ],
+            },
+        )
+        pattern, _ = _infer_interaction_pattern(sample)
+        assert pattern == "dialogue"
+
+    def test_dcop_shared_group_is_collaborative(self):
+        """DCOP scenarios put every agent in one group behind a shared goal."""
+        sample = _make_sample(
+            agents=[_agent("dept_a"), _agent("dept_b"), _agent("dept_c")],
+            execution={
+                "scheduling_mode": "round_robin",
+                "observation": {"mode": "none"},
+                "agent_groups": [
+                    {
+                        "name": "hospital_staff",
+                        "agents": ["dept_a", "dept_b", "dept_c"],
+                        "goal": "Schedule all patients efficiently.",
+                    }
+                ],
+            },
+        )
+        pattern, detail = _infer_interaction_pattern(sample)
+        assert pattern == "collaborative"
+        assert "shared goal" in detail
+
+    def test_dcop_config_is_collaborative(self):
+        """An explicit DCOP phase config marks negotiation regardless of groups."""
+        sample = _make_sample(
+            agents=[_agent("a"), _agent("b")],
+            execution={
+                "scheduling_mode": "round_robin",
+                "observation": {"mode": "none"},
+                "agent_groups": [],
+                "dcop": {"planning_turns": 3, "execution_turns": 1},
+            },
+        )
+        pattern, detail = _infer_interaction_pattern(sample)
+        assert pattern == "collaborative"
+        assert "DCOP" in detail
+
+    def test_summary_observation_is_collaborative(self):
+        sample = _make_sample(
+            agents=[_agent("a"), _agent("b")],
+            execution={
+                "scheduling_mode": "superstep",
+                "observation": {"mode": "summary"},
+                "agent_groups": [
+                    {"name": "g1", "agents": ["a"], "goal": "task 1"},
+                    {"name": "g2", "agents": ["b"], "goal": "task 2"},
+                ],
+            },
+        )
+        pattern, _ = _infer_interaction_pattern(sample)
+        assert pattern == "collaborative"
+
+    def test_multi_group_work_queue_is_independent(self):
+        """One group per SWE-bench issue → independent parallel work."""
+        sample = _make_sample(
+            agents=[_agent("dev_0"), _agent("dev_1")],
+            execution={
+                "scheduling_mode": "round_robin",
+                "observation": {"mode": "none"},
+                "agent_groups": [
+                    {"name": "issue_0", "agents": ["dev_0"], "goal": "Fix issue 0"},
+                    {"name": "issue_1", "agents": ["dev_1"], "goal": "Fix issue 1"},
+                ],
+            },
+        )
+        pattern, detail = _infer_interaction_pattern(sample)
+        assert pattern == "independent"
+        assert "2 agent groups" in detail
+
+    def test_no_execution_config_is_unknown(self):
+        """Old logs / topology-executor runs carry no scheduled-execution info."""
+        sample = _make_sample(agents=[_agent("a"), _agent("b")])
+        pattern, _ = _infer_interaction_pattern(sample)
+        assert pattern == "unknown"
+
+    def test_no_groups_is_unknown(self):
+        """Topology-executor runs serialize a default execution config."""
+        sample = _make_sample(
+            agents=[_agent("a"), _agent("b")],
+            edges=[_edge("a", "b")],
+            execution={
+                "scheduling_mode": "round_robin",
+                "observation": {"mode": "none"},
+                "agent_groups": [],
+            },
+        )
+        pattern, _ = _infer_interaction_pattern(sample)
+        assert pattern == "unknown"
+
+    def test_single_agent_group_is_unknown(self):
+        """tau2 solo: one single-agent group has no inter-agent pattern."""
+        sample = _make_sample(
+            agents=[_agent("assistant")],
+            execution={
+                "scheduling_mode": "round_robin",
+                "observation": {"mode": "none"},
+                "agent_groups": [
+                    {"name": "solo", "agents": ["assistant"], "goal": "help"}
+                ],
+            },
+        )
+        pattern, _ = _infer_interaction_pattern(sample)
+        assert pattern == "unknown"
+
+
+# ── Advisory Layer 2 accounting (issue #29) ──────────────────────────
+
+
+class TestAdvisoryJudge:
+    """Judge verdicts are non-deterministic; they must never gate the
+    exit code (issue #29)."""
+
+    def _results(self, *, structural_passed: bool, judge_passed: bool) -> dict:
+        return {
+            "path": "/logs/test.eval",
+            "status": "success",
+            "task": "orbit",
+            "samples": [
+                {
+                    "index": 0,
+                    "topology": "multi_agent",
+                    "structural_checks": [
+                        CheckResult("agent_participation", structural_passed, "x").to_dict()
+                    ],
+                    "judge_checks": [
+                        CheckResult("llm_topology_match", judge_passed, "y",
+                                    advisory=True).to_dict()
+                    ],
+                }
+            ],
+        }
+
+    def test_check_result_advisory_flag_in_dict(self):
+        d = CheckResult("llm_topology_match", False, "detail", advisory=True).to_dict()
+        assert d["advisory"] is True
+        d = CheckResult("agent_participation", False, "detail").to_dict()
+        assert d["advisory"] is False
+
+    def test_advisory_str_status(self):
+        assert "[ADVISORY]" in str(CheckResult("j", False, "d", advisory=True))
+        assert "[FAIL]" in str(CheckResult("s", False, "d"))
+        assert "[PASS]" in str(CheckResult("j", True, "d", advisory=True))
+
+    def test_judge_flag_does_not_count_as_failure(self, capsys):
+        failures, advisories = print_results(
+            self._results(structural_passed=True, judge_passed=False))
+        assert failures == 0
+        assert advisories == 1
+        assert "[ADVISORY]" in capsys.readouterr().out
+
+    def test_structural_failure_still_counts(self, capsys):
+        failures, advisories = print_results(
+            self._results(structural_passed=False, judge_passed=True))
+        assert failures == 1
+        assert advisories == 0
+
+    def test_all_passing(self, capsys):
+        failures, advisories = print_results(
+            self._results(structural_passed=True, judge_passed=True))
+        assert failures == 0
+        assert advisories == 0
