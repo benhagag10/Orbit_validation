@@ -22,6 +22,7 @@ from scripts.verify_construct_validity import (
     check_topology_wiring,
     check_turn_balance,
     check_vaccination_effect,
+    count_results,
     print_results,
     _infer_interaction_pattern,
     _infer_topology,
@@ -1505,29 +1506,34 @@ class TestInferInteractionPattern:
 # ── Advisory Layer 2 accounting (issue #29) ──────────────────────────
 
 
+def _fake_results(*, structural_passed: bool, judge_passed: bool) -> dict:
+    return {
+        "path": "/logs/test.eval",
+        "status": "success",
+        "task": "orbit",
+        "samples": [
+            {
+                "index": 0,
+                "topology": "multi_agent",
+                "structural_checks": [
+                    CheckResult("agent_participation", structural_passed, "x").to_dict()
+                ],
+                "judge_checks": [
+                    CheckResult("llm_topology_match", judge_passed, "y",
+                                advisory=True).to_dict()
+                ],
+            }
+        ],
+    }
+
+
 class TestAdvisoryJudge:
     """Judge verdicts are non-deterministic; they must never gate the
     exit code (issue #29)."""
 
     def _results(self, *, structural_passed: bool, judge_passed: bool) -> dict:
-        return {
-            "path": "/logs/test.eval",
-            "status": "success",
-            "task": "orbit",
-            "samples": [
-                {
-                    "index": 0,
-                    "topology": "multi_agent",
-                    "structural_checks": [
-                        CheckResult("agent_participation", structural_passed, "x").to_dict()
-                    ],
-                    "judge_checks": [
-                        CheckResult("llm_topology_match", judge_passed, "y",
-                                    advisory=True).to_dict()
-                    ],
-                }
-            ],
-        }
+        return _fake_results(structural_passed=structural_passed,
+                             judge_passed=judge_passed)
 
     def test_check_result_advisory_flag_in_dict(self):
         d = CheckResult("llm_topology_match", False, "detail", advisory=True).to_dict()
@@ -1558,3 +1564,25 @@ class TestAdvisoryJudge:
             self._results(structural_passed=True, judge_passed=True))
         assert failures == 0
         assert advisories == 0
+
+
+class TestJsonTextParity:
+    """--json and text mode must gate the exit code identically:
+    count_results (JSON path) and print_results (text path) return the
+    same counts for the same results."""
+
+    @pytest.mark.parametrize("structural_passed", [True, False])
+    @pytest.mark.parametrize("judge_passed", [True, False])
+    def test_counts_match_print_results(self, structural_passed, judge_passed, capsys):
+        results = _fake_results(structural_passed=structural_passed,
+                                judge_passed=judge_passed)
+        assert count_results(results) == print_results(results)
+
+    def test_structural_failure_gates_without_printing(self):
+        failures, advisories = count_results(
+            _fake_results(structural_passed=False, judge_passed=False))
+        assert failures == 1
+        assert advisories == 1
+
+    def test_error_result_counts_as_failure(self):
+        assert count_results({"path": "/logs/broken.eval", "error": "boom"}) == (1, 0)

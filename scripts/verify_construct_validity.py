@@ -1075,14 +1075,26 @@ def process_log(log_path: str, use_judge: bool = False, judge_model: str = "open
     return log_results
 
 
-def print_results(results: dict, verbose: bool = False) -> tuple[int, int]:
-    """Print results and return (structural failures, advisory judge flags).
+def count_results(results: dict) -> tuple[int, int]:
+    """Count (structural failures, advisory judge flags) for one log's results.
 
-    Only structural failures gate the exit code; judge checks are advisory
-    (issue #29): non-deterministic, reported for human triage only.
+    Shared by the text and JSON output paths so the exit code is identical
+    regardless of output format: structural failures (and unreadable logs)
+    gate; judge checks are advisory (issue #29): non-deterministic, reported
+    for human triage only.
     """
+    if "error" in results:
+        return 1, 0
     failures = 0
     advisories = 0
+    for sample in results["samples"]:
+        failures += sum(1 for c in sample["structural_checks"] if not c["passed"])
+        advisories += sum(1 for c in sample.get("judge_checks", []) if not c["passed"])
+    return failures, advisories
+
+
+def print_results(results: dict, verbose: bool = False) -> tuple[int, int]:
+    """Print results and return (structural failures, advisory judge flags)."""
     path = Path(results["path"]).name
     print(f"\n{'='*70}")
     print(f"Log: {path}")
@@ -1090,7 +1102,7 @@ def print_results(results: dict, verbose: bool = False) -> tuple[int, int]:
 
     if "error" in results:
         print(f"  ERROR: {results['error']}")
-        return 1, 0
+        return count_results(results)
 
     for sample in results["samples"]:
         topo = sample["topology"]
@@ -1100,16 +1112,12 @@ def print_results(results: dict, verbose: bool = False) -> tuple[int, int]:
             status = "PASS" if check["passed"] else "FAIL"
             if not check["passed"] or verbose:
                 print(f"    [{status}] {check['name']}: {check['detail']}")
-            if not check["passed"]:
-                failures += 1
 
         for check in sample.get("judge_checks", []):
             status = "PASS" if check["passed"] else "ADVISORY"
             print(f"    [{status}] {check['name']}: {check['detail']}")
-            if not check["passed"]:
-                advisories += 1
 
-    return failures, advisories
+    return count_results(results)
 
 
 def main():
@@ -1118,7 +1126,8 @@ def main():
     parser.add_argument("--judge", action="store_true",
                         help="Enable LLM judge (Layer 2, advisory — never affects the exit code)")
     parser.add_argument("--judge-model", default="openai/gpt-4o-mini", help="Model for LLM judge")
-    parser.add_argument("--json", action="store_true", dest="json_output", help="Output JSON instead of text")
+    parser.add_argument("--json", action="store_true", dest="json_output",
+                        help="Output JSON instead of text (exit code still gates on structural failures)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Show passing checks too")
     args = parser.parse_args()
 
@@ -1145,10 +1154,12 @@ def main():
         try:
             results = process_log(str(lf), use_judge=args.judge, judge_model=args.judge_model)
             all_results.append(results)
-            if not args.json_output:
+            if args.json_output:
+                failures, advisories = count_results(results)
+            else:
                 failures, advisories = print_results(results, verbose=args.verbose)
-                total_failures += failures
-                total_advisories += advisories
+            total_failures += failures
+            total_advisories += advisories
         except Exception as e:
             err_result = {"path": str(lf), "error": str(e)}
             all_results.append(err_result)
