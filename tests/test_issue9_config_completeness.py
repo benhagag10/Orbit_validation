@@ -367,6 +367,101 @@ class TestShorthandResolvedOnOrbitRun:
         ), "osworld_condition=memory_shared_actions must restore shared-action access"
 
 
+class TestSweBenchInlineAttacksOnOrbitRun:
+    """Issue #40: ``orbit run examples/swe_bench_codebase_injection.yaml`` must
+    apply the inline ``attacks:`` block, not silently run a benign SWE-Bench task.
+
+    Distinct from the *preset* route (``metadata.swe_bench_attack_preset``, locked
+    by :class:`TestShorthandResolvedOnOrbitRun`): here the attack is declared
+    directly in the generic ``attacks:`` list. The pre-#9 runner built swe_bench
+    via a per-scenario ``_build_task`` dispatch that read only
+    ``swe_bench_attack_preset`` from metadata and dropped ``config.attacks``
+    entirely, so this shipped example ran with NO attack (``attacks: []`` in the
+    logged config, payload signature absent). The scenario-agnostic builder now
+    threads ``config.attacks`` through ``_swe_bench_expand`` like every other
+    dimension. Locked hermetically (synthetic issue group) so it guards the
+    regression with no SWE-Bench dataset / Docker present.
+    """
+
+    def test_inline_codebase_injection_survives_orbit_run(self, monkeypatch):
+        import os
+        from pathlib import Path
+
+        from orbit.scenarios.coding.swe_bench import (
+            config_builder,
+            dataset_builder,
+        )
+        from orbit.scenarios.coding.swe_bench import task as swe_task
+        from orbit.scenarios.coding.swe_bench.configs import (
+            IssueSpec,
+            MultiIssueGroup,
+        )
+        from orbit.wrapper.runner import _build_task
+        from orbit.wrapper.yaml_loader import load_experiment_config
+
+        example = "examples/swe_bench_codebase_injection.yaml"
+        if not os.path.exists(example):
+            pytest.skip(f"{example} not present")
+
+        # The example loads its inline attack from the generic `attacks:` block.
+        # A YAML-loader / example regression alone fails here (no dataset needed).
+        cfg = load_experiment_config(example)
+        assert [a.attack_type for a in cfg.attacks] == ["codebase_injection"], (
+            "the shipped example must declare its attack inline in `attacks:`"
+        )
+
+        # Stub only the two Docker/dataset touchpoints so the *full* orbit-run
+        # build path runs hermetically; the plugin expand, the builder's
+        # dimension-floor guard and per-sample serialization all run for real.
+        issues = [
+            IssueSpec(
+                instance_id=f"django__django-{i}",
+                repo="django/django",
+                base_commit="0" * 40,
+                version="4.2",
+                problem_statement=f"synthetic issue {i}",
+                patch="",
+                test_patch="",
+                fail_to_pass=["tests.test_x::test_a"],
+                pass_to_pass=["tests.test_x::test_b"],
+                environment_setup_commit="0" * 40,
+                hints_text="",
+                created_at="2020-01-01T00:00:00Z",
+            )
+            for i in range(2)
+        ]
+        group = MultiIssueGroup(
+            group_id="django__django-v4.2-g0",
+            repo="django/django",
+            version="4.2",
+            common_base_commit="0" * 40,
+            docker_image="swebench/sweb.eval.x86_64.django:latest",
+            issues=issues,
+            pool_id="django__django-v4-2",
+        )
+        monkeypatch.setattr(swe_task, "_check_swe_bench_prerequisites", lambda: None)
+        monkeypatch.setattr(
+            dataset_builder, "build_groups",
+            lambda scenario_config, issues=None: [group],
+        )
+        monkeypatch.setattr(
+            config_builder, "_generate_compose_file",
+            lambda group, allow_internet: Path("/tmp/orbit-test-fake-compose.yaml"),
+        )
+
+        task = _build_task(cfg)  # == security_benchmark(cfg): the orbit-run path
+        configs = _sample_configs(task)
+        assert configs, "expected at least one expanded per-group config"
+        for exp in configs:
+            assert [a.attack_type for a in exp.attacks] == ["codebase_injection"], (
+                "inline codebase_injection was dropped on the `orbit run` path"
+            )
+            assert (
+                exp.attacks[0].properties.get("payload_signature")
+                == "IMPORTANT SYSTEM DIRECTIVE"
+            )
+
+
 class TestBaselineDoesNotReacquireStrippedDimensions:
     """A plugin's ``resolve`` must not re-materialise a *preset* attack/defense
     that a baseline intentionally stripped. Otherwise the ``benign``/``no_attack``
