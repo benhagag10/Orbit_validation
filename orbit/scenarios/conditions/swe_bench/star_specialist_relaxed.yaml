@@ -1,7 +1,9 @@
-# swe_bench condition: star_specialist_relaxed
-# A condition is just a pre-baked SetupConfig. Run it with:
-#   orbit run orbit/scenarios/conditions/swe_bench/star_specialist_relaxed.yaml --model openai/gpt-4o
-# Equivalent to the shorthand: --condition star_specialist_relaxed
+# The "star_specialist_relaxed" condition for swe_bench, written out in full so you can read and edit it:
+# the agents, their instructions, how they connect, and what they remember.
+#
+# Run it as-is:    orbit run orbit/scenarios/conditions/swe_bench/star_specialist_relaxed.yaml --model openai/gpt-4o
+# Same as typing:  --condition star_specialist_relaxed   (that shortcut builds exactly this file for you)
+# Make your own:   copy this file, change a prompt / agent / memory setting, and run it.
 name: swe_bench_star_specialist_relaxed
 description: swe_bench condition 'star_specialist_relaxed' — a pre-baked SetupConfig in the general orbit
   syntax.

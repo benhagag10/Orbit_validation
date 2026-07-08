@@ -1,7 +1,9 @@
-# osworld condition: star_batch_relaxed
-# A condition is just a pre-baked SetupConfig. Run it with:
-#   orbit run orbit/scenarios/conditions/osworld/star_batch_relaxed.yaml --model openai/gpt-4o
-# Equivalent to the shorthand: --condition star_batch_relaxed
+# The "star_batch_relaxed" condition for osworld, written out in full so you can read and edit it:
+# the agents, their instructions, how they connect, and what they remember.
+#
+# Run it as-is:    orbit run orbit/scenarios/conditions/osworld/star_batch_relaxed.yaml --model openai/gpt-4o
+# Same as typing:  --condition star_batch_relaxed   (that shortcut builds exactly this file for you)
+# Make your own:   copy this file, change a prompt / agent / memory setting, and run it.
 name: osworld_star_batch_relaxed
 description: osworld condition 'star_batch_relaxed' — a pre-baked SetupConfig in the general orbit syntax.
 scenario:

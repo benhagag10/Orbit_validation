@@ -128,6 +128,18 @@ All attacks and defenses are configurable (timing, target, threshold, resampling
 
 ## Configuration
 
+Every experiment is one **configuration** — which agents, how they connect, and what they remember.
+You can specify it at three levels, each a shorthand for the next:
+
+- **Flags** — quick: `--agents specialist --memory full`
+- **Condition** — a name for a ready-made setup: `--condition memory_full`
+- **YAML** — that condition written out in full, which you can read and edit:
+  `orbit run orbit/scenarios/conditions/browserart/memory_full.yaml`
+
+All three run the same thing: the flags pick a condition, the condition loads a YAML, and the YAML is
+the full config. Open any file under `orbit/scenarios/conditions/<scenario>/` to see exactly what a
+condition is, or copy one and tweak it.
+
 Three ways to run experiments:
 
 ### CLI flags (quick exploration)

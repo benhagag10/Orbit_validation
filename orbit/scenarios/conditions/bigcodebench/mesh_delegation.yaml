@@ -1,7 +1,9 @@
-# bigcodebench condition: mesh_delegation
-# A condition is just a pre-baked SetupConfig. Run it with:
-#   orbit run orbit/scenarios/conditions/bigcodebench/mesh_delegation.yaml --model openai/gpt-4o
-# Equivalent to the shorthand: --condition mesh_delegation
+# The "mesh_delegation" condition for bigcodebench, written out in full so you can read and edit it:
+# the agents, their instructions, how they connect, and what they remember.
+#
+# Run it as-is:    orbit run orbit/scenarios/conditions/bigcodebench/mesh_delegation.yaml --model openai/gpt-4o
+# Same as typing:  --condition mesh_delegation   (that shortcut builds exactly this file for you)
+# Make your own:   copy this file, change a prompt / agent / memory setting, and run it.
 name: bigcodebench_mesh_delegation
 description: bigcodebench condition 'mesh_delegation' — a pre-baked SetupConfig in the general orbit syntax.
 scenario:

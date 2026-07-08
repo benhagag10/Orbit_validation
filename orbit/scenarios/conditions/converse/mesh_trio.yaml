@@ -1,7 +1,9 @@
-# converse condition: mesh_trio
-# A condition is just a pre-baked SetupConfig. Run it with:
-#   orbit run orbit/scenarios/conditions/converse/mesh_trio.yaml --model openai/gpt-4o
-# Equivalent to the shorthand: --condition mesh_trio
+# The "mesh_trio" condition for converse, written out in full so you can read and edit it:
+# the agents, their instructions, how they connect, and what they remember.
+#
+# Run it as-is:    orbit run orbit/scenarios/conditions/converse/mesh_trio.yaml --model openai/gpt-4o
+# Same as typing:  --condition mesh_trio   (that shortcut builds exactly this file for you)
+# Make your own:   copy this file, change a prompt / agent / memory setting, and run it.
 name: converse_mesh_trio
 description: converse condition 'mesh_trio' — a pre-baked SetupConfig in the general orbit syntax.
 scenario:
