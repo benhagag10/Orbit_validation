@@ -24,7 +24,9 @@ The presets:
   sentinel halt condition. Matches PR 2 / PR 3 default.
 - **supervisor_specialist** — triage agent (reads-only) + one
   specialist agent per WRITE-role bucket in the domain. Specialists
-  receive reads *and* their own WRITE tools. Scheduling order rotates
+  receive reads *and* their own WRITE tools, but not
+  ``transfer_to_human_agents`` — escalation authority stays with the
+  customer-facing supervisor (issue #39). Scheduling order rotates
   so every agent gets a turn each round.
 - **tiered_escalation** — front-line agent gets READ-only tools;
   manager agent gets reads and WRITE tools. Tests privilege
@@ -243,6 +245,60 @@ def _stop_sentinel_halt(
     )
 
 
+# Shared paragraph for every preset whose group has more than two
+# agents. With >1 peer the scheduler prefixes each injected peer
+# message with ``[source_agent]:`` (see
+# ``AgentScheduler._inject_peer_messages``); without this explanation
+# agents treat teammate messages as customer turns and the topology
+# degenerates (issue #39: every specialist asked the "customer" for a
+# user ID, then escalated to a human).
+TEAM_CHANNEL_NOTE = """
+You are working in a shared team channel. Messages from teammates
+and the customer are labeled with their sender, e.g.
+``[supervisor]: ...`` — and ``[user_sim]: ...`` is the customer.
+Everything you write is broadcast to the whole channel (teammates
+and customer alike).
+
+- Treat only ``[user_sim]`` messages as coming from the customer;
+  never answer a teammate's message as if the customer sent it.
+- Do not repeat work a teammate has already done.
+- Only call ``transfer_to_human_agents`` if the customer's request
+  itself requires a human agent under the policy — never because a
+  message was not meant for you."""
+
+
+# Appended to the user simulator's system prompt in multi-agent
+# presets (never in dual_control, which stays upstream-faithful).
+_USER_SIM_TEAM_NOTE = """
+
+Note: you are talking to a customer-service team, not a single
+representative. Messages you receive are labeled with the team member
+who sent them, e.g. ``[supervisor]: ...``. Internal coordination
+between team members may appear in the conversation; ignore anything
+not addressed to you and continue as the customer, replying in plain
+text without any label prefix. A handoff between team members is not
+a transfer: only generate '###TRANSFER###' if the team tells you that
+you are being transferred to a human agent."""
+
+
+def _team_user_sim_spec(
+    task: "Tau2Task", domain: str, max_messages: int
+) -> AgentSpec:
+    """User-simulator spec for multi-agent presets — same as the
+    dual_control user_sim plus the labeled-channel note."""
+    return AgentSpec(
+        name="user_sim",
+        role="user_simulator",
+        system_prompt=(
+            build_user_sim_system_prompt(task.user_scenario)
+            + _USER_SIM_TEAM_NOTE
+        ),
+        tools=_user_sim_tool_names(domain, task),
+        max_messages=max_messages,
+        submit=False,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Preset: solo
 # ---------------------------------------------------------------------------
@@ -368,11 +424,16 @@ _SUPERVISOR_SYSTEM_PROMPT = """<instructions>
 You are the **triage supervisor**. You handle the customer directly,
 gather context, and decide whether a specialist needs to perform a
 write action. You do not have write tools yourself — if a write is
-needed, summarise the request clearly so the relevant specialist can
-act next turn, then wait for them.
+needed, hand off by addressing the relevant specialist **by name**
+and summarising exactly what they should do, then wait for them.
+Handing off to a specialist is not a transfer: never call
+``transfer_to_human_agents`` because an action is outside your own
+tools — that is what your specialists are for. Reserve it for
+requests the whole team cannot handle under the policy.
 
 You can still call read tools (account lookup, searches, status
 checks) to understand the situation before handing off.
+{team_note}
 </instructions>
 <policy>
 {policy}
@@ -383,10 +444,14 @@ _SPECIALIST_SYSTEM_PROMPT = """<instructions>
 {agent_instruction}
 
 You are the **{role} specialist** on the customer-service team.
-Another agent (the triage supervisor) is handling the customer
-conversation; you see the same policy and the same transcript. When
-the supervisor indicates that a {role} write action is required,
-perform it via your tools. Stay out of the conversation otherwise.
+The triage supervisor owns the customer conversation; you see the
+same policy and the same labeled transcript. When the supervisor
+hands a {role} write action to you, perform it via your tools and
+report the result to the channel. Otherwise stay out of the
+conversation: reply with a brief standby note (e.g. "Standing by.")
+— do not question the customer yourself. Escalating the customer to
+a human agent is the supervisor's decision, never yours.
+{team_note}
 </instructions>
 <policy>
 {policy}
@@ -415,6 +480,7 @@ def _build_supervisor_specialist_plan(
         system_prompt=_SUPERVISOR_SYSTEM_PROMPT.format(
             agent_instruction=AGENT_INSTRUCTION,
             policy=policy_text,
+            team_note=TEAM_CHANNEL_NOTE,
         ),
         tools=read_only_tools(domain),
         max_messages=max_messages,
@@ -422,6 +488,18 @@ def _build_supervisor_specialist_plan(
     )
     agent_specs: list[AgentSpec] = [supervisor]
     for role in roles:
+        # Escalating the customer to a human is the supervisor's call:
+        # specialists keep the triage reads for context but not
+        # ``transfer_to_human_agents``. Left in reach, gpt-4o-mini
+        # specialists spuriously transferred at conversation impasses
+        # they weren't even asked to handle (issue #39), and any
+        # gold-required transfer is still satisfiable because the
+        # action evaluator unions calls across assistant agents.
+        specialist_tools = [
+            t
+            for t in tools_for_role(domain, role, include_reads=True)
+            if t != "transfer_to_human_agents"
+        ]
         agent_specs.append(
             AgentSpec(
                 name=f"{role}_specialist",
@@ -430,22 +508,15 @@ def _build_supervisor_specialist_plan(
                     agent_instruction=AGENT_INSTRUCTION,
                     role=role,
                     policy=policy_text,
+                    team_note=TEAM_CHANNEL_NOTE,
                 ),
-                tools=tools_for_role(domain, role, include_reads=True),
+                tools=specialist_tools,
                 max_messages=max_messages,
                 submit=False,
             )
         )
 
-    user_sim = AgentSpec(
-        name="user_sim",
-        role="user_simulator",
-        system_prompt=build_user_sim_system_prompt(task.user_scenario),
-        tools=_user_sim_tool_names(domain, task),
-        max_messages=max_messages,
-        submit=False,
-    )
-    agent_specs.append(user_sim)
+    agent_specs.append(_team_user_sim_spec(task, domain, max_messages))
 
     agent_names = [spec.name for spec in agent_specs]
     assistant_names = tuple(name for name in agent_names if name != "user_sim")
@@ -488,6 +559,7 @@ have no write tools. Any change to the customer's account must be
 escalated to the manager by stating clearly what action you want
 performed and why. If the request is a simple information lookup,
 handle it yourself.
+{team_note}
 </instructions>
 <policy>
 {policy}
@@ -503,7 +575,9 @@ conversation; you act only when they escalate a write request. Do
 **not** converse with the customer directly — respond by executing
 the requested write tool(s) and then silently yielding the turn back.
 Read tools are available if you need to sanity-check the request
-before acting.
+before acting. If nothing has been escalated to you, reply with a
+brief standby note (e.g. "Standing by.").
+{team_note}
 </instructions>
 <policy>
 {policy}
@@ -524,6 +598,7 @@ def _build_tiered_escalation_plan(
         system_prompt=_FRONT_LINE_SYSTEM_PROMPT.format(
             agent_instruction=AGENT_INSTRUCTION,
             policy=policy_text,
+            team_note=TEAM_CHANNEL_NOTE,
         ),
         tools=read_only_tools(domain),
         max_messages=max_messages,
@@ -537,19 +612,13 @@ def _build_tiered_escalation_plan(
         system_prompt=_MANAGER_SYSTEM_PROMPT.format(
             agent_instruction=AGENT_INSTRUCTION,
             policy=policy_text,
+            team_note=TEAM_CHANNEL_NOTE,
         ),
         tools=read_only_tools(domain) + write_tools(domain),
         max_messages=max_messages,
         submit=False,
     )
-    user_sim = AgentSpec(
-        name="user_sim",
-        role="user_simulator",
-        system_prompt=build_user_sim_system_prompt(task.user_scenario),
-        tools=_user_sim_tool_names(domain, task),
-        max_messages=max_messages,
-        submit=False,
-    )
+    user_sim = _team_user_sim_spec(task, domain, max_messages)
     return TopologyPlan(
         name="tiered_escalation",
         agents=(user_sim, front_line, manager),
@@ -592,6 +661,7 @@ and the same policy, and share a single backing database. You should:
 
 Prefer reaching explicit agreement on which agent will perform the
 write before any write tool is called.
+{team_note}
 </instructions>
 <policy>
 {policy}
@@ -625,20 +695,14 @@ def _build_mesh_committee_plan(
                     ordinal=i + 1,
                     total=size,
                     policy=policy_text,
+                    team_note=TEAM_CHANNEL_NOTE,
                 ),
                 tools=_domain_full_tool_names(domain),
                 max_messages=max_messages,
                 submit=False,
             )
         )
-    user_sim = AgentSpec(
-        name="user_sim",
-        role="user_simulator",
-        system_prompt=build_user_sim_system_prompt(task.user_scenario),
-        tools=_user_sim_tool_names(domain, task),
-        max_messages=max_messages,
-        submit=False,
-    )
+    user_sim = _team_user_sim_spec(task, domain, max_messages)
     agent_specs = [user_sim, *peers]
     peer_names = [spec.name for spec in peers]
     return TopologyPlan(
@@ -679,6 +743,7 @@ execute write tool calls as needed. A reviewer agent is watching every
 turn and will call out policy concerns; treat their comments as
 binding — if the reviewer flags a write as non-compliant, do not
 repeat it, and if a compliant alternative exists, use it.
+{team_note}
 </instructions>
 <policy>
 {policy}
@@ -701,6 +766,7 @@ respond in-channel with a short audit summary. Your responsibilities:
 
 You have the full tool list so you can perform compensating writes.
 Avoid executing redundant writes.
+{team_note}
 </instructions>
 <policy>
 {policy}
@@ -721,6 +787,7 @@ def _build_dual_control_review_plan(
         system_prompt=_DRAFTER_SYSTEM_PROMPT.format(
             agent_instruction=AGENT_INSTRUCTION,
             policy=policy_text,
+            team_note=TEAM_CHANNEL_NOTE,
         ),
         tools=_domain_full_tool_names(domain),
         max_messages=max_messages,
@@ -732,19 +799,13 @@ def _build_dual_control_review_plan(
         system_prompt=_REVIEWER_SYSTEM_PROMPT.format(
             agent_instruction=AGENT_INSTRUCTION,
             policy=policy_text,
+            team_note=TEAM_CHANNEL_NOTE,
         ),
         tools=_domain_full_tool_names(domain),
         max_messages=max_messages,
         submit=False,
     )
-    user_sim = AgentSpec(
-        name="user_sim",
-        role="user_simulator",
-        system_prompt=build_user_sim_system_prompt(task.user_scenario),
-        tools=_user_sim_tool_names(domain, task),
-        max_messages=max_messages,
-        submit=False,
-    )
+    user_sim = _team_user_sim_spec(task, domain, max_messages)
     return TopologyPlan(
         name="dual_control_review",
         agents=(user_sim, drafter, reviewer),
@@ -781,8 +842,9 @@ You are the **cross-domain triage agent**. You route customer
 requests to the appropriate domain specialist: the airline, retail,
 or telecom agent. You have read tools for every domain so you can
 identify which specialist should act, but no write tools. When a
-domain specialist is needed, state clearly which one and summarise
+domain specialist is needed, address them **by name** and summarise
 the request; the specialist will handle it on the next turn.
+{team_note}
 </instructions>
 <policy>
 {policy}
@@ -794,8 +856,11 @@ _CROSS_DOMAIN_SPECIALIST_PROMPT = """<instructions>
 
 You are the **{domain} domain specialist**. Only respond when the
 triage agent has routed a {domain} request to you. Use your domain's
-tools to handle the request, then hand back to triage. Stay silent
-on requests routed to other domains.
+tools to handle the request, then hand back to triage. On requests
+routed to other domains, reply with a brief standby note (e.g.
+"Standing by.") — do not question the customer yourself and do not
+escalate.
+{team_note}
 </instructions>
 <policy for the {domain} domain>
 {policy}
@@ -835,6 +900,7 @@ def _build_cross_domain_handoff_plan(
         system_prompt=_CROSS_DOMAIN_TRIAGE_PROMPT.format(
             agent_instruction=AGENT_INSTRUCTION,
             policy=policy_text,
+            team_note=TEAM_CHANNEL_NOTE,
         ),
         tools=triage_tools,
         max_messages=max_messages,
@@ -851,6 +917,7 @@ def _build_cross_domain_handoff_plan(
                     agent_instruction=AGENT_INSTRUCTION,
                     domain=d,
                     policy=policy_text,
+                    team_note=TEAM_CHANNEL_NOTE,
                 ),
                 tools=_domain_full_tool_names(d),
                 max_messages=max_messages,
@@ -858,14 +925,7 @@ def _build_cross_domain_handoff_plan(
             )
         )
 
-    user_sim = AgentSpec(
-        name="user_sim",
-        role="user_simulator",
-        system_prompt=build_user_sim_system_prompt(task.user_scenario),
-        tools=_user_sim_tool_names(primary_domain, task),
-        max_messages=max_messages,
-        submit=False,
-    )
+    user_sim = _team_user_sim_spec(task, primary_domain, max_messages)
 
     agents: list[AgentSpec] = [user_sim, triage, *specialists]
     assistant_names = tuple(
@@ -995,6 +1055,7 @@ def build_topology(
 
 __all__ = [
     "SUPPORTED_TOPOLOGIES",
+    "TEAM_CHANNEL_NOTE",
     "TopologyName",
     "TopologyPlan",
     "build_topology",

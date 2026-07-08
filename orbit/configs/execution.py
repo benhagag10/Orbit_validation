@@ -49,7 +49,11 @@ class ObservationConfig(BaseModel, frozen=True, extra="forbid"):
     - peer_messages: agents receive verbatim text messages from peers in
       the same group as user-role messages, with cursor-based dedup so
       each peer message is injected at most once. Designed for turn-taking
-      scenarios (e.g. tau2 dual-control) where two agents actually talk.
+      scenarios (e.g. tau2 dual-control) where the agents actually talk.
+      With exactly one peer the text is injected bare (upstream-faithful
+      two-party chat); with two or more peers each message is prefixed
+      with ``[source_agent]:`` and delivered in production order so
+      agents can tell teammates apart from the end user (issue #39).
     - custom: user-provided observation builder
     """
 

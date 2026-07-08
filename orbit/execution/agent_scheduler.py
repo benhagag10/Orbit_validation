@@ -480,16 +480,44 @@ class AgentScheduler:
         as user-role messages. Cursor-based dedup guarantees no peer message
         is injected twice.
 
+        Two properties matter once a group has more than two agents
+        (issue #39 — tau2 supervisor_specialist degenerated without them):
+
+        - **Attribution**: with several peers, a bare user-role message is
+          indistinguishable from the actual customer/end-user, so agents
+          answer teammates as if they were the user. When the receiving
+          agent has more than one peer, each injected message is prefixed
+          with ``[source_name]:``. With exactly one peer (e.g. tau2
+          dual-control) the text stays bare, preserving upstream fidelity.
+        - **Chronology**: peers are visited in roster order rotated to
+          start just after the receiving agent. Under round-robin /
+          interleaved rotation the agents that ran after this agent's last
+          turn come first (previous round), then those that ran earlier in
+          the current round — which is exactly the order the messages were
+          produced in. Iterating in plain roster order instead would group
+          messages by speaker and scramble the transcript.
+
         Designed for turn-taking scenarios (e.g. tau2 dual-control) where
-        the two agents actually talk to each other. Tool calls and tool
+        the agents actually talk to each other. Tool calls and tool
         results stay private to the emitting agent.
         """
         agent_group = self._agent_to_group.get(agent_name)
-        for source_name in self.agent_names:
-            if source_name == agent_name:
-                continue
-            source_group = self._agent_to_group.get(source_name)
-            if source_group != agent_group:
+        peer_names = [
+            name for name in self.agent_names
+            if name != agent_name
+            and self._agent_to_group.get(name) == agent_group
+        ]
+        attribute = len(peer_names) > 1
+
+        # Rotate the roster so iteration starts just after this agent.
+        if agent_name in self.agent_names:
+            pivot = self.agent_names.index(agent_name) + 1
+            rotated = self.agent_names[pivot:] + self.agent_names[:pivot]
+        else:
+            rotated = list(self.agent_names)
+
+        for source_name in rotated:
+            if source_name not in peer_names:
                 continue
             source_state = self._agent_states.get(source_name)
             if source_state is None:
@@ -500,8 +528,12 @@ class AgentScheduler:
             new_end = len(source_state.messages)
             for msg in source_state.messages[cursor:new_end]:
                 if isinstance(msg, ChatMessageAssistant) and msg.text:
+                    text = (
+                        f"[{source_name}]: {msg.text}" if attribute
+                        else msg.text
+                    )
                     agent_state.messages.append(
-                        ChatMessageUser(content=msg.text)
+                        ChatMessageUser(content=text)
                     )
             self._peer_injection_cursors[key] = new_end
 

@@ -1262,7 +1262,9 @@ class TestPeerMessagesObservation:
         """Cursor dedup must be per (target, source), not global.
 
         A regression that uses a single target-level cursor would see
-        peerB's message but skip peerA's second message.
+        peerB's message but skip peerA's second message. With more than
+        one peer in the group, injected messages carry a ``[source]:``
+        attribution prefix (issue #39).
         """
         from inspect_ai.model import ChatMessageAssistant
 
@@ -1286,7 +1288,90 @@ class TestPeerMessagesObservation:
         scheduler._inject_observation("target", target_state)
 
         texts = [m.text for m in target_state.messages]
-        assert texts == ["A1", "B1", "A2"]
+        assert texts == ["[peerA]: A1", "[peerB]: B1", "[peerA]: A2"]
+
+    def test_single_peer_message_stays_bare(self):
+        """With exactly one peer (dual_control), no attribution prefix —
+        upstream tau2 expects a plain two-party conversation."""
+        from inspect_ai.model import ChatMessageAssistant
+
+        scheduler = self._make_scheduler()
+        scheduler._agent_states["user_sim"].messages.append(
+            ChatMessageAssistant(content="I want to cancel Q69X3R")
+        )
+        scheduler._inject_observation(
+            "assistant", scheduler._agent_states["assistant"]
+        )
+        msgs = scheduler._agent_states["assistant"].messages
+        assert msgs[0].text == "I want to cancel Q69X3R"
+
+    def test_multi_peer_injection_is_chronological(self):
+        """Issue #39: peers are visited in roster order rotated to start
+        after the receiving agent, which reconstructs production order
+        under round-robin rotation. Plain roster-order iteration would
+        deliver the supervisor's *newest* message before the customer's
+        *older* one, scrambling the transcript.
+        """
+        from inspect_ai.agent import AgentState
+        from inspect_ai.model import ChatMessageAssistant
+        from orbit.configs.execution import (
+            AgentGroup,
+            ExecutionConfig,
+            ObservationConfig,
+        )
+        from orbit.execution.agent_scheduler import AgentScheduler
+        from orbit.execution.submit_registry import SubmitRegistry
+
+        roster = ["supervisor", "res_spec", "ref_spec", "user_sim"]
+        exec_cfg = ExecutionConfig(
+            scheduling_mode="interleaved",
+            agent_groups=[AgentGroup(name="team", agents=roster, goal="")],
+            observation=ObservationConfig(mode="peer_messages"),
+        )
+        scheduler = AgentScheduler(
+            agents={},
+            agent_names=roster,
+            registry=SubmitRegistry(),
+            execution_config=exec_cfg,
+            groups=list(exec_cfg.agent_groups),
+        )
+        scheduler._agent_states = {
+            name: AgentState(messages=[]) for name in roster
+        }
+
+        def speak(name, text):
+            scheduler._agent_states[name].messages.append(
+                ChatMessageAssistant(content=text)
+            )
+
+        def inject(name):
+            scheduler._inject_observation(
+                name, scheduler._agent_states[name]
+            )
+
+        # Round 1, in rotation order: each agent observes then speaks.
+        for name, text in zip(roster, ["S1", "A1", "B1", "U1"]):
+            inject(name)
+            speak(name, text)
+        # Round 2: supervisor observes and speaks, then res_spec observes.
+        inject("supervisor")
+        speak("supervisor", "S2")
+        inject("res_spec")
+
+        res_msgs = [
+            m.text
+            for m in scheduler._agent_states["res_spec"].messages
+            if m.role == "user"
+        ]
+        # Round-1 injection delivered S1; the round-2 injection must
+        # arrive in production order — B1, U1 (round 1) before S2
+        # (round 2) — not supervisor-first roster order.
+        assert res_msgs == [
+            "[supervisor]: S1",
+            "[ref_spec]: B1",
+            "[user_sim]: U1",
+            "[supervisor]: S2",
+        ]
 
 
 # ---------------------------------------------------------------------------
@@ -3641,6 +3726,22 @@ class TestTopologyPresets:
         supervisor = next(a for a in plan.agents if a.name == "supervisor")
         assert set(supervisor.tools) == set(read_only_tools("airline"))
         assert not (set(supervisor.tools) & set(write_tools("airline")))
+
+    @pytest.mark.parametrize("domain", ["airline", "retail", "telecom"])
+    def test_specialists_cannot_transfer_to_human(self, domain):
+        """Escalation authority is the supervisor's (issue #39): left in
+        reach, specialists spuriously transferred the customer at
+        conversation impasses they weren't asked to handle."""
+        from orbit.scenarios.customer_service.tau2.topologies import build_topology
+
+        cfg, task, policy = self._first_task(domain)
+        scfg = cfg.model_copy(update={"topology": "supervisor_specialist"})
+        plan = build_topology("supervisor_specialist", task, scfg, policy)
+        for spec in plan.agents:
+            if spec.name.endswith("_specialist"):
+                assert "transfer_to_human_agents" not in spec.tools, spec.name
+        supervisor = next(a for a in plan.agents if a.name == "supervisor")
+        assert "transfer_to_human_agents" in supervisor.tools
 
     @pytest.mark.parametrize("domain", ["airline", "retail", "telecom"])
     def test_tiered_escalation_front_line_is_read_only(self, domain):

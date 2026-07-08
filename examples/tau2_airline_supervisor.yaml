@@ -41,6 +41,9 @@ setup:
         - search_onestop_flight
         - calculate
         - transfer_to_human_agents
+    # Specialists get the triage reads for context, but NOT
+    # transfer_to_human_agents — escalation stays with the
+    # customer-facing supervisor (issue #39).
     - name: "reservations_specialist"
       role: "customer_service_specialist"
       tools:
@@ -52,7 +55,6 @@ setup:
         - search_direct_flight
         - search_onestop_flight
         - calculate
-        - transfer_to_human_agents
         # Writes
         - book_reservation
         - update_reservation_baggages
@@ -68,7 +70,6 @@ setup:
         - search_direct_flight
         - search_onestop_flight
         - calculate
-        - transfer_to_human_agents
         - cancel_reservation
         - send_certificate
   edges: []
