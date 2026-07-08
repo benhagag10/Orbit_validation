@@ -466,3 +466,64 @@ class TestTopologyPathCompletionDetection:
 
         # output.completion is falsy → should not halt
         assert not state.output.completion
+
+
+# ---------------------------------------------------------------------------
+# System-message dedup tests (issue #39 fallout: the no-submit variant
+# re-inserted the full system prompt on every scheduler turn)
+# ---------------------------------------------------------------------------
+
+
+class TestSystemMessageInsertedOnce:
+    """Turn-taking agents run once per scheduler turn on the same
+    accumulating AgentState — the system prompt must be inserted on the
+    first invocation only, for both the submit and no-submit variants."""
+
+    @pytest.mark.asyncio
+    async def test_no_submit_agent_not_duplicated_across_turns(self) -> None:
+        # submit=False routes to react_no_submit, which re-inserted the
+        # full system prompt on every invocation before the fix. (The
+        # submit variant is exercised via _ensure_system_message below:
+        # mockllm never calls the submit tool, so running it end-to-end
+        # would loop forever on the continue prompt.)
+        from inspect_ai.agent import AgentState, run
+        from inspect_ai.model import ChatMessageUser, get_model
+
+        from orbit.agents.turn_react import turn_react
+
+        agent = turn_react(
+            name="agent_a",
+            description="test agent",
+            prompt="SYSTEM PROMPT UNDER TEST",
+            model=get_model("mockllm/model"),
+            submit=False,
+        )
+        state = AgentState(messages=[ChatMessageUser(content="goal")])
+        for _ in range(3):
+            state = await run(agent, state)
+
+        system_messages = [
+            m for m in state.messages if m.role == "system"
+        ]
+        assert len(system_messages) == 1
+        assert "SYSTEM PROMPT UNDER TEST" in system_messages[0].text
+        # And it stays at position 0.
+        assert state.messages[0].role == "system"
+
+    def test_ensure_system_message_idempotent(self) -> None:
+        """The shared guard inserts once and is a no-op afterwards."""
+        from inspect_ai.agent import AgentState
+        from inspect_ai.model import ChatMessageSystem, ChatMessageUser
+
+        from orbit.agents.turn_react import _ensure_system_message
+
+        sys_msg = ChatMessageSystem(content="SYS")
+        state = AgentState(messages=[ChatMessageUser(content="goal")])
+
+        _ensure_system_message(state, sys_msg)
+        _ensure_system_message(state, sys_msg)
+        assert [m.role for m in state.messages] == ["system", "user"]
+
+        # None → no-op
+        _ensure_system_message(state, None)
+        assert len(state.messages) == 2

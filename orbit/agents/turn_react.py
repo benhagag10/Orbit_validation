@@ -177,12 +177,7 @@ def turn_react(
     async def execute(state: AgentState) -> AgentState:
         async with mcp_connection(tools):
             # --- Inject system message (once) ---
-            if system_message:
-                if not state.messages or not (
-                    isinstance(state.messages[0], ChatMessageSystem)
-                    and state.messages[0].content == system_message.content
-                ):
-                    state.messages.insert(0, system_message)
+            _ensure_system_message(state, system_message)
 
             # --- Resume: if the last message is an unresolved tool call, execute it ---
             last_msg = state.messages[-1] if state.messages else None
@@ -374,8 +369,7 @@ def react_no_submit(
 
     async def execute(state: AgentState) -> AgentState:
         async with mcp_connection(tools):
-            if system_message:
-                state.messages.insert(0, system_message)
+            _ensure_system_message(state, system_message)
 
             overflow = _resolve_overflow(truncation)
 
@@ -421,6 +415,28 @@ def react_no_submit(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+def _ensure_system_message(
+    state: AgentState, system_message: ChatMessage | None
+) -> None:
+    """Insert ``system_message`` at position 0 unless it is already there.
+
+    Turn-taking agents are invoked once per scheduler turn on the same
+    accumulating ``AgentState``, so an unconditional insert would prepend
+    a fresh copy of the (often multi-KB) system prompt every turn —
+    that was exactly the bug in the no-submit path, which skipped this
+    guard while the submit path had it.
+    """
+    if system_message is None:
+        return
+    if (
+        state.messages
+        and isinstance(state.messages[0], ChatMessageSystem)
+        and state.messages[0].content == system_message.content
+    ):
+        return
+    state.messages.insert(0, system_message)
+
 
 def _prompt_to_system_message(
     prompt: str | AgentPrompt | None,
