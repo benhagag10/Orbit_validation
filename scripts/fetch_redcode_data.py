@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import ssl
 import sys
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -48,9 +49,25 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+def _ssl_context() -> ssl.SSLContext:
+    """TLS context preferring certifi's CA bundle when available.
+
+    Stock macOS Python ships no CA bundle for stdlib ``ssl``, so a plain
+    ``urlopen`` fails with ``SSL: CERTIFICATE_VERIFY_FAILED``.
+    """
+    try:
+        import certifi
+    except ImportError:
+        return ssl.create_default_context()
+    return ssl.create_default_context(cafile=certifi.where())
+
+
+_SSL_CONTEXT = _ssl_context()
+
+
 def _download(url: str) -> bytes:
     try:
-        with urlopen(url) as resp:
+        with urlopen(url, context=_SSL_CONTEXT) as resp:
             return resp.read()
     except (HTTPError, URLError) as exc:
         raise SystemExit(
