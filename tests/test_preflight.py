@@ -52,7 +52,7 @@ class TestCheckCommon:
         env = {k: v for k, v in os.environ.items()
                if k not in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY")}
         with patch.dict(os.environ, env, clear=True), \
-             patch("orbit.wrapper.preflight._check_dotenv_for_api_keys", return_value=False):
+             patch("orbit.wrapper.preflight._dotenv_has_key", return_value=False):
             results = check_common()
             key_check = next(r for r in results if "API key" in r.name)
             assert not key_check.passed
@@ -137,6 +137,30 @@ class TestCheckSweBench:
             arm_results = [r for r in results if "ARM" in r.name or "arm" in r.name.lower()]
             assert len(arm_results) == 1
             assert arm_results[0].warning is True
+
+    def test_github_token_missing_fails(self):
+        env = {k: v for k, v in os.environ.items() if k != "GITHUB_TOKEN"}
+        with patch.dict(os.environ, env, clear=True), \
+             patch("orbit.wrapper.preflight._dotenv_has_key", return_value=False):
+            results = check_swe_bench()
+            token_check = next(r for r in results if "GITHUB_TOKEN" in r.name)
+            assert not token_check.passed
+            assert not token_check.warning
+            assert "GITHUB_TOKEN" in token_check.message
+
+    def test_github_token_from_env_passes(self):
+        with patch.dict(os.environ, {"GITHUB_TOKEN": "ghp_test"}, clear=False):
+            results = check_swe_bench()
+            token_check = next(r for r in results if "GITHUB_TOKEN" in r.name)
+            assert token_check.passed
+
+    def test_github_token_from_dotenv_passes(self):
+        env = {k: v for k, v in os.environ.items() if k != "GITHUB_TOKEN"}
+        with patch.dict(os.environ, env, clear=True), \
+             patch("orbit.wrapper.preflight._dotenv_has_key", return_value=True):
+            results = check_swe_bench()
+            token_check = next(r for r in results if "GITHUB_TOKEN" in r.name)
+            assert token_check.passed
 
 
 class TestCheckOsworld:
