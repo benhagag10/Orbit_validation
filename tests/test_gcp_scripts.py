@@ -36,7 +36,7 @@ class TestDualLLMPreset:
         defense = get_defense(configs[0])
         assert isinstance(defense, DefenseBase)
 
-    def test_all_neurips_presets_load(self):
+    def test_all_defense_presets_load(self):
         for name in ["system_prompt", "llm_monitor", "guardian", "dual_llm"]:
             configs = get_defense_preset(name)
             assert len(configs) >= 1, f"Preset {name} returned empty"

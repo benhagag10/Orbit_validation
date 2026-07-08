@@ -74,7 +74,7 @@ def _shorthand() -> ShorthandSpec:
     BigCodeBench's ``condition_presets`` / ``presets`` are thin re-exports of
     RedCode-Gen's (same generic coding-team topologies and defenses), so the
     shorthand surface matches ``redcode_gen``: ``metadata.bigcodebench_condition``
-    resolves the named ICML topology presets and the ``*_preset`` keys reuse the
+    resolves the named topology presets and the ``*_preset`` keys reuse the
     ``-T`` factory's primitives. New with the kit — the YAML path previously had
     no condition/preset reader at all.
     """
@@ -136,7 +136,7 @@ def bigcodebench(
         max_turns: Maximum turns per task.
         max_time_seconds: Maximum wall-clock time per task.
         topology_file: Custom topology YAML path or ``"default"``.
-        condition: Named ICML condition (e.g. ``"single_agent"``,
+        condition: Named condition (e.g. ``"single_agent"``,
             ``"star_specialist"``). Overrides ``topology_file``.
         attack_preset: Attack preset name (e.g. ``"jailbreak"``).
         defense_preset: Defense preset name (e.g. ``"prompt_vaccination"``).
