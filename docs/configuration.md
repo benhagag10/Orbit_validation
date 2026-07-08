@@ -74,7 +74,7 @@ uv run inspect eval orbit/browserart_safety \
 | `categories` | string | — | Filter by behavior category (e.g. `"content/phishing"`) |
 | `headless` | bool | true | Run browser headlessly |
 | `record_video_dir` | string | — | Save browser recordings to this directory |
-| `judge_model` | string | openai/gpt-4o | Model for the safety classifier |
+| `judge_model` | string | openai/gpt-4.1 | Model for the safety classifier |
 | `topology_file` | string | `default` | Custom topology YAML path, e.g. `examples/topologies/…` (advanced) |
 | `data_path` | string | — | Override path to hbb.json dataset |
 
@@ -424,8 +424,8 @@ These go in the `metadata` section and are specific to the SWE-Bench scenario.
 | `swe_bench_seed` | int | Random seed for group sampling |
 | `swe_bench_scheduling_mode` | string | Execution mode: `"round_robin"` or `"superstep"` |
 | `swe_bench_condition` | string | Named topology/memory condition (e.g. `"star_specialist"`, `"memory_full"`) — the same presets as `-T condition=...`. |
-| `swe_bench_attack_preset` | string | Attack preset: `"self_replication"`, `"sabotage"` |
-| `swe_bench_defense_preset` | string | Defense preset: `"file_monitor"`, `"diff_monitor"`, `"full"` |
+| `swe_bench_attack_preset` | string | Attack preset: `"self_replication"`, `"sabotage"`, `"codebase_injection"`, `"codebase_injection_targeted"`, `"codebase_injection_behavioral"`, `"aishellcheck"`, `"aishellcheck_category_sweep"`, `"compromised_agent"`, `"collusion_side_task"` |
+| `swe_bench_defense_preset` | string | Defense preset: `"file_monitor"`, `"diff_monitor"`, `"full"`, `"sysprompt"`, `"llm_monitor"`, `"guardian"`, `"dual_llm"` |
 
 ---
 

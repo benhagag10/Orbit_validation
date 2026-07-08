@@ -71,10 +71,9 @@ class BrowserARTScenarioConfig(BaseModel, frozen=True):
     data_path: str | None = None
     """Explicit path to hbb.json. If None, uses bundled package data."""
 
-    dataset: Literal["hbb", "hbb_hr", "hbb_benign", "hbb_extension"] = "hbb"
+    dataset: Literal["hbb", "hbb_benign", "hbb_extension"] = "hbb"
     """Dataset variant:
     - hbb: Main 100 harmful browser behaviors
-    - hbb_hr: Human-rewritten variants
     - hbb_benign: Benign behaviors for sanity checks
     - hbb_extension: 10 multi-step cross-platform attack campaigns (IDs 227-236)
     """

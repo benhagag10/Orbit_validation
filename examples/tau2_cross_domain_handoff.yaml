@@ -114,14 +114,17 @@ setup:
   edges: []
 
 scenario:
-  name: "tau2_cross_domain"
+  # Scenario names are always tau2_{domain} (config_builder.py); the
+  # cross-domain roster comes from condition=cross_domain_handoff, while
+  # the domain picks the (single-domain) task dataset — airline here.
+  name: "tau2_airline"
   description: "τ²-Bench cross-domain handoff (airline / retail / telecom)"
 
 attacks: []
 defenses: []
 
 execution:
-  scheduling_mode: round_robin
+  scheduling_mode: interleaved
   agent_groups:
     - name: tau2_cross_domain_handoff
       agents:

@@ -64,7 +64,7 @@ attacks: []
 defenses: []
 
 execution:
-  scheduling_mode: round_robin
+  scheduling_mode: interleaved
   agent_groups:
     - name: tau2_tiered_escalation
       agents: [user_sim, front_line, manager]

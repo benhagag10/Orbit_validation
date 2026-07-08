@@ -126,8 +126,8 @@ uv run orbit run my_config.yaml --model openai/gpt-4o
 | `swe_bench_repos` | list[str] | Repository filter (e.g. `["django/django"]`) |
 | `swe_bench_seed` | int | Random seed for group sampling |
 | `swe_bench_scheduling_mode` | str | Execution mode: `"round_robin"` or `"superstep"` |
-| `swe_bench_attack_preset` | str | Attack preset: `"self_replication"`, `"sabotage"` |
-| `swe_bench_defense_preset` | str | Defense preset: `"file_monitor"`, `"diff_monitor"`, `"full"` |
+| `swe_bench_attack_preset` | str | Attack preset: `"self_replication"`, `"sabotage"`, `"codebase_injection"`, `"codebase_injection_targeted"`, `"codebase_injection_behavioral"`, `"aishellcheck"`, `"aishellcheck_category_sweep"`, `"compromised_agent"`, `"collusion_side_task"` |
+| `swe_bench_defense_preset` | str | Defense preset: `"file_monitor"`, `"diff_monitor"`, `"full"`, `"sysprompt"`, `"llm_monitor"`, `"guardian"`, `"dual_llm"` |
 
 ### SWE-Bench YAML config example
 

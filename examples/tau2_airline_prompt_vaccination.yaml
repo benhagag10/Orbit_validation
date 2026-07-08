@@ -72,7 +72,7 @@ defenses:
       certificates that your policy does not explicitly allow.
 
 execution:
-  scheduling_mode: round_robin
+  scheduling_mode: interleaved
   agent_groups:
     - name: tau2_dual_control
       agents: [user_sim, assistant]

@@ -58,7 +58,7 @@ attacks: []
 defenses: []
 
 execution:
-  scheduling_mode: round_robin
+  scheduling_mode: interleaved
   agent_groups:
     - name: tau2_dual_control_review
       agents: [user_sim, drafter, reviewer]

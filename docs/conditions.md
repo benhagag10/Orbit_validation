@@ -8,7 +8,7 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_ro
 uv run orbit browserart -m openai/gpt-4o --agents specialist --memory full
 ```
 
-> **Note:** Conditions are specific to BrowserART. The SWE-Bench scenario uses its own topology and preset system (see `--topology`, `--attack-preset`, `--defense-preset`). See [Scenarios](scenarios.md) for SWE-Bench configuration.
+> **Note:** This page documents the BrowserART condition presets. Most scenarios ship their own condition registry (BrowserART, SWE-Bench, OSWorld, RedCode-Gen, CodeIPI, BigCodeBench, ConVerse; τ²-Bench and AgentHarm derive rosters natively from their condition) — see the scenario-support table in [Configuration](configuration.md) and per-scenario `-T` parameters in [Scenarios](scenarios.md).
 
 You can also use `inspect eval` with `-T` flags:
 

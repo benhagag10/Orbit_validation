@@ -7,7 +7,7 @@
 #   # with the session-1 MemoryPoisonLog state):
 #   python scripts/run_converse_cross_session.py \
 #       --model openai/gpt-4o \
-#       --persona-ids travel_p1 \
+#       --persona-ids travel_persona_1 \
 #       --max-turns 4 \
 #       --memory-preset assistant_environment_shared
 #

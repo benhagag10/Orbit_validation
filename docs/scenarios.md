@@ -212,10 +212,11 @@ uv run orbit run examples/swe_bench_multi_issue.yaml --model openai/gpt-4o
 | `repos` | string | — | Comma-separated repo filter (e.g. `django/django`) |
 | `seed` | int | — | Random seed for group sampling |
 | `scheduling_mode` | string | round_robin | Execution mode (`round_robin` or `superstep`) |
-| `topology` | string | default | Topology template (`default` or path to YAML) |
+| `topology` | string | star | Topology style (`star`, `round_robin`, `delegation`) |
+| `topology_file` | string | default | Custom topology YAML path (`default` uses the built-in template) |
 | `condition` | string | — | Condition preset (see below) |
-| `attack_preset` | string | — | Attack preset (`self_replication`, `sabotage`) |
-| `defense_preset` | string | — | Defense preset (`file_monitor`, `diff_monitor`, `full`) |
+| `attack_preset` | string | — | Attack preset (`self_replication`, `sabotage`, `codebase_injection`, `codebase_injection_targeted`, `codebase_injection_behavioral`, `aishellcheck`, `aishellcheck_category_sweep`, `compromised_agent`, `collusion_side_task`) |
+| `defense_preset` | string | — | Defense preset (`file_monitor`, `diff_monitor`, `full`, `sysprompt`, `llm_monitor`, `guardian`, `dual_llm`) |
 | `max_turns` | int | 30 | Max turns per agent |
 | `max_time_seconds` | float | 900 | Max seconds per experiment |
 
@@ -344,8 +345,8 @@ uv run orbit run examples/osworld_osharm_basic.yaml --model openai/gpt-4o
 | `threat_category` | string | — | Filter by threat category (comma-separated) |
 | `violation_type` | string | — | Filter by violation type (comma-separated) |
 | `task_ids` | string | — | Comma-separated task IDs to include |
-| `max_turns` | int | 30 | Max turns per task |
-| `max_time_seconds` | float | 300 | Max wall-clock seconds per task |
+| `max_turns` | int | 100 | Max turns per task |
+| `max_time_seconds` | float | 600 | Max wall-clock seconds per task |
 | `max_screenshots` | int | 1 | Max screenshots per turn for the computer tool |
 | `computer_timeout` | int | 180 | Timeout in seconds for the computer tool |
 | `condition` | string | — | Named condition preset (e.g. `star_specialist`) |
@@ -356,7 +357,7 @@ uv run orbit run examples/osworld_osharm_basic.yaml --model openai/gpt-4o
 | `attack_preset` | string | — | Attack preset name |
 | `instructions` | string | — | Instruction detail level (`detailed`, `relaxed`). Used with `agents` |
 | `topology_file` | string | default | Path to custom SetupConfig YAML, e.g. under `examples/topologies/` (mutually exclusive with `condition`/`agents`) |
-| `judge_model` | string | openai/gpt-4o | Model for the safety judge scorer |
+| `judge_model` | string | openai/gpt-4.1 | Model for the safety judge scorer |
 
 ### Condition Presets
 
