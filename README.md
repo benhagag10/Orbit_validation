@@ -88,13 +88,14 @@ uv run inspect view
 
 ## Scenarios
 
-Orbit includes 11 scenarios organized into 5 families:
+Orbit includes 12 scenarios organized into 6 families:
 
 | Family | Scenarios | Action Space |
 |--------|-----------|-------------|
 | **Coding** | SWE-Bench, RedCode-Gen, BigCodeBench, CodeIPI | File edits, shell, tests in real repos |
 | **Desktop** | OSWorld / OS-Harm | GUI primitives over virtual desktop |
 | **Browser** | BrowserART | Web actions over accessibility tree |
+| **Tool safety** | AgentHarm | Tool-use over external APIs |
 | **Customer Service** | &tau;&sup2;-Bench, ConVerse | Policy-bound tool calls, dual-control loops |
 | **Cooperative Allocation** | Hospital, JiraTicket, MeetSched | DCOP resource allocation |
 
