@@ -120,6 +120,7 @@ plt.tight_layout()
 
 # Save
 out_dir = Path(__file__).parent.parent / "figures"
+out_dir.mkdir(parents=True, exist_ok=True)
 plt.savefig(out_dir / "asr_heatmap.pdf", bbox_inches="tight", dpi=300)
 plt.savefig(out_dir / "asr_heatmap.png", bbox_inches="tight", dpi=300)
 print(f"Saved to {out_dir / 'asr_heatmap.pdf'} and .png")

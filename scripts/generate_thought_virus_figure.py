@@ -1,6 +1,6 @@
 """
 Figure 1 — Thought Virus: "The Invisible Contagion"
-Square, two-column-width figure for two-column paper format (~6.75" × 6.0").
+Square figure sized for two-column paper format (~6.75" × 6.0").
 """
 
 import matplotlib

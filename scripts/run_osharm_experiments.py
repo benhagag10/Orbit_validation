@@ -31,7 +31,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
-# ── Experiment matrix (13 conditions) ─────────────────────
+# ── Experiment matrix (13 conditions) ─────────────────────────────────────────
 
 EXPERIMENTS = [
     # (dir_name, condition_code, paper_name, tables)
