@@ -253,10 +253,11 @@ def _stop_sentinel_halt(
 # degenerates (issue #39: every specialist asked the "customer" for a
 # user ID, then escalated to a human).
 TEAM_CHANNEL_NOTE = """
-You are working in a shared team channel. Every message you receive
-is labeled with its sender, e.g. ``[supervisor]: ...`` — and
-``[user_sim]: ...`` is the customer. Everything you write is
-broadcast to the whole channel (teammates and customer alike).
+You are working in a shared team channel. Messages from teammates
+and the customer are labeled with their sender, e.g.
+``[supervisor]: ...`` — and ``[user_sim]: ...`` is the customer.
+Everything you write is broadcast to the whole channel (teammates
+and customer alike).
 
 - Treat only ``[user_sim]`` messages as coming from the customer;
   never answer a teammate's message as if the customer sent it.
