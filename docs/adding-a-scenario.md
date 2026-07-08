@@ -466,8 +466,7 @@ as the real `expand` so the two cannot drift. Most scenarios leave it `None`
 
 Set `topology_source=TopologySource.SCENARIO` when your scenario **derives its
 roster from its own condition selector and deliberately ignores `config.setup`**
-— the τ²-Bench and AgentHarm pattern, where each task/behavior builds a native
-per-domain roster. Consequences:
+— the τ²-Bench pattern, where each task builds a native per-domain roster. Consequences:
 
 - The topology floor is **skipped** (there is no `config.setup` roster to hold
   the line at).
@@ -477,17 +476,17 @@ per-domain roster. Consequences:
   declared inline `setup` against what the condition will build.
 
 To make that arbitration precise, give the `ShorthandSpec` two extra fields and
-leave `condition` as `None` (AgentHarm, `orbit/scenarios/agentharm/task.py`):
+leave `condition` as `None` (τ²-Bench, `orbit/scenarios/customer_service/tau2/task.py`):
 
 ```python
 ScenarioPlugin(
-    name="agentharm",
+    name="tau2",
     shorthand=ShorthandSpec(
-        prefix="agentharm",
+        prefix="tau2",
         expected_roster=_expected_roster,     # names the condition will build
-        default_condition="single_agent",     # assumed when no *_condition key
+        default_condition="dual_control",     # assumed when no *_condition key
     ),
-    expand=_agentharm_expand,                  # reads agentharm_condition itself
+    expand=_tau2_expand,                      # reads tau2_condition itself
     ...
     topology_source=TopologySource.SCENARIO,
 )

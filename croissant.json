@@ -37,7 +37,7 @@
   "@type": "sc:Dataset",
   "conformsTo": "http://mlcommons.org/croissant/1.0",
   "name": "Orbit",
-  "description": "Orbit is a configuration-driven framework for evaluating the security of multi-agent LLM systems. Built as a plugin on Inspect AI, it provides 12 scenarios across 5 families, 9 attack types spanning 4 threat categories, and 4 defense categories. This metadata describes the four new artifacts Orbit introduces beyond its source benchmarks.",
+  "description": "Orbit is a configuration-driven framework for evaluating the security of multi-agent LLM systems. Built as a plugin on Inspect AI, it provides 11 scenarios across 5 families, 9 attack types spanning 4 threat categories, and 4 defense categories. This metadata describes the four new artifacts Orbit introduces beyond its source benchmarks.",
   "url": "https://anonymous.4open.science/r/orbit-D1A9/",
   "license": "https://www.apache.org/licenses/LICENSE-2.0",
   "version": "0.1.0",
