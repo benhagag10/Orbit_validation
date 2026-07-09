@@ -132,13 +132,14 @@ Every experiment is one **configuration** — which agents, how they connect, an
 You can specify it at three levels, each a shorthand for the next:
 
 - **Flags** — quick: `--agents specialist --memory full`
-- **Condition** — a name for a ready-made setup: `--condition memory_full`
-- **YAML** — that condition written out in full, which you can read and edit:
-  `orbit run orbit/scenarios/conditions/browserart/memory_full.yaml`
+- **Preset** — a name for a ready-made setup: `--preset memory_full`
+- **YAML** — the same setup as a complete config file you can open, copy, and edit:
+  `orbit run orbit/scenarios/browser/browserart/presets/memory_full.yaml`
 
-All three run the same thing: the flags pick a condition, the condition loads a YAML, and the YAML is
-the full config. Open any file under `orbit/scenarios/conditions/<scenario>/` to see exactly what a
-condition is, or copy one and tweak it.
+All three run the same thing: the flags pick a preset, `--preset NAME` loads its YAML, and the YAML is
+the full config. A preset is just a pre-baked config; each shipped scenario comes with its own set
+under `orbit/scenarios/<family>/<scenario>/presets/` — open one to see exactly what a preset is, or
+copy it and tweak it. See [Presets](docs/presets.md) for the full reference.
 
 Three ways to run experiments:
 
@@ -268,7 +269,7 @@ See [Scenario Requirements](docs/scenarios.md) for full per-scenario setup.
 
 - [Architecture](docs/architecture.md) — data flow, orchestrator, scenario plugins
 - [Configuration](docs/configuration.md) — CLI flags, `-T` params, and the full YAML schema
-- [Conditions](docs/conditions.md) — multi-agent condition presets
+- [Presets](docs/presets.md) — multi-agent presets
 - [Scenarios](docs/scenarios.md) — per-scenario setup and requirements
 - [Evaluation](docs/evaluation.md) — scorers, metrics, and construct validity
 - [Adding a New Scenario](docs/adding-a-scenario.md) — authoring guide for the scenario plugin kit

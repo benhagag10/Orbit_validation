@@ -1,30 +1,36 @@
-# Conditions Reference
+# Presets Reference
 
-**A condition is just a pre-baked config.** Each named condition is a saved
+**A preset is just a pre-baked config.** Each named preset is a saved
 [`SetupConfig`](configuration.md#yaml-schema-reference) — the agents, network topology, memory, and
-prompts — written in the general orbit syntax. Conditions are *worked examples* of that syntax, not
-a separate system: you can run one by name, or copy its YAML and edit it into your own experiment.
+prompts — written in the general Orbit config syntax. Presets are *worked examples* of that syntax,
+not a separate system: you can run one by name, or copy its YAML and edit it into your own experiment.
 
-Every scenario shares this system (not just BrowserART). Each scenario ships its conditions as
-runnable configs under `orbit/scenarios/conditions/<scenario>/<name>.yaml`; the shared loader
-`orbit/scenarios/conditions.py` resolves them. Pick a condition three equivalent ways:
+Each scenario that ships with Orbit comes with its own set of presets. The shipped scenarios share one
+loading mechanism, but the presets themselves are per-scenario: a scenario ships them as runnable
+configs under `orbit/scenarios/<family>/<scenario>/presets/<name>.yaml`. A new scenario does not
+inherit any presets — its author ships their own (see
+[Adding a New Scenario](adding-a-scenario.md)) — and you can always write a full YAML config from
+scratch or copy an existing preset as a starting point.
+
+Pick a preset three equivalent ways:
 
 ```bash
 # 1. Friendly flags (quick exploration)
 uv run orbit browserart -m openai/gpt-4o --agents specialist --memory full
 
 # 2. By name
-uv run orbit browserart -m openai/gpt-4o --condition memory_full
+uv run orbit browserart -m openai/gpt-4o --preset memory_full
 
-# 3. As a config you can read and edit — the transparent form of the two above
-uv run orbit run orbit/scenarios/conditions/browserart/memory_full.yaml -m openai/gpt-4o
+# 3. As the same setup in a complete config file you can open, copy, and edit
+uv run orbit run orbit/scenarios/browser/browserart/presets/memory_full.yaml -m openai/gpt-4o
 ```
 
-The three are interchangeable: the flags resolve to a condition name, and the name loads the shipped
-YAML. To see exactly what a condition is, open its file — it is the whole experiment in plain syntax.
+The three are interchangeable: the flags resolve to a preset name, and `--preset NAME` loads the
+shipped YAML. To see exactly what a preset is, open its file — it is the whole experiment in plain
+config syntax.
 
 > **Note:** τ²-Bench builds its agent roster per task (tools depend on the sample), so it resolves
-> conditions natively rather than from a static file; the flags and names work the same, but there
+> preset names natively rather than from a static file; the flags and names work the same, but there
 > is no shipped YAML to open.
 
 You can also use `inspect eval` with `-T` flags:
@@ -37,9 +43,9 @@ uv run inspect eval orbit/browserart_safety \
 
 ## In a YAML config
 
-Conditions are also selectable from an `orbit run` YAML via a scenario-prefixed
-`metadata` key — `<prefix>_condition`, e.g. `browserart_condition` or
-`swe_bench_condition` (see the
+Presets are also selectable from an `orbit run` YAML via a scenario-prefixed
+`metadata` key — `<prefix>_preset`, e.g. `browserart_preset` or
+`swe_bench_preset` (see the
 [shorthand table](configuration.md#scenario-shorthand-metadata-keys) for which
 scenarios support it):
 
@@ -47,19 +53,19 @@ scenarios support it):
 scenario:
   name: "browserart"
 metadata:
-  browserart_condition: "star_specialist"
+  browserart_preset: "star_specialist"
 ```
 
-Declare **either** a `<prefix>_condition` **or** an inline `setup:` block, not
-both. If both are present the **condition wins**: a `setup.agents` roster that
-differs from the condition's raises a `ShorthandConflictError`
+Declare **either** a `<prefix>_preset` **or** an inline `setup:` block, not
+both. If both are present the **preset wins**: a `setup.agents` roster that
+differs from the preset's raises a `ShorthandConflictError`
 (`ORBIT_LENIENT=1` downgrades it to a warning), and a matching roster is dropped
 as redundant. (This precedence reversed with the scenario authoring kit — an
-inline setup no longer overrides a condition.)
+inline setup no longer overrides a preset.)
 
 ## Overview
 
-The conditions decompose into three independent dimensions:
+To select a multi-agent preset, the friendly flags decompose into three independent dimensions:
 
 | Flag | Values | What it controls |
 |------|--------|-----------------|
@@ -70,6 +76,13 @@ The conditions decompose into three independent dimensions:
 Defaults: `--agents single`, `--topology star`, `--memory none`.
 
 There is also `--instructions` (`detailed` or `relaxed`) which controls prompt specificity, but this is rarely needed.
+
+> **Rosters vary by scenario.** The `--agents` / `--topology` / `--memory` flags work the same
+> everywhere, but the *specialist roster* a preset produces is scenario-specific. The tables and
+> diagrams below use BrowserART's roster (click, fill, scroll, navigate) as the worked example. For
+> another scenario's actual roster, open its `presets/` YAMLs (e.g.
+> `orbit/scenarios/coding/swe_bench/presets/`, whose specialists are implementation, debugging,
+> testing, and review).
 
 ## Agents
 
@@ -142,9 +155,9 @@ All agents can communicate. In round-robin, they take fixed turns. In delegation
 
 ## Parameter Mapping
 
-The full mapping from `--agents` / `--topology` / `--memory` to conditions:
+The full mapping from `--agents` / `--topology` / `--memory` to presets:
 
-| `--agents` | `--topology` | `--memory` | Condition |
+| `--agents` | `--topology` | `--memory` | Preset |
 |------------|-------------|-----------|-----------|
 | `single` | `star` | `none` | `single_agent` |
 | `batch` | `star` | `none` | `star_batch` |
