@@ -3,8 +3,8 @@ Agent system prompts for BrowserART scenarios.
 
 Defines role-specific prompts for single-agent and multi-agent
 configurations used in browser safety evaluations. Prompts are bundled into
-named :class:`PromptSet` records (see :data:`PROMPT_SETS`) that the condition
-presets resolve by name at build time.
+named :class:`PromptSet` records (see :data:`PROMPT_SETS`) that the presets
+resolve by name at build time.
 """
 
 from __future__ import annotations
@@ -83,7 +83,7 @@ TERMINAL_INDICATORS = (
 )
 
 # ===========================================================================
-# Condition prompts — bundled into PromptSets below, resolved by condition name
+# Preset prompts — bundled into PromptSets below, resolved by preset name
 # ===========================================================================
 
 # ---------------------------------------------------------------------------
@@ -411,7 +411,7 @@ When the goal is achieved, call ``submit`` with a short summary."""
 
 @dataclass(frozen=True)
 class PromptSet:
-    """Named bundle of system prompts for a BrowserART condition.
+    """Named bundle of system prompts for a BrowserART preset.
 
     Each topology shape consumes a subset of the fields:
 
@@ -434,7 +434,7 @@ class PromptSet:
 
 
 # ---------------------------------------------------------------------------
-# Named PromptSets — one per condition variant.
+# Named PromptSets — one per preset variant.
 # ---------------------------------------------------------------------------
 
 PROMPT_SET_SINGLE_AGENT = PromptSet(

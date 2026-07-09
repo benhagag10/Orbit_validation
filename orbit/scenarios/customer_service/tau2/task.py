@@ -5,9 +5,9 @@ Registered with Inspect via ``orbit/_registry.py``. Produces one
 Inspect ``Sample`` per tau2 task and wires up the tau2 scorer on top
 of the generic security scorer.
 
-A single ``condition`` selector picks the topology preset and the
-execution mode it implies: ``condition='solo'`` (PR 1, Orbit-specific
-airline-only single-agent baseline) and ``condition='dual_control'``
+A single ``preset`` selector picks the topology and the
+execution mode it implies: ``preset='solo'`` (PR 1, Orbit-specific
+airline-only single-agent baseline) and ``preset='dual_control'``
 (PR 2, upstream-faithful user simulator ↔ assistant loop), plus the
 PR 4 multi-agent presets, against the airline, retail, and telecom
 domains.
@@ -34,7 +34,7 @@ from orbit.scenarios.customer_service.tau2.dataset_builder import (
     load_policy,
     load_tau2_tasks,
 )
-from orbit.scenarios.customer_service.tau2.presets import get_defense_preset
+from orbit.scenarios.customer_service.tau2.security_presets import get_defense_preset
 from orbit.scenarios.customer_service.tau2.scorer import (
     _apply_env_function_calls,
     _initialization_calls,
@@ -204,9 +204,9 @@ def _build_setup_solver(
 
 
 _SUPPORTED_DOMAINS = ("airline", "retail", "telecom")
-# Named topology presets selectable via ``-T condition=...``. ``solo`` is the
+# Named topology presets selectable via ``-T preset=...``. ``solo`` is the
 # single-agent (solo-mode) baseline; every other value runs dual-control.
-_SUPPORTED_CONDITIONS = (
+_SUPPORTED_PRESETS = (
     "solo",
     "dual_control",
     "supervisor_specialist",
@@ -242,15 +242,15 @@ def _scenario_config(config: ExperimentConfig) -> Tau2ScenarioConfig:
     if domain not in _SUPPORTED_DOMAINS:
         domain = "airline"
     # One named selector covers both the topology preset and the execution
-    # mode: ``condition='solo'`` is the single-agent baseline, every other
+    # mode: ``preset='solo'`` is the single-agent baseline, every other
     # value runs dual-control.
-    condition = meta.get("tau2_condition", "dual_control")
-    mode = "solo" if condition == "solo" else "dual_control"
+    preset = meta.get("tau2_preset", "dual_control")
+    mode = "solo" if preset == "solo" else "dual_control"
     return Tau2ScenarioConfig(
         domain=domain,  # type: ignore[arg-type]
         task_ids=_parse_csv(meta.get("tau2_task_ids")),
         mode=mode,  # type: ignore[arg-type]
-        topology=condition,  # type: ignore[arg-type]
+        topology=preset,  # type: ignore[arg-type]
         judge_model=meta.get("tau2_judge_model", "openai/gpt-4.1"),
         max_turns=config.scheduler.max_turns,
         max_time_seconds=config.scheduler.max_time_seconds,
@@ -303,11 +303,11 @@ def _tau2_scorers(config: ExperimentConfig) -> list:
     ]
 
 
-def _expected_roster(config: ExperimentConfig, condition: str) -> set[str] | None:
-    """Roster the tau2 condition will build (domain-dependent specialists)."""
+def _expected_roster(config: ExperimentConfig, preset: str) -> set[str] | None:
+    """Roster the tau2 preset will build (domain-dependent specialists)."""
     from orbit.scenarios.customer_service.tau2.topologies import expected_agent_names
 
-    return expected_agent_names(condition, _scenario_config(config).domain)
+    return expected_agent_names(preset, _scenario_config(config).domain)
 
 
 # Default to 1 epoch with pass^1 / pass^2 / pass^4 reducers wired in. Running
@@ -316,15 +316,15 @@ def _expected_roster(config: ExperimentConfig, condition: str) -> set[str] | Non
 TAU2_PLUGIN = register_scenario(
     ScenarioPlugin(
         name="tau2",
-        # tau2 builds its roster per task from tau2_condition (SCENARIO
-        # topology source): the condition key is consumed by expand, and the
+        # tau2 builds its roster per task from tau2_preset (SCENARIO
+        # topology source): the preset key is consumed by expand, and the
         # shared resolver arbitrates any inline setup against the roster the
-        # condition actually builds (issue #32) instead of warning every run.
+        # preset actually builds (issue #32) instead of warning every run.
         shorthand=ShorthandSpec(
             prefix="tau2",
             defense_preset=get_defense_preset,
             expected_roster=_expected_roster,
-            default_condition="dual_control",
+            default_preset="dual_control",
         ),
         expand=_tau2_expand,
         build_setup=_tau2_setup,
@@ -344,7 +344,7 @@ TAU2_PLUGIN = register_scenario(
 def tau2(
     domain: str = "airline",
     task_ids: str | None = None,
-    condition: str = "dual_control",
+    preset: str = "dual_control",
     defense_preset: str | None = None,
     judge_model: str = "openai/gpt-4.1",
     max_turns: int = 100,
@@ -356,7 +356,7 @@ def tau2(
     Supports three domains, selected with ``-T domain=...``:
 
     - ``domain='airline'`` — 50 reservation tasks, reward_basis
-      ``[DB, COMMUNICATE]``. The only domain where ``condition='solo'``
+      ``[DB, COMMUNICATE]``. The only domain where ``preset='solo'``
       is accepted (as an Orbit-specific baseline; upstream rejects
       airline solo mode).
     - ``domain='retail'`` — 114 order-management tasks, reward_basis
@@ -370,17 +370,17 @@ def tau2(
       env) and the user simulator gets a 30-tool device-diagnostics
       tool set.
 
-    The ``condition`` parameter is the single named selector for the
-    topology preset *and* the execution mode it implies:
+    The ``preset`` parameter is the single named selector for the
+    topology *and* the execution mode it implies:
 
-    - ``condition='dual_control'`` (default): upstream-faithful
+    - ``preset='dual_control'`` (default): upstream-faithful
       round-robin user simulator ↔ assistant loop with ``peer_messages``
       observation and the ``check_tau2_stop_sentinels`` halt condition
       (``###STOP###`` / ``###TRANSFER###`` / ``###OUT-OF-SCOPE###``).
-    - ``condition='solo'`` (airline only): single-agent baseline with the
+    - ``preset='solo'`` (airline only): single-agent baseline with the
       user scenario rendered into the assistant's system prompt as a
       ticket. Orbit-specific.
-    - ``condition='supervisor_specialist'`` / ``'tiered_escalation'`` /
+    - ``preset='supervisor_specialist'`` / ``'tiered_escalation'`` /
       ``'mesh_committee'`` / ``'dual_control_review'`` /
       ``'cross_domain_handoff'``: Orbit-specific multi-agent shapes, all
       running under dual-control. See ``topologies.py`` for each preset's
@@ -395,12 +395,12 @@ def tau2(
         domain: ``'airline'``, ``'retail'``, or ``'telecom'``.
         task_ids: Comma-separated tau2 task IDs to include
             (e.g. ``'1,2,3'``).
-        condition: Named topology preset — one of ``'solo'`` (airline
+        preset: Named topology preset — one of ``'solo'`` (airline
             only), ``'dual_control'`` (default), ``'supervisor_specialist'``,
             ``'tiered_escalation'``, ``'mesh_committee'``,
             ``'dual_control_review'``, ``'cross_domain_handoff'``.
         defense_preset: Named defense preset from
-            :mod:`orbit.scenarios.customer_service.tau2.presets`
+            :mod:`orbit.scenarios.customer_service.tau2.security_presets`
             (``'prompt_vaccination'`` or ``'dual_llm'``). ``None`` (default)
             runs undefended. The preset applies to every agent in the resolved
             roster (see that module for the ``target_agents=[]`` rationale).
@@ -417,26 +417,26 @@ def tau2(
             f"Domain '{domain}' is not supported. Expected one of "
             f"{_SUPPORTED_DOMAINS}."
         )
-    if condition not in _SUPPORTED_CONDITIONS:
+    if preset not in _SUPPORTED_PRESETS:
         raise ValueError(
-            f"Condition '{condition}' is not supported. Expected one of "
-            f"{_SUPPORTED_CONDITIONS}."
+            f"Preset '{preset}' is not supported. Expected one of "
+            f"{_SUPPORTED_PRESETS}."
         )
-    # ``solo`` is the only single-agent condition; everything else is
-    # dual-control. The mode is fully determined by the condition.
-    mode = "solo" if condition == "solo" else "dual_control"
+    # ``solo`` is the only single-agent preset; everything else is
+    # dual-control. The mode is fully determined by the preset.
+    mode = "solo" if preset == "solo" else "dual_control"
     if mode == "solo" and domain != "airline":
         raise ValueError(
-            f"condition='solo' is an Orbit-specific baseline only wired for "
+            f"preset='solo' is an Orbit-specific baseline only wired for "
             f"airline (upstream rejects airline-solo too). Use "
-            f"condition='dual_control' for {domain!r}."
+            f"preset='dual_control' for {domain!r}."
         )
 
     scenario_config = Tau2ScenarioConfig(
         domain=domain,  # type: ignore[arg-type]
         task_ids=_parse_csv(task_ids),
         mode=mode,  # type: ignore[arg-type]
-        topology=condition,  # type: ignore[arg-type]
+        topology=preset,  # type: ignore[arg-type]
         judge_model=judge_model,
         max_turns=max_turns,
         max_time_seconds=max_time_seconds,
@@ -458,7 +458,7 @@ def tau2(
 
     config = ExperimentConfig(
         name=f"tau2_{domain}",
-        description=f"τ²-Bench {domain} ({condition})",
+        description=f"τ²-Bench {domain} ({preset})",
         scenario=ScenarioConfig(
             name=f"tau2_{domain}",
             description=f"τ²-Bench {domain} customer-service scenario",

@@ -79,9 +79,16 @@ include = ["orbit*"]
 "orbit.scenarios.coding.swe_bench._vendor" = ["LICENSE.inspect_evals"]
 "orbit.scenarios.customer_service.tau2" = ["LICENSE.tau2"]
 "orbit.scenarios.customer_service.tau2.data" = ["**/*.json", "**/*.md", "**/*.toml", "README.md"]
-# Shipped condition configs (a condition == a pre-baked SetupConfig in the general
-# orbit syntax). Loaded at runtime by orbit/scenarios/conditions.py.
-"orbit.scenarios" = ["conditions/*/*.yaml"]
+# Shipped topology presets (a preset == a pre-baked SetupConfig in the general
+# orbit syntax), one presets/ dir per scenario. Loaded at runtime by each
+# scenario's preset_registry via the shared orbit/scenarios/presets.py loader.
+"orbit.scenarios.browser.browserart" = ["presets/*.yaml"]
+"orbit.scenarios.coding.swe_bench" = ["presets/*.yaml"]
+"orbit.scenarios.coding.redcode_gen" = ["presets/*.yaml"]
+"orbit.scenarios.coding.bigcodebench" = ["presets/*.yaml"]
+"orbit.scenarios.coding.code_ipi" = ["presets/*.yaml"]
+"orbit.scenarios.desktop.osworld" = ["presets/*.yaml"]
+"orbit.scenarios.customer_service.converse" = ["presets/*.yaml"]
 
 [tool.pytest.ini_options]
 markers = [

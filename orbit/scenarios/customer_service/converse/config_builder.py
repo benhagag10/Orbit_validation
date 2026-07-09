@@ -146,7 +146,7 @@ def build_experiment_config(
     if attack_factory is not None:
         sample_attacks.extend(attack_factory(sample, target_external))
     elif sample.attack_mode != "benign":
-        from orbit.scenarios.customer_service.converse.presets import build_attacks_for_sample
+        from orbit.scenarios.customer_service.converse.security_presets import build_attacks_for_sample
 
         sample_attacks.extend(
             build_attacks_for_sample(sample, target_agent=target_external)

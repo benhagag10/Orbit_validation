@@ -3,7 +3,7 @@ Config builder for BrowserART experiments.
 
 Converts BrowserARTBehavior + topology template into ExperimentConfig
 objects that can be evaluated by the Orbit orchestrator. Every
-condition drives the persistent ``browserart-service`` container via
+preset drives the persistent ``browserart-service`` container via
 scenario tools — there is no per-sample sandbox.
 """
 
@@ -49,8 +49,8 @@ SINGLE_AGENT_BROWSER_TOOLS: list[str] = [
 def default_topology_template() -> SetupConfig:
     """Return a single browser agent template as the default topology.
 
-    All browserart conditions drive the persistent browserart-service via
-    the scenario tool registry. The default (no ``--condition``) is the
+    All browserart presets drive the persistent browserart-service via
+    the scenario tool registry. The default (no ``--preset``) is the
     single-agent baseline — the shared-state path with one ``react()`` loop.
     """
     return SetupConfig(
@@ -101,7 +101,7 @@ def build_experiment_config(
         attacks: Attack configurations.
         defenses: Defense configurations.
         execution: Optional ``ExecutionConfig`` (e.g. scheduled execution for
-            mesh conditions). Falls back to the default single-path config.
+            mesh presets). Falls back to the default single-path config.
     """
     from orbit.scenarios.browser.browserart.configs import BrowserARTScenarioConfig
 
@@ -181,8 +181,8 @@ def build_experiment_config(
                 "agent_count": len(topology_template.agents),
             },
             **(
-                {"browserart_resolved_condition": topology_template.properties["condition_type"]}
-                if topology_template and "condition_type" in topology_template.properties
+                {"browserart_resolved_preset": topology_template.properties["preset_type"]}
+                if topology_template and "preset_type" in topology_template.properties
                 else {}
             ),
         },
@@ -206,7 +206,7 @@ def build_experiment_configs(
         defenses: Defense configurations.
         behaviors: Pre-loaded behaviors.  If *None*, loads from config.
         execution: Optional ``ExecutionConfig`` propagated to every config
-            (e.g. scheduled execution from a mesh condition preset).
+            (e.g. scheduled execution from a mesh topology preset).
     """
     from orbit.scenarios.browser.browserart.configs import BrowserARTScenarioConfig
     from orbit.scenarios.browser.browserart.dataset_builder import (

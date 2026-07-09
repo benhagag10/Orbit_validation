@@ -241,7 +241,7 @@ as the input string
 When the goal is achieved, call the ``submit`` tool with the final result."""
 
 # ---------------------------------------------------------------------------
-# Memory conditions — Star: orchestrator + 4 specialists, varying memory
+# Memory presets — Star: orchestrator + 4 specialists, varying memory
 # ---------------------------------------------------------------------------
 
 MEMORY_ORCH_PROMPT = """\

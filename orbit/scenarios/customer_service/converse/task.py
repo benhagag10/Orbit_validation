@@ -1,7 +1,7 @@
 """ConVerse ``@task`` entry point.
 
 Thin adapter: parses CLI / YAML parameters, resolves a topology via
-:mod:`.condition_presets` (or a user-supplied YAML), builds one
+:mod:`.preset_registry` (or a user-supplied YAML), builds one
 :class:`ExperimentConfig` per :class:`ConverseSample`, and wires the
 scenario's setup solver + scorer onto the resulting Inspect ``Task``.
 """
@@ -15,9 +15,9 @@ from inspect_ai import Task, task
 from inspect_ai.solver import Solver, TaskState, solver
 from inspect_ai.util import store_as
 
-from orbit.scenarios.customer_service.converse.condition_presets import (
+from orbit.scenarios.customer_service.converse.preset_registry import (
     apply_memory_preset,
-    get_condition_setup,
+    get_preset_setup,
 )
 from orbit.scenarios.customer_service.converse.config_builder import build_experiment_configs
 from orbit.scenarios.customer_service.converse.configs import (
@@ -171,21 +171,21 @@ def _converse_scorers(config: ExperimentConfig) -> list:
 def _shorthand() -> ShorthandSpec:
     """ConVerse YAML shorthand — declarative, resolved by the shared kit.
 
-    ``metadata.converse_condition`` resolves the same named topology presets as
-    ``-T condition=...`` (default ``paper_star``, the factory default);
+    ``metadata.converse_preset`` resolves the same named topology presets as
+    ``-T preset=...`` (default ``paper_star``, the factory default);
     ``converse_defense_preset`` uses the same ``presets`` primitive as the
     ``-T`` factory. ConVerse ships no attack-preset registry (per-sample paper
     attacks are built automatically), so ``attack_preset`` stays ``None`` and a
     ``converse_attack_preset`` key is left untouched. New with the kit — the YAML
-    path previously had no condition/preset reader at all.
+    path previously had no preset reader at all.
     """
-    from orbit.scenarios.customer_service.converse.presets import get_defense_preset
+    from orbit.scenarios.customer_service.converse.security_presets import get_defense_preset
 
     return ShorthandSpec(
         prefix="converse",
-        condition=get_condition_setup,
+        preset=get_preset_setup,
         defense_preset=get_defense_preset,
-        default_setup=lambda: get_condition_setup("paper_star"),
+        default_setup=lambda: get_preset_setup("paper_star"),
     )
 
 
@@ -204,7 +204,7 @@ CONVERSE_PLUGIN = register_scenario(
 
 @task
 def converse_safety(
-    condition: str = "paper_star",
+    preset: str = "paper_star",
     topology_file: str | None = None,
     attack_modes: str = "benign",
     domains: str | None = None,
@@ -226,18 +226,18 @@ def converse_safety(
     """ConVerse contextual-safety benchmark task.
 
     Args:
-        condition: Named topology preset from :mod:`condition_presets`
+        preset: Named topology preset from :mod:`preset_registry`
             (``paper_star``, ``benign_pair``, ``guarded_star``, ``single_agent``,
             ``split_planner``, ``dual_external``, ``hierarchical``,
             ``mesh_trio``, ``specialist_trio``).
         topology_file: Path to a user-supplied :class:`SetupConfig` YAML.
-            Overrides ``condition`` when set. Must satisfy the ConVerse role
+            Overrides ``preset`` when set. Must satisfy the ConVerse role
             contract.
         attack_modes: Comma-separated list from ``benign,privacy,security,both``.
         memory_preset: Named memory preset applied as an overlay on the
             resolved topology (``isolated``, ``assistant_environment_shared``,
             ``assistant_cot_leaked``, ``goal_hidden_from_external``).
-            Orthogonal to ``condition`` — use any topology × any memory.
+            Orthogonal to ``preset`` — use any topology × any memory.
         domains: Comma-separated domain filter (``travel,real_estate,insurance``).
         persona_ids: Comma-separated persona id filter.
         data_categories: Privacy-attack filter (``unrelated,related_private,related_useful``).
@@ -247,7 +247,7 @@ def converse_safety(
         max_time_seconds: Wall-clock ceiling per sample.
         attack_preset: Optional additional attack preset — not required for
             paper reproduction (per-sample attacks are built automatically).
-        defense_preset: Named defense preset from :mod:`presets`.
+        defense_preset: Named defense preset from :mod:`security_presets`.
         data_path: Override the vendored data path.
         memory_poison_seed_file: Optional JSON file containing poisoned memory
             state dumped from a previous session. Used by the cross-session
@@ -290,7 +290,7 @@ def converse_safety(
             topo_data = yaml.safe_load(fh)
         setup = SetupConfig(**topo_data)
     else:
-        setup = get_condition_setup(condition)
+        setup = get_preset_setup(preset)
 
     # --- Optional memory-preset overlay ----------------------------------
     if memory_preset:
@@ -351,7 +351,7 @@ def converse_safety(
             "presets have not been registered yet."
         )
     if defense_preset:
-        from orbit.scenarios.customer_service.converse.presets import get_defense_preset
+        from orbit.scenarios.customer_service.converse.security_presets import get_defense_preset
 
         preset_defenses = get_defense_preset(defense_preset)
 

@@ -2,7 +2,7 @@
 
 An ``orbit run`` YAML may carry scenario *shorthand* in ``config.metadata``:
 
-    ``{prefix}_condition``       — a named topology/memory condition preset
+    ``{prefix}_preset``          — a named topology/memory preset
     ``{prefix}_attack_preset``   — a named attack preset
     ``{prefix}_defense_preset``  — a named defense preset
 
@@ -16,11 +16,11 @@ strip the consumed key → record a ``{prefix}_resolved_*`` breadcrumb.
 
 Conflict policy (issues #31/#32), uniform across every scenario:
 
-* **condition vs inline setup** — the explicit condition WINS. When the inline
-  roster's agent names equal the condition's roster the inline block is treated
+* **preset vs inline setup** — the explicit preset WINS. When the inline
+  roster's agent names equal the preset's roster the inline block is treated
   as redundant documentation and resolution is silent; a *materially differing*
   roster is an error by default (a stray inline ``setup`` silently relabeling a
-  condition sweep is the "mislabeled control" failure at scale), downgradable to
+  preset sweep is the "mislabeled control" failure at scale), downgradable to
   a warning with ``ORBIT_LENIENT=1``.
 * **preset vs inline attacks/defenses** — the inline section WINS and the
   preset is ignored WITH a warning + ``{prefix}_ignored_*_preset`` breadcrumb
@@ -59,7 +59,7 @@ logger = logging.getLogger(__name__)
 class ShorthandConflictError(ValueError):
     """A config declared conflicting or unsatisfiable shorthand.
 
-    Raised (unless ``ORBIT_LENIENT=1``) when a ``{prefix}_condition`` and an
+    Raised (unless ``ORBIT_LENIENT=1``) when a ``{prefix}_preset`` and an
     inline ``setup`` declare materially different rosters, or when a
     resolver-materialised attack targets an agent absent from the runtime
     roster. Both are construct-validity failures: the run would execute with a
@@ -79,32 +79,31 @@ class ShorthandSpec:
     Attach to :class:`~orbit.scenarios.registry.ScenarioPlugin` via its
     ``shorthand`` field; the shared builder / ``orbit validate`` / ``--dry-run``
     all resolve it through :func:`resolve_shorthand`. Every callable takes the
-    preset/condition *name*; resolution mechanics (key reading, conflict
-    arbitration, breadcrumbs, idempotence) live in the shared resolver.
+    preset *name*; resolution mechanics (key reading, conflict arbitration,
+    breadcrumbs, idempotence) live in the shared resolver.
     """
 
     prefix: str
-    """Metadata key prefix: reads ``{prefix}_condition`` /
+    """Metadata key prefix: reads ``{prefix}_preset`` /
     ``{prefix}_attack_preset`` / ``{prefix}_defense_preset``."""
 
-    condition: Callable[[str], Any] | None = None
-    """Resolve a condition name to its topology — a ``SetupConfig``, or an
+    preset: Callable[[str], Any] | None = None
+    """Resolve a preset name to its topology — a ``SetupConfig``, or an
     object with ``.setup`` (and optionally ``.execution``) attributes such as
-    browserart's ``ConditionSetup``. For ``topology_source=SCENARIO`` plugins
-    (tau2) leave this ``None``: their expansion consumes the
-    condition natively and the resolver only *arbitrates* (see
-    ``expected_roster``)."""
+    the shared ``Preset`` browserart returns. For ``topology_source=SCENARIO``
+    plugins (tau2) leave this ``None``: their expansion consumes the preset
+    natively and the resolver only *arbitrates* (see ``expected_roster``)."""
 
     attack_preset: Callable[..., "list[AttackConfig]"] | None = None
     """Resolve an attack-preset name to attack configs. Called with the bare
-    name, or with ``(name, condition=<applied condition or None>)`` when
-    ``preset_takes_condition`` is set."""
+    name, or with ``(name, preset=<applied preset or None>)`` when
+    ``attack_preset_takes_preset`` is set."""
 
     defense_preset: Callable[[str], "list[DefenseConfig]"] | None = None
     """Resolve a defense-preset name to defense configs."""
 
-    preset_takes_condition: bool = False
-    """Pass the applied condition to ``attack_preset`` so the preset can tailor
+    attack_preset_takes_preset: bool = False
+    """Pass the applied topology preset to ``attack_preset`` so it can tailor
     its target agent to the resolved topology (osworld/browserart)."""
 
     default_setup: Callable[[], "SetupConfig"] | None = None
@@ -114,13 +113,13 @@ class ShorthandSpec:
 
     expected_roster: Callable[["ExperimentConfig", str], set[str] | None] | None = None
     """``topology_source=SCENARIO`` plugins only: the agent names the scenario
-    will build for a given condition (and config, e.g. tau2's domain-dependent
-    specialists). Used to arbitrate condition-vs-inline-setup; return ``None``
+    will build for a given preset (and config, e.g. tau2's domain-dependent
+    specialists). Used to arbitrate preset-vs-inline-setup; return ``None``
     for "unknown" to fall back to a warning."""
 
-    default_condition: str | None = None
-    """``topology_source=SCENARIO`` plugins only: the condition the scenario's
-    expansion assumes when no ``{prefix}_condition`` key is declared, so an
+    default_preset: str | None = None
+    """``topology_source=SCENARIO`` plugins only: the preset the scenario's
+    expansion assumes when no ``{prefix}_preset`` key is declared, so an
     inline setup is arbitrated against what will actually run."""
 
 
@@ -146,11 +145,11 @@ def _conflict(message: str) -> None:
 def _arbitrate_scenario_topology(
     config: "ExperimentConfig", spec: ShorthandSpec
 ) -> None:
-    """Condition-vs-inline-setup arbitration for SCENARIO-source plugins.
+    """Preset-vs-inline-setup arbitration for SCENARIO-source plugins.
 
-    SCENARIO-source plugins (tau2) derive their roster from ``{prefix}_condition``
+    SCENARIO-source plugins (tau2) derive their roster from ``{prefix}_preset``
     inside ``expand`` and deliberately ignore ``config.setup``; the key is therefore
-    NOT consumed here. An inline setup whose roster matches what the condition
+    NOT consumed here. An inline setup whose roster matches what the preset
     will build is redundant documentation (group validation forces the block to
     exist — issue #32) and passes silently; a materially different roster means
     the run's actual topology is not the one the config describes.
@@ -158,19 +157,19 @@ def _arbitrate_scenario_topology(
     if not config.setup.agents:
         return
     meta = config.metadata or {}
-    condition = meta.get(f"{spec.prefix}_condition", spec.default_condition)
+    preset = meta.get(f"{spec.prefix}_preset", spec.default_preset)
     inline = _roster(config.setup)
     expected: set[str] | None = None
-    if condition and spec.expected_roster is not None:
+    if preset and spec.expected_roster is not None:
         # The hook's contract: return None for "unknown/unknowable" (expand
-        # reports a bad condition name authoritatively). Exceptions propagate —
+        # reports a bad preset name authoritatively). Exceptions propagate —
         # swallowing them here silently degraded arbitration to a warning.
-        expected = spec.expected_roster(config, str(condition))
+        expected = spec.expected_roster(config, str(preset))
     if expected is not None and inline == expected:
-        return  # redundant documentation of the condition's roster — silent
+        return  # redundant documentation of the preset's roster — silent
     if expected is None:
         logger.warning(
-            "Scenario %r derives its topology from metadata.%s_condition; the "
+            "Scenario %r derives its topology from metadata.%s_preset; the "
             "inline setup.agents (%s) is IGNORED at runtime.",
             spec.prefix,
             spec.prefix,
@@ -179,29 +178,29 @@ def _arbitrate_scenario_topology(
         return
     _conflict(
         f"Scenario {spec.prefix!r} derives its topology from "
-        f"metadata.{spec.prefix}_condition={condition!r}, which builds agents "
+        f"metadata.{spec.prefix}_preset={preset!r}, which builds agents "
         f"{sorted(expected)} — but the inline setup.agents declares "
         f"{sorted(inline)}. The inline setup does NOT run; this config "
         f"mislabels the experiment. Remove setup.agents (or mirror the "
-        f"condition's roster exactly), or change the condition."
+        f"preset's roster exactly), or change the preset."
     )
 
 
-def _resolve_condition(
+def _resolve_preset(
     config: "ExperimentConfig",
     spec: ShorthandSpec,
     meta: dict,
     updates: dict,
 ) -> str | None:
-    """CONFIG-source condition resolution: the explicit condition wins."""
-    key = f"{spec.prefix}_condition"
-    condition = meta.get(key)
-    if not condition:
+    """CONFIG-source preset resolution: the explicit preset wins."""
+    key = f"{spec.prefix}_preset"
+    preset = meta.get(key)
+    if not preset:
         return None
-    if spec.condition is None:
-        return None  # scenario declares no condition registry; leave the key
-    condition = str(condition)
-    resolved = spec.condition(condition)  # unknown name raises here, loudly
+    if spec.preset is None:
+        return None  # scenario declares no preset registry; leave the key
+    preset = str(preset)
+    resolved = spec.preset(preset)  # unknown name raises here, loudly
     setup = getattr(resolved, "setup", resolved)
     execution = getattr(resolved, "execution", None)
     if config.setup.agents:
@@ -209,18 +208,18 @@ def _resolve_condition(
         if inline != target:
             _conflict(
                 f"Config declares BOTH an inline setup.agents topology "
-                f"({sorted(inline)}) and metadata.{key}={condition!r} "
-                f"({sorted(target)}), and the rosters differ. The condition "
+                f"({sorted(inline)}) and metadata.{key}={preset!r} "
+                f"({sorted(target)}), and the rosters differ. The preset "
                 f"wins; declare exactly one topology source."
             )
         # Matching roster: the inline block is redundant documentation of the
-        # condition — the condition's canonical setup is materialised silently.
+        # preset — the preset's canonical setup is materialised silently.
     del meta[key]
-    meta[f"{spec.prefix}_resolved_condition"] = condition
+    meta[f"{spec.prefix}_resolved_preset"] = preset
     updates["setup"] = setup
     if execution is not None:
         updates["execution"] = execution
-    return condition
+    return preset
 
 
 def _validate_materialized_targets(
@@ -262,7 +261,7 @@ def _validate_materialized_targets(
                 f"Attack preset resolved an attack {attack.name!r} targeting "
                 f"agent(s) {missing} that do not exist in the runtime roster "
                 f"{sorted(names)}. The attack would silently fail to bind — "
-                f"pick a preset/condition combination whose targets exist."
+                f"pick an attack-preset/topology-preset combination whose targets exist."
             )
 
 
@@ -272,22 +271,22 @@ def resolve_shorthand(
     """Resolve ``spec``-declared shorthand in ``config.metadata``.
 
     ``scenario_topology`` is True for ``topology_source=SCENARIO`` plugins
-    (condition arbitrated, not materialised). Returns a new config (frozen
+    (preset arbitrated, not materialised). Returns a new config (frozen
     models); idempotent.
     """
     from orbit.baselines.baselines import baseline_keeps_attacks, baseline_keeps_defenses
 
     meta = dict(config.metadata or {})
     updates: dict = {}
-    applied_condition: str | None = None
+    applied_preset: str | None = None
 
     if scenario_topology:
         _arbitrate_scenario_topology(config, spec)
-        applied_condition = meta.get(
-            f"{spec.prefix}_condition", spec.default_condition
+        applied_preset = meta.get(
+            f"{spec.prefix}_preset", spec.default_preset
         )
     else:
-        applied_condition = _resolve_condition(config, spec, meta, updates)
+        applied_preset = _resolve_preset(config, spec, meta, updates)
 
     for kind, getter, field, keeps in (
         ("attack", spec.attack_preset, "attacks", baseline_keeps_attacks(config)),
@@ -311,8 +310,8 @@ def resolve_shorthand(
             # A no_attack/benign control must not re-acquire the preset.
             meta[f"{spec.prefix}_baseline_stripped_{kind}_preset"] = name
             continue
-        if kind == "attack" and spec.preset_takes_condition:
-            items = getter(name, condition=applied_condition)
+        if kind == "attack" and spec.attack_preset_takes_preset:
+            items = getter(name, preset=applied_preset)
         else:
             items = getter(name)
         if kind == "attack" and not scenario_topology:

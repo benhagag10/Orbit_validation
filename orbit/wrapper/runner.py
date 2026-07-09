@@ -136,7 +136,7 @@ def dry_run(
         config = apply_config_overrides(config, config_overrides)
 
     # Reflect the same shorthand resolution the real run performs, so the
-    # preview reports resolved attacks/topology (e.g. a preset or condition)
+    # preview reports resolved attacks/topology (e.g. a topology preset)
     # rather than the raw pre-resolve config.
     from orbit.tasks.builder import resolve_scenario_shorthand
 
