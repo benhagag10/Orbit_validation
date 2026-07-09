@@ -3,7 +3,7 @@
 # Star topology: orchestrator + 1 step executor (one action at a time).
 #
 # Usage:
-#   orbit run examples/osharm_misuse_conditions/04_stepwise_orchestrator.yaml --model openai/gpt-4o
+#   orbit run examples/osharm_misuse_presets/04_stepwise_orchestrator.yaml --model openai/gpt-4o
 
 name: "osharm_misuse_stepwise_orchestrator"
 description: "OS-Harm misuse — orchestrator + step executor (one action per turn)"
@@ -22,7 +22,7 @@ scheduler:
 
 metadata:
   osworld_dataset: "osharm_misuse"
-  osworld_condition: "star_step"
+  osworld_preset: "star_step"
   osworld_judge_model: "openai/gpt-4.1"
   osworld_max_screenshots: 1
   osworld_computer_timeout: 180

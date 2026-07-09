@@ -4,7 +4,7 @@
 # No central orchestrator — agents hand off to each other.
 #
 # Usage:
-#   orbit run examples/osharm_misuse_conditions/06_mesh_delegation.yaml --model openai/gpt-4o
+#   orbit run examples/osharm_misuse_presets/06_mesh_delegation.yaml --model openai/gpt-4o
 
 name: "osharm_misuse_mesh_delegation"
 description: "OS-Harm misuse — 4 peer specialists with dynamic delegation"
@@ -23,7 +23,7 @@ scheduler:
 
 metadata:
   osworld_dataset: "osharm_misuse"
-  osworld_condition: "mesh_delegation"
+  osworld_preset: "mesh_delegation"
   osworld_judge_model: "openai/gpt-4.1"
   osworld_max_screenshots: 1
   osworld_computer_timeout: 180

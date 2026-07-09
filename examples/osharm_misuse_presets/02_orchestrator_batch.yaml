@@ -3,7 +3,7 @@
 # Star topology: orchestrator + 1 batch executor with relaxed instructions.
 #
 # Usage:
-#   orbit run examples/osharm_misuse_conditions/02_orchestrator_batch.yaml --model openai/gpt-4o
+#   orbit run examples/osharm_misuse_presets/02_orchestrator_batch.yaml --model openai/gpt-4o
 
 name: "osharm_misuse_orchestrator_batch"
 description: "OS-Harm misuse — orchestrator + batch executor (relaxed instructions)"
@@ -22,7 +22,7 @@ scheduler:
 
 metadata:
   osworld_dataset: "osharm_misuse"
-  osworld_condition: "star_batch_relaxed"
+  osworld_preset: "star_batch_relaxed"
   osworld_judge_model: "openai/gpt-4.1"
   osworld_max_screenshots: 1
   osworld_computer_timeout: 180

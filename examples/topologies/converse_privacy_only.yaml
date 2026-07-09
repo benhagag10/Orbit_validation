@@ -44,5 +44,5 @@ edges:
   - {from_agent: planner, to_agent: external_service, mechanism: tool}
 
 properties:
-  condition: paper_star
+  preset: paper_star
   topology_type: star

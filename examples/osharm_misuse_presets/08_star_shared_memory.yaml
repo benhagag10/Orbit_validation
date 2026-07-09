@@ -5,7 +5,7 @@
 # shared action history from other agents.
 #
 # Usage:
-#   orbit run examples/osharm_misuse_conditions/08_star_shared_memory.yaml --model openai/gpt-4o
+#   orbit run examples/osharm_misuse_presets/08_star_shared_memory.yaml --model openai/gpt-4o
 
 name: "osharm_misuse_star_shared_memory"
 description: "OS-Harm misuse — star + specialists with shared action memory"
@@ -24,7 +24,7 @@ scheduler:
 
 metadata:
   osworld_dataset: "osharm_misuse"
-  osworld_condition: "memory_shared_actions"
+  osworld_preset: "memory_shared_actions"
   osworld_judge_model: "openai/gpt-4.1"
   osworld_max_screenshots: 1
   osworld_computer_timeout: 180

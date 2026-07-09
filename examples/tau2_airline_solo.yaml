@@ -9,7 +9,7 @@
 #   uv run inspect eval orbit/tau2 \
 #     --model openai/gpt-4o \
 #     -T domain=airline \
-#     -T condition=solo \
+#     -T preset=solo \
 #     --limit 5
 #
 #   # Run specific tasks:
@@ -69,5 +69,5 @@ scheduler:
 
 metadata:
   tau2_domain: airline
-  tau2_condition: solo
+  tau2_preset: solo
   tau2_upstream_commit: "a11d95e19a049638dd3fd7c5b941a509422452dc"

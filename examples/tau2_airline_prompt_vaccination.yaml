@@ -11,7 +11,7 @@
 #   uv run inspect eval orbit/tau2 \
 #     --model openai/gpt-4o \
 #     -T domain=airline \
-#     -T condition=dual_control \
+#     -T preset=dual_control \
 #     --limit 10
 #
 # The `@task tau2(...)` entry point builds the core experiment from
@@ -91,5 +91,5 @@ scheduler:
 
 metadata:
   tau2_domain: airline
-  tau2_condition: dual_control
+  tau2_preset: dual_control
   tau2_upstream_commit: "a11d95e19a049638dd3fd7c5b941a509422452dc"

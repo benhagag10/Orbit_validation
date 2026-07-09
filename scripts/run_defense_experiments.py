@@ -2,8 +2,8 @@
 """
 Batch runner for NeurIPS defense experiments.
 
-Runs 4 conditions × 3 models × 2 datasets × 3 defenses = 72 eval runs.
-Conditions: single_agent (Baseline), star_specialist (Star),
+Runs 4 presets × 3 models × 2 datasets × 3 defenses = 72 eval runs.
+Presets: single_agent (Baseline), star_specialist (Star),
             mesh_delegation (Mesh), memory_full (Star + Shared Memory)
 Models:     openai/gpt-5.4, anthropic/claude-sonnet-4-6,
             together/Qwen/Qwen3-235B-A22B-Instruct-2507-tput
@@ -15,7 +15,7 @@ Usage:
     python scripts/run_defense_experiments.py --dry-run
     python scripts/run_defense_experiments.py --model openai/gpt-5.4
     python scripts/run_defense_experiments.py --defense system_prompt
-    python scripts/run_defense_experiments.py --condition single_agent
+    python scripts/run_defense_experiments.py --preset single_agent
     python scripts/run_defense_experiments.py --parallel 4
 """
 
@@ -33,8 +33,8 @@ from pathlib import Path
 
 # ── Experiment matrix ──────────────────────────────────────────────────
 
-CONDITIONS = [
-    # (dir_name, condition_code, paper_name)
+PRESETS = [
+    # (dir_name, preset_code, paper_name)
     # dir_names match analyze_experiments.py expectations
     ("single_agent",    "single_agent",    "Baseline"),
     ("star_specialist", "star_specialist",  "Star"),
@@ -73,7 +73,7 @@ SMOKE_MAX_TURNS = 5
 
 @dataclass
 class RunResult:
-    condition: str
+    preset: str
     model_name: str
     dataset: str
     dataset_label: str
@@ -108,7 +108,7 @@ def find_completed_eval(log_dir: Path, expected_samples: int) -> Path | None:
 
 
 def run_experiment(
-    condition: str,
+    preset: str,
     dataset: str,
     defense: str,
     log_dir: Path,
@@ -122,7 +122,7 @@ def run_experiment(
         "uv", "run", "orbit", "--skip-preflight", "browserart",
         "--model", model,
         "--dataset", dataset,
-        "--condition", condition,
+        "--preset", preset,
         "--max-turns", str(max_turns),
         "--judge-model", classifier,
         "--retry-on-error", "1",
@@ -154,7 +154,7 @@ def _run_single(spec: dict) -> RunResult:
 
     t0 = time.time()
     success, output = run_experiment(
-        condition=spec["condition"],
+        preset=spec["preset"],
         dataset=spec["dataset"],
         defense=spec["defense"],
         log_dir=log_dir,
@@ -179,7 +179,7 @@ def _run_single(spec: dict) -> RunResult:
         msg = output[:200]
 
     return RunResult(
-        condition=spec["condition"],
+        preset=spec["preset"],
         model_name=spec["model_name"],
         dataset=spec["dataset"],
         dataset_label=spec["label"],
@@ -194,7 +194,7 @@ def _run_single(spec: dict) -> RunResult:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run NeurIPS defense experiments (3 defenses × 4 conditions × 3 models × 2 datasets)"
+        description="Run NeurIPS defense experiments (3 defenses × 4 presets × 3 models × 2 datasets)"
     )
     parser.add_argument("--smoke", action="store_true",
                         help=f"Smoke test: {SMOKE_LIMIT} samples, max-turns={SMOKE_MAX_TURNS}")
@@ -202,8 +202,8 @@ def main():
                         help="Print what would run without executing")
     parser.add_argument("--skip-existing", action="store_true", default=True)
     parser.add_argument("--rerun", action="store_true")
-    parser.add_argument("--condition", type=str, default=None,
-                        help="Filter to condition code (e.g., single_agent)")
+    parser.add_argument("--preset", type=str, default=None,
+                        help="Filter to preset code (e.g., single_agent)")
     parser.add_argument("--model", type=str, default=None,
                         help="Filter to model (e.g., openai/gpt-5.4)")
     parser.add_argument("--defense", type=str, default=None,
@@ -224,8 +224,8 @@ def main():
 
     # Build run list
     runs: list[dict] = []
-    for dir_name, condition, paper_name in CONDITIONS:
-        if args.condition and condition != args.condition:
+    for dir_name, preset, paper_name in PRESETS:
+        if args.preset and preset != args.preset:
             continue
         for model_short, model_full in MODELS:
             if args.model and model_full != args.model:
@@ -236,12 +236,12 @@ def main():
                 for dataset, label, count in DATASETS:
                     if args.dataset and dataset != args.dataset:
                         continue
-                    # Log structure: logs_defenses/<model>/<defense>/<condition>/<harmful|benign>/
+                    # Log structure: logs_defenses/<model>/<defense>/<preset>/<harmful|benign>/
                     log_root = args.log_root / f"{model_short}_smoke" if args.smoke else args.log_root / model_short
                     log_dir = log_root / defense / dir_name / label
                     runs.append({
                         "dir_name": dir_name,
-                        "condition": condition,
+                        "preset": preset,
                         "paper_name": paper_name,
                         "model": model_full,
                         "model_name": model_short,
@@ -284,7 +284,7 @@ def main():
             if existing:
                 print(f"[{idx}/{total}] {tag}: SKIPPED (exists)")
                 results.append(RunResult(
-                    condition=run["condition"], model_name=run["model_name"],
+                    preset=run["preset"], model_name=run["model_name"],
                     dataset=run["dataset"], dataset_label=run["label"],
                     defense=run["defense"], status="skipped",
                     sample_count=effective_expected, duration_seconds=0,
@@ -295,12 +295,12 @@ def main():
         if args.dry_run:
             cmd_preview = (
                 f"orbit browserart --model {run['model']} --dataset {run['dataset']} "
-                f"--condition {run['condition']} -T defense_preset={run['defense']}"
+                f"--preset {run['preset']} -T defense_preset={run['defense']}"
             )
             print(f"[{idx}/{total}] {tag}: DRY RUN")
             print(f"          cmd: {cmd_preview}")
             results.append(RunResult(
-                condition=run["condition"], model_name=run["model_name"],
+                preset=run["preset"], model_name=run["model_name"],
                 dataset=run["dataset"], dataset_label=run["label"],
                 defense=run["defense"], status="dry-run",
                 sample_count=effective_expected, duration_seconds=0,
@@ -323,13 +323,13 @@ def main():
                     except Exception as e:
                         r = futures[future]
                         result = RunResult(
-                            condition=r["condition"], model_name=r["model_name"],
+                            preset=r["preset"], model_name=r["model_name"],
                             dataset=r["dataset"], dataset_label=r["label"],
                             defense=r["defense"], status="failed",
                             sample_count=r["expected_count"], duration_seconds=0,
                             log_path=r["log_dir"], message=str(e),
                         )
-                    tag = f"{result.model_name}/{result.defense}/{result.condition}/{result.dataset_label}"
+                    tag = f"{result.model_name}/{result.defense}/{result.preset}/{result.dataset_label}"
                     print(f"  {result.status.upper()}: {tag} ({result.duration_seconds:.0f}s)")
                     results.append(result)
         else:
@@ -353,7 +353,7 @@ def main():
         print(f"\n  FAILURES:")
         for r in results:
             if r.status == "failed":
-                print(f"    {r.model_name}/{r.defense}/{r.condition}/{r.dataset_label}: {r.message[:100]}")
+                print(f"    {r.model_name}/{r.defense}/{r.preset}/{r.dataset_label}: {r.message[:100]}")
 
     print()
 

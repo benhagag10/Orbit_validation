@@ -2,9 +2,9 @@
 """
 BrowserART Multi-Agent Study Analysis Script.
 
-Loads eval logs from 3 conditions (single_agent, star_specialist,
+Loads eval logs from 3 presets (single_agent, star_specialist,
 mesh_round_robin), extracts scores and agent participation data, produces
-cross-condition comparison tables and diagnostic flags.
+cross-preset comparison tables and diagnostic flags.
 
 Usage:
     python scripts/analyze_browserart_study.py [--log-base ./logs]
@@ -25,15 +25,15 @@ from typing import Any
 # Constants
 # ---------------------------------------------------------------------------
 
-CONDITIONS = ["single_agent", "star_specialist", "mesh_round_robin"]
-CONDITION_LABELS = {
+PRESETS = ["single_agent", "star_specialist", "mesh_round_robin"]
+PRESET_LABELS = {
     "single_agent": "Single Agent",
     "star_specialist": "Star (4 specialists)",
     "mesh_round_robin": "Mesh (round-robin)",
 }
 
-# Agent names per condition
-CONDITION_AGENTS = {
+# Agent names per preset
+PRESET_AGENTS = {
     "single_agent": ["browser_agent"],
     "star_specialist": ["orchestrator", "click_specialist", "fill_specialist",
              "scroll_specialist", "navigate_specialist"],
@@ -166,7 +166,7 @@ def extract_agent_messages(sample: dict) -> dict[str, int]:
 
 
 def extract_m1_2_dispatch_info(sample: dict) -> dict[str, Any]:
-    """Extract specialist dispatch info for m1_2 condition."""
+    """Extract specialist dispatch info for m1_2 preset."""
     messages = sample.get("messages", [])
     dispatches: list[dict] = []
     specialist_counts: dict[str, int] = defaultdict(int)
@@ -203,7 +203,7 @@ def extract_m1_2_dispatch_info(sample: dict) -> dict[str, Any]:
 
 
 def extract_m2_2_board_info(sample: dict) -> dict[str, Any]:
-    """Extract message board activity for m2_2 condition."""
+    """Extract message board activity for m2_2 preset."""
     messages = sample.get("messages", [])
     agent_actions: dict[str, int] = defaultdict(int)
     agent_messages_only: dict[str, int] = defaultdict(int)
@@ -331,8 +331,8 @@ def detect_role_confusion(dispatches: list[dict]) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def analyze_condition(condition: str, eval_path: Path) -> dict[str, Any]:
-    """Analyze a single condition's eval log."""
+def analyze_preset(preset: str, eval_path: Path) -> dict[str, Any]:
+    """Analyze a single preset's eval log."""
     header = read_header(eval_path)
     status = header.get("status", "unknown") if header else "unknown"
 
@@ -355,11 +355,11 @@ def analyze_condition(condition: str, eval_path: Path) -> dict[str, Any]:
             "stuck_loop": stuck,
         }
 
-        # Condition-specific extraction
-        if condition == "star_specialist":
+        # Preset-specific extraction
+        if preset == "star_specialist":
             dispatch_info = extract_m1_2_dispatch_info(sample)
             entry["dispatch_info"] = dispatch_info
-        elif condition == "mesh_round_robin":
+        elif preset == "mesh_round_robin":
             board_info = extract_m2_2_board_info(sample)
             entry["board_info"] = board_info
 
@@ -373,7 +373,7 @@ def analyze_condition(condition: str, eval_path: Path) -> dict[str, Any]:
         samples_data[bid] = entry
 
     return {
-        "condition": condition,
+        "preset": preset,
         "eval_path": str(eval_path),
         "status": status,
         "num_samples": len(samples_data),
@@ -384,10 +384,10 @@ def analyze_condition(condition: str, eval_path: Path) -> dict[str, Any]:
 def generate_flags(
     all_data: dict[str, dict[str, Any]],
 ) -> list[dict[str, str]]:
-    """Generate diagnostic flags across conditions."""
+    """Generate diagnostic flags across presets."""
     flags: list[dict[str, str]] = []
 
-    # Collect all behavior IDs across conditions
+    # Collect all behavior IDs across presets
     all_bids: set[int] = set()
     for cdata in all_data.values():
         all_bids.update(cdata["samples"].keys())
@@ -395,11 +395,11 @@ def generate_flags(
     for bid in sorted(all_bids):
         samples = {
             c: all_data[c]["samples"].get(bid)
-            for c in CONDITIONS
+            for c in PRESETS
             if c in all_data
         }
 
-        for condition, s in samples.items():
+        for preset, s in samples.items():
             if s is None:
                 continue
 
@@ -407,7 +407,7 @@ def generate_flags(
             if s.get("stuck_loop"):
                 flags.append({
                     "behavior_id": bid,
-                    "condition": condition,
+                    "preset": preset,
                     "flag": "stuck_loop",
                     "description": "Agent looped on same action 3+ times",
                 })
@@ -416,7 +416,7 @@ def generate_flags(
             if s["total_turns"] >= 14 and s["scores"]["ER"] <= 1:
                 flags.append({
                     "behavior_id": bid,
-                    "condition": condition,
+                    "preset": preset,
                     "flag": "timeout_no_progress",
                     "description": (
                         f"Used {s['total_turns']} turns with ER={s['scores']['ER']:.0f}"
@@ -424,14 +424,14 @@ def generate_flags(
                 })
 
             # 4. Insufficient context (m1_2 only)
-            if condition == "star_specialist" and "dispatch_info" in s:
+            if preset == "star_specialist" and "dispatch_info" in s:
                 for d in s["dispatch_info"].get("dispatches", []):
                     instr = d.get("instruction", "")
                     # Flag if instruction is very short (< 20 chars)
                     if len(instr) < 20 and instr:
                         flags.append({
                             "behavior_id": bid,
-                            "condition": condition,
+                            "preset": preset,
                             "flag": "insufficient_context",
                             "description": (
                                 f"Short instruction to {d['specialist']}: '{instr}'"
@@ -439,27 +439,27 @@ def generate_flags(
                         })
 
             # 5. Role confusion (m1_2 only)
-            if condition == "star_specialist" and "dispatch_info" in s:
+            if preset == "star_specialist" and "dispatch_info" in s:
                 confusions = detect_role_confusion(
                     s["dispatch_info"].get("dispatches", [])
                 )
                 for c_desc in confusions:
                     flags.append({
                         "behavior_id": bid,
-                        "condition": condition,
+                        "preset": preset,
                         "flag": "role_confusion",
                         "description": c_desc,
                     })
 
             # 6. Goal leakage (m1_2 only)
-            if condition == "star_specialist" and "dispatch_info" in s:
+            if preset == "star_specialist" and "dispatch_info" in s:
                 leaks = detect_goal_leakage(
                     s["dispatch_info"].get("dispatches", [])
                 )
                 for leak in leaks:
                     flags.append({
                         "behavior_id": bid,
-                        "condition": condition,
+                        "preset": preset,
                         "flag": "goal_leakage",
                         "description": leak,
                     })
@@ -468,27 +468,27 @@ def generate_flags(
             if s.get("browser_error"):
                 flags.append({
                     "behavior_id": bid,
-                    "condition": condition,
+                    "preset": preset,
                     "flag": "browser_error",
                     "description": "Browser initialization or runtime error",
                 })
 
-        # Cross-condition flags
+        # Cross-preset flags
         single = samples.get("single_agent")
         specialist = samples.get("star_specialist")
         mesh = samples.get("mesh_round_robin")
 
         # 2. Single-agent worked but multi-agent didn't
         if single and (single["scores"]["AS"] == 1.0 or single["scores"]["ER"] >= 2):
-            for cond, s in [("star_specialist", specialist), ("mesh_round_robin", mesh)]:
+            for preset, s in [("star_specialist", specialist), ("mesh_round_robin", mesh)]:
                 if s and s["scores"]["AS"] == 0.0 and s["scores"]["ER"] <= 1:
                     flags.append({
                         "behavior_id": bid,
-                        "condition": cond,
+                        "preset": preset,
                         "flag": "single_agent_better",
                         "description": (
                             f"single_agent AS={single['scores']['AS']:.0f} ER={single['scores']['ER']:.0f} "
-                            f"but {cond} AS={s['scores']['AS']:.0f} ER={s['scores']['ER']:.0f}"
+                            f"but {preset} AS={s['scores']['AS']:.0f} ER={s['scores']['ER']:.0f}"
                         ),
                     })
 
@@ -497,14 +497,14 @@ def generate_flags(
             if specialist["scores"]["AS"] == 1.0 and mesh["scores"]["AS"] == 0.0:
                 flags.append({
                     "behavior_id": bid,
-                    "condition": "mesh_round_robin",
+                    "preset": "mesh_round_robin",
                     "flag": "multi_agent_asymmetry",
                     "description": "star_specialist succeeded (AS=1) but mesh_round_robin failed (AS=0)",
                 })
             elif mesh["scores"]["AS"] == 1.0 and specialist["scores"]["AS"] == 0.0:
                 flags.append({
                     "behavior_id": bid,
-                    "condition": "star_specialist",
+                    "preset": "star_specialist",
                     "flag": "multi_agent_asymmetry",
                     "description": "mesh_round_robin succeeded (AS=1) but star_specialist failed (AS=0)",
                 })
@@ -515,22 +515,22 @@ def generate_flags(
             if sum(actions.values()) == 0 and mesh["total_turns"] >= 5:
                 flags.append({
                     "behavior_id": bid,
-                    "condition": "mesh_round_robin",
+                    "preset": "mesh_round_robin",
                     "flag": "coordination_failure",
                     "description": "No browser actions executed despite 5+ turns",
                 })
 
         # 9. Refusal asymmetry
         refusal_map = {}
-        for cond, s in samples.items():
+        for preset, s in samples.items():
             if s:
-                refusal_map[cond] = s.get("task_refused", False)
+                refusal_map[preset] = s.get("task_refused", False)
         refused = [c for c, r in refusal_map.items() if r]
         not_refused = [c for c, r in refusal_map.items() if not r]
         if refused and not_refused:
             flags.append({
                 "behavior_id": bid,
-                "condition": ",".join(refused),
+                "preset": ",".join(refused),
                 "flag": "refusal_asymmetry",
                 "description": (
                     f"Refused in {','.join(refused)} but not in {','.join(not_refused)}"
@@ -563,16 +563,16 @@ def print_per_sample_table(all_data: dict[str, dict]) -> None:
 
     # Header
     print(f"\n{'BID':>4}  {'Category':25s}  ", end="")
-    for c in CONDITIONS:
+    for c in PRESETS:
         if c in all_data:
             print(f"{'AS':>3} {'ER':>3} {'PD':>4}  ", end="")
     print(f"  {'Fitness':15s}")
     print("-" * 90)
 
     for bid in sorted(all_bids):
-        # Get category from first available condition
+        # Get category from first available preset
         cat = ""
-        for c in CONDITIONS:
+        for c in PRESETS:
             if c in all_data and bid in all_data[c]["samples"]:
                 cat = all_data[c]["samples"][bid]["scores"].get("category", "")
                 break
@@ -581,7 +581,7 @@ def print_per_sample_table(all_data: dict[str, dict]) -> None:
         print(f"{bid:>4}  {cat_short:25s}  ", end="")
 
         scores_per_cond: dict[str, dict] = {}
-        for c in CONDITIONS:
+        for c in PRESETS:
             if c in all_data and bid in all_data[c]["samples"]:
                 s = all_data[c]["samples"][bid]["scores"]
                 scores_per_cond[c] = s
@@ -620,13 +620,13 @@ def assess_fitness(scores: dict[str, dict]) -> str:
 
 
 def print_aggregate_table(all_data: dict[str, dict]) -> None:
-    """Print aggregate means across conditions."""
+    """Print aggregate means across presets."""
     print_header("Aggregate Means")
 
-    print(f"\n{'Condition':25s}  {'AS':>5}  {'ER':>5}  {'PD':>5}  {'N':>3}")
+    print(f"\n{'Preset':25s}  {'AS':>5}  {'ER':>5}  {'PD':>5}  {'N':>3}")
     print("-" * 55)
 
-    for c in CONDITIONS:
+    for c in PRESETS:
         if c not in all_data:
             continue
         samples = all_data[c]["samples"]
@@ -637,7 +637,7 @@ def print_aggregate_table(all_data: dict[str, dict]) -> None:
         er_vals = [s["scores"]["ER"] for s in samples.values()]
         pd_vals = [s["scores"]["PD"] for s in samples.values()]
 
-        label = f"{c} ({CONDITION_LABELS.get(c, '')})"
+        label = f"{c} ({PRESET_LABELS.get(c, '')})"
         print(
             f"{label:25s}  "
             f"{sum(as_vals)/n:5.2f}  "
@@ -651,10 +651,10 @@ def print_agent_participation(all_data: dict[str, dict]) -> None:
     """Print agent participation breakdown."""
     print_header("Agent Participation (message counts)")
 
-    for c in CONDITIONS:
+    for c in PRESETS:
         if c not in all_data:
             continue
-        print(f"\n  --- {c} ({CONDITION_LABELS.get(c, '')}) ---")
+        print(f"\n  --- {c} ({PRESET_LABELS.get(c, '')}) ---")
 
         # Aggregate agent message counts
         agent_totals: dict[str, int] = defaultdict(int)
@@ -687,7 +687,7 @@ def print_flags(flags: list[dict]) -> None:
         print(f"\n  [{flag_type}] ({len(by_type[flag_type])} instances)")
         for f in by_type[flag_type]:
             print(
-                f"    BID={f['behavior_id']:>3}  cond={f['condition']:8s}  "
+                f"    BID={f['behavior_id']:>3}  preset={f['preset']:8s}  "
                 f"{f['description']}"
             )
 
@@ -707,7 +707,7 @@ def print_per_sample_detail(all_data: dict[str, dict], flags: list[dict]) -> Non
     for bid in sorted(all_bids):
         print(f"\n  --- Behavior {bid} ---")
 
-        for c in CONDITIONS:
+        for c in PRESETS:
             if c not in all_data or bid not in all_data[c]["samples"]:
                 print(f"    {c:6s}: (not found)")
                 continue
@@ -721,7 +721,7 @@ def print_per_sample_detail(all_data: dict[str, dict], flags: list[dict]) -> Non
                 f"refused={s.get('task_refused', False)}"
             )
 
-            # Condition-specific details
+            # Preset-specific details
             if c == "star_specialist" and "dispatch_info" in s:
                 di = s["dispatch_info"]
                 print(
@@ -739,7 +739,7 @@ def print_per_sample_detail(all_data: dict[str, dict], flags: list[dict]) -> Non
         if bid in flags_by_bid:
             print("    Flags:")
             for f in flags_by_bid[bid]:
-                print(f"      [{f['flag']}] {f['condition']}: {f['description']}")
+                print(f"      [{f['flag']}] {f['preset']}: {f['description']}")
 
 
 # ---------------------------------------------------------------------------
@@ -754,7 +754,7 @@ def build_json_report(
     """Build the full JSON report."""
     # Compute aggregates
     aggregates: dict[str, dict] = {}
-    for c in CONDITIONS:
+    for c in PRESETS:
         if c not in all_data:
             continue
         samples = all_data[c]["samples"]
@@ -771,7 +771,7 @@ def build_json_report(
             "n_samples": n,
         }
 
-    # Per-sample cross-condition
+    # Per-sample cross-preset
     all_bids: set[int] = set()
     for cdata in all_data.values():
         all_bids.update(cdata["samples"].keys())
@@ -779,7 +779,7 @@ def build_json_report(
     per_sample: list[dict] = []
     for bid in sorted(all_bids):
         entry: dict[str, Any] = {"behavior_id": bid}
-        for c in CONDITIONS:
+        for c in PRESETS:
             if c in all_data and bid in all_data[c]["samples"]:
                 s = all_data[c]["samples"][bid]
                 entry[c] = {
@@ -798,12 +798,12 @@ def build_json_report(
                 if "board_info" in s:
                     entry[c]["board_info"] = s["board_info"]
         entry["fitness"] = assess_fitness(
-            {c: entry[c] for c in CONDITIONS if c in entry}
+            {c: entry[c] for c in PRESETS if c in entry}
         )
         per_sample.append(entry)
 
     return {
-        "conditions": list(all_data.keys()),
+        "presets": list(all_data.keys()),
         "aggregates": aggregates,
         "per_sample": per_sample,
         "flags": flags,
@@ -825,7 +825,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--log-base", type=Path, default=Path("./logs"),
-        help="Base directory containing study_<condition>/ subdirectories",
+        help="Base directory containing study_<preset>/ subdirectories",
     )
     parser.add_argument(
         "--output", type=Path, default=None,
@@ -839,19 +839,19 @@ def main() -> None:
     print(f"Log base: {log_base}")
     print(f"Output:   {output_path}")
 
-    # Load eval logs for each condition
+    # Load eval logs for each preset
     all_data: dict[str, dict[str, Any]] = {}
-    for condition in CONDITIONS:
-        cond_dir = log_base / f"study_{condition}"
-        if not cond_dir.is_dir():
-            print(f"  WARNING: {cond_dir} not found, skipping {condition}")
+    for preset in PRESETS:
+        preset_dir = log_base / f"study_{preset}"
+        if not preset_dir.is_dir():
+            print(f"  WARNING: {preset_dir} not found, skipping {preset}")
             continue
-        eval_path = find_eval_file(cond_dir)
+        eval_path = find_eval_file(preset_dir)
         if eval_path is None:
-            print(f"  WARNING: No .eval file in {cond_dir}, skipping {condition}")
+            print(f"  WARNING: No .eval file in {preset_dir}, skipping {preset}")
             continue
-        print(f"  {condition}: {eval_path.name}")
-        all_data[condition] = analyze_condition(condition, eval_path)
+        print(f"  {preset}: {eval_path.name}")
+        all_data[preset] = analyze_preset(preset, eval_path)
 
     if not all_data:
         print("\nERROR: No eval data found. Have the runs completed?")

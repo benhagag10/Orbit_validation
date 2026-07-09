@@ -3,9 +3,9 @@
 Cross-experiment analysis for ICML BrowserART experiments (GPT-4o).
 
 Reads eval logs from logs/icml_gpt4o/ and produces 3 tables matching the paper:
-  - Table 1: Role Distribution (5 conditions)
-  - Table 2: Communication Topology (3 conditions)
-  - Table 3: Memory & State Visibility (4 conditions)
+  - Table 1: Role Distribution (5 presets)
+  - Table 2: Communication Topology (3 presets)
+  - Table 3: Memory & State Visibility (4 presets)
 
 Paper metrics per table:
   Harmful: Planning Refusal, Execution Refusal, Harmful Actions, Harmful Task (= ASR)
@@ -31,9 +31,9 @@ from pathlib import Path
 
 # ── Paper table definitions ──────────────────────────────────────────────────
 
-# Each entry: (dir_name, condition_code, paper_name)
+# Each entry: (dir_name, preset_code, paper_name)
 
-TABLE1_CONDITIONS = [
+TABLE1_PRESETS = [
     ("single_agent",        "single_agent",        "Standalone Agent"),
     ("star_batch_relaxed",  "star_batch_relaxed",   "Star + Single Executor"),
     ("star_batch",          "star_batch",           "Star + Batch Executor"),
@@ -43,14 +43,14 @@ TABLE1_CONDITIONS = [
     ("star_specialist",     "star_specialist",      "Star + Specialized"),
 ]
 
-TABLE2_CONDITIONS = [
+TABLE2_PRESETS = [
     ("single_agent",        "single_agent",        "Standalone Agent"),
     ("star_specialist",     "star_specialist",      "Star + Specialized"),
     ("mesh_round_robin",    "mesh_round_robin",     "Chain + Specialized"),
     ("mesh_delegation",     "mesh_delegation",      "Mesh + Specialized"),
 ]
 
-TABLE3_CONDITIONS = [
+TABLE3_PRESETS = [
     ("star_specialist",       "star_specialist",       "Star + Specialized"),
     ("memory_own_reasoning",  "memory_own_reasoning",  "Star + Specialized + CoT"),
     ("memory_full",           "memory_full",           "Star + Specialized + Shared Memory"),
@@ -59,10 +59,10 @@ TABLE3_CONDITIONS = [
     ("mesh_delegation_full",  "mesh_delegation_full",  "Mesh + Specialized + Shared Memory"),
 ]
 
-# All unique conditions for loading
-ALL_CONDITIONS = {
+# All unique presets for loading
+ALL_PRESETS = {
     entry[0]: entry
-    for table in [TABLE1_CONDITIONS, TABLE2_CONDITIONS, TABLE3_CONDITIONS]
+    for table in [TABLE1_PRESETS, TABLE2_PRESETS, TABLE3_PRESETS]
     for entry in table
 }
 
@@ -86,7 +86,7 @@ class SampleMetrics:
 @dataclass
 class RunMetrics:
     experiment: str
-    condition: str
+    preset: str
     paper_name: str
     dataset_label: str  # benign or harmful
     seed: int = 42
@@ -155,7 +155,7 @@ class RunMetrics:
 @dataclass
 class AggregatedMetrics:
     """Aggregated metrics across multiple seeds (mean ± std)."""
-    condition: str
+    preset: str
     paper_name: str
     dataset_label: str
     n_seeds: int = 0
@@ -271,10 +271,10 @@ def load_all_runs(
     seeds: list[int],
     verbose: bool = False,
 ) -> dict[str, dict[str, list[RunMetrics]]]:
-    """Load all runs, keyed by (condition -> dataset_label -> [RunMetrics per seed])."""
+    """Load all runs, keyed by (preset -> dataset_label -> [RunMetrics per seed])."""
     result: dict[str, dict[str, list[RunMetrics]]] = {}
 
-    for dir_name, (_, condition, paper_name) in ALL_CONDITIONS.items():
+    for dir_name, (_, preset, paper_name) in ALL_PRESETS.items():
         for dataset_name, dataset_label, expected in [
             ("hbb_benign", "benign", 59),
             ("hbb", "harmful", 100),
@@ -294,7 +294,7 @@ def load_all_runs(
 
                 rm = RunMetrics(
                     experiment=dir_name,
-                    condition=condition,
+                    preset=preset,
                     paper_name=paper_name,
                     dataset_label=dataset_label,
                     seed=seed,
@@ -307,22 +307,22 @@ def load_all_runs(
 
 
 def aggregate_runs(
-    runs_by_condition: dict[str, dict[str, list[RunMetrics]]],
+    runs_by_preset: dict[str, dict[str, list[RunMetrics]]],
 ) -> dict[str, dict[str, AggregatedMetrics]]:
     """Aggregate across seeds to compute mean ± std."""
     agg: dict[str, dict[str, AggregatedMetrics]] = {}
 
-    for dir_name, by_dataset in runs_by_condition.items():
+    for dir_name, by_dataset in runs_by_preset.items():
         for dataset_label, run_list in by_dataset.items():
             if not run_list:
                 continue
 
             paper_name = run_list[0].paper_name
-            condition = run_list[0].condition
+            preset = run_list[0].preset
             n = len(run_list)
 
             am = AggregatedMetrics(
-                condition=condition,
+                preset=preset,
                 paper_name=paper_name,
                 dataset_label=dataset_label,
                 n_seeds=n,
@@ -368,7 +368,7 @@ def fmt_pct_latex(mean: float, std: float | None = None, show_std: bool = False)
 def print_paper_table(
     title: str,
     table_num: int,
-    conditions: list[tuple[str, str, str]],
+    presets: list[tuple[str, str, str]],
     agg: dict[str, dict[str, AggregatedMetrics]],
     show_std: bool = False,
 ):
@@ -378,7 +378,7 @@ def print_paper_table(
     print(f"{'='*90}")
 
     cols = [
-        ("Condition", 30),
+        ("Preset", 30),
         ("Plan Ref%", 11),
         ("Exec Ref%", 11),
         ("Harm Act%", 11),
@@ -389,7 +389,7 @@ def print_paper_table(
     print(header)
     print("-" * len(header))
 
-    for dir_name, condition, paper_name in conditions:
+    for dir_name, preset, paper_name in presets:
         if dir_name not in agg:
             print(f"{paper_name:<30}{'—':<11}{'—':<11}{'—':<11}{'—':<12}{'—':<10}")
             continue
@@ -414,7 +414,7 @@ def print_latex_paper_table(
     title: str,
     table_num: int,
     label: str,
-    conditions: list[tuple[str, str, str]],
+    presets: list[tuple[str, str, str]],
     agg: dict[str, dict[str, AggregatedMetrics]],
     show_std: bool = False,
 ):
@@ -429,7 +429,7 @@ def print_latex_paper_table(
     print(r"Configuration & Plan. Ref. & Exec. Ref. & Harm. Act. & Harm. Task & Benign \\")
     print(r"\midrule")
 
-    for dir_name, condition, paper_name in conditions:
+    for dir_name, preset, paper_name in presets:
         if dir_name not in agg:
             print(f"{paper_name} & -- & -- & -- & -- & -- \\\\")
             continue
@@ -463,14 +463,14 @@ def write_csv(
     with open(output, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow([
-            "condition", "paper_name", "dataset", "n_seeds",
+            "preset", "paper_name", "dataset", "n_seeds",
             "asr_mean", "asr_std",
             "planning_refusal_mean", "planning_refusal_std",
             "execution_refusal_mean", "execution_refusal_std",
             "harmful_actions_mean", "harmful_actions_std",
             "task_completion_mean", "task_completion_std",
         ])
-        for dir_name in ALL_CONDITIONS:
+        for dir_name in ALL_PRESETS:
             if dir_name not in agg:
                 continue
             for dataset_label in ["harmful", "benign"]:
@@ -478,7 +478,7 @@ def write_csv(
                 if am is None:
                     continue
                 writer.writerow([
-                    am.condition, am.paper_name, dataset_label, am.n_seeds,
+                    am.preset, am.paper_name, dataset_label, am.n_seeds,
                     f"{am.asr_mean:.4f}", f"{am.asr_std:.4f}",
                     f"{am.planning_refusal_mean:.4f}", f"{am.planning_refusal_std:.4f}",
                     f"{am.execution_refusal_mean:.4f}", f"{am.execution_refusal_std:.4f}",
@@ -526,46 +526,46 @@ def main():
     show_std = len(seeds) > 1
 
     # Load all runs
-    runs_by_condition = load_all_runs(args.log_root, seeds, verbose=args.verbose)
+    runs_by_preset = load_all_runs(args.log_root, seeds, verbose=args.verbose)
 
-    if not runs_by_condition:
+    if not runs_by_preset:
         print("No completed experiments found.", file=sys.stderr)
         sys.exit(1)
 
     # Aggregate across seeds
-    agg = aggregate_runs(runs_by_condition)
+    agg = aggregate_runs(runs_by_preset)
 
     # Count loaded
     total_runs = sum(
         len(run_list)
-        for by_ds in runs_by_condition.values()
+        for by_ds in runs_by_preset.values()
         for run_list in by_ds.values()
     )
-    n_conditions = len(runs_by_condition)
-    print(f"Found {total_runs} completed runs across {n_conditions} conditions "
+    n_presets = len(runs_by_preset)
+    print(f"Found {total_runs} completed runs across {n_presets} presets "
           f"({len(seeds)} seed(s))\n")
 
     # Print tables
     tables = [
-        (1, "Role Distribution", "role-dist", TABLE1_CONDITIONS),
-        (2, "Communication Topology", "topology", TABLE2_CONDITIONS),
-        (3, "Memory & State Visibility", "memory", TABLE3_CONDITIONS),
+        (1, "Role Distribution", "role-dist", TABLE1_PRESETS),
+        (2, "Communication Topology", "topology", TABLE2_PRESETS),
+        (3, "Memory & State Visibility", "memory", TABLE3_PRESETS),
     ]
 
-    for num, title, label, conditions in tables:
+    for num, title, label, presets in tables:
         if args.table is not None and args.table != num:
             continue
-        print_paper_table(title, num, conditions, agg, show_std)
+        print_paper_table(title, num, presets, agg, show_std)
 
     # LaTeX
     if args.latex:
         print(f"\n{'='*90}")
         print("  LaTeX Tables")
         print(f"{'='*90}")
-        for num, title, label, conditions in tables:
+        for num, title, label, presets in tables:
             if args.table is not None and args.table != num:
                 continue
-            print_latex_paper_table(title, num, label, conditions, agg, show_std)
+            print_latex_paper_table(title, num, label, presets, agg, show_std)
 
     # CSV
     if args.csv:
@@ -575,11 +575,11 @@ def main():
     print(f"\n{'='*90}")
     print("  Sample Counts")
     print(f"{'='*90}")
-    for dir_name in ALL_CONDITIONS:
-        if dir_name not in runs_by_condition:
+    for dir_name in ALL_PRESETS:
+        if dir_name not in runs_by_preset:
             continue
-        by_ds = runs_by_condition[dir_name]
-        paper_name = ALL_CONDITIONS[dir_name][2]
+        by_ds = runs_by_preset[dir_name]
+        paper_name = ALL_PRESETS[dir_name][2]
         harmful_n = sum(r.sample_count for r in by_ds.get("harmful", []))
         benign_n = sum(r.sample_count for r in by_ds.get("benign", []))
         n_seeds_found = max(

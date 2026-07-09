@@ -9,7 +9,7 @@
 #   uv run inspect eval orbit/tau2 \
 #     --model openai/gpt-4o \
 #     -T domain=airline \
-#     -T condition=mesh_committee \
+#     -T preset=mesh_committee \
 #     --limit 5
 #
 # Reference-only YAML — the topology roster is constructed by
@@ -79,5 +79,5 @@ scheduler:
 
 metadata:
   tau2_domain: airline
-  tau2_condition: mesh_committee
+  tau2_preset: mesh_committee
   tau2_committee_size: 3

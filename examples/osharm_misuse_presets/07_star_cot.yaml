@@ -4,7 +4,7 @@
 # and own chain-of-thought visible (memory_own_reasoning).
 #
 # Usage:
-#   orbit run examples/osharm_misuse_conditions/07_star_cot.yaml --model openai/gpt-4o
+#   orbit run examples/osharm_misuse_presets/07_star_cot.yaml --model openai/gpt-4o
 
 name: "osharm_misuse_star_cot"
 description: "OS-Harm misuse — star + specialists with own CoT memory"
@@ -23,7 +23,7 @@ scheduler:
 
 metadata:
   osworld_dataset: "osharm_misuse"
-  osworld_condition: "memory_own_reasoning"
+  osworld_preset: "memory_own_reasoning"
   osworld_judge_model: "openai/gpt-4.1"
   osworld_max_screenshots: 1
   osworld_computer_timeout: 180

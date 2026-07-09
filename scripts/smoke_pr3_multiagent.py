@@ -1,4 +1,4 @@
-"""End-to-end PR 3 smoke test for multi-agent BrowserART conditions.
+"""End-to-end PR 3 smoke test for multi-agent BrowserART presets.
 
 Drives ``star_specialist`` (topology path) and ``mesh_round_robin`` (scheduled path)
 against the live browserart-service with a deterministic MockLLM. The
@@ -141,7 +141,7 @@ def mock_handler(input, tools, tool_choice, config) -> ModelOutput:
     )
 
 
-def run_smoke(condition: str) -> int:
+def run_smoke(preset: str) -> int:
     import asyncio
 
     from orbit.scenarios.browser.browserart.tools import _reset_client_for_tests
@@ -161,13 +161,13 @@ def run_smoke(condition: str) -> int:
 
     model = get_model("mockllm/model", custom_outputs=mock_handler)
 
-    print(f"\n=== Running {condition} ===")
+    print(f"\n=== Running {preset} ===")
     logs = inspect_eval(
         "orbit/browserart_safety",
         model=model,
         limit=1,
         task_args={
-            "condition": condition,
+            "preset": preset,
             "max_turns": 6,
             "max_time_seconds": 120.0,
             "verbose": False,
@@ -206,18 +206,18 @@ def run_smoke(condition: str) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("condition", nargs="?", default=None)
+    parser.add_argument("preset", nargs="?", default=None)
     parser.add_argument("--all", action="store_true")
     args = parser.parse_args()
 
-    conditions = (
+    presets = (
         ["star_specialist", "mesh_round_robin"]
         if args.all
-        else [args.condition or "star_specialist"]
+        else [args.preset or "star_specialist"]
     )
 
     rc = 0
-    for c in conditions:
+    for c in presets:
         rc |= run_smoke(c)
     return rc
 

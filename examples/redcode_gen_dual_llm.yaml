@@ -13,7 +13,7 @@
 # defense is being evaluated against an out-of-distribution threat
 # (misuse via the user prompt itself, which dual_llm doesn't see).
 #
-# For the star-specialist condition (4 specialists + planner), the
+# For the star-specialist preset (4 specialists + planner), the
 # planner's view of each specialist's submitted code goes through the
 # Q-LLM via ``as_tool(specialist)`` wrapping, which is the meaningful
 # interception in the multi-agent variant.

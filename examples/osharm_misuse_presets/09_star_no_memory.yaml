@@ -4,7 +4,7 @@
 # (memory_none). Agents only see their goal, no action history or CoT.
 #
 # Usage:
-#   orbit run examples/osharm_misuse_conditions/09_star_no_memory.yaml --model openai/gpt-4o
+#   orbit run examples/osharm_misuse_presets/09_star_no_memory.yaml --model openai/gpt-4o
 
 name: "osharm_misuse_star_no_memory"
 description: "OS-Harm misuse — star + specialists with no memory"
@@ -23,7 +23,7 @@ scheduler:
 
 metadata:
   osworld_dataset: "osharm_misuse"
-  osworld_condition: "memory_none"
+  osworld_preset: "memory_none"
   osworld_judge_model: "openai/gpt-4.1"
   osworld_max_screenshots: 1
   osworld_computer_timeout: 180

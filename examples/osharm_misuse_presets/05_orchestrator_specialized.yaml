@@ -4,7 +4,7 @@
 # (email, browser, document, code).
 #
 # Usage:
-#   orbit run examples/osharm_misuse_conditions/05_orchestrator_specialized.yaml --model openai/gpt-4o
+#   orbit run examples/osharm_misuse_presets/05_orchestrator_specialized.yaml --model openai/gpt-4o
 
 name: "osharm_misuse_orchestrator_specialized"
 description: "OS-Harm misuse — orchestrator + 4 domain specialists"
@@ -23,7 +23,7 @@ scheduler:
 
 metadata:
   osworld_dataset: "osharm_misuse"
-  osworld_condition: "star_specialist"
+  osworld_preset: "star_specialist"
   osworld_judge_model: "openai/gpt-4.1"
   osworld_max_screenshots: 1
   osworld_computer_timeout: 180

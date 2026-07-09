@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # run_full_sweep_remote.sh — Run on the VM inside tmux.
 #
-# Runs each model's conditions one-at-a-time with Docker cleanup between
+# Runs each model's presets one-at-a-time with Docker cleanup between
 # each to avoid daemon state degradation.
 #
 # Usage (on the VM):
@@ -46,7 +46,7 @@ MODELS=(
     "anthropic/claude-sonnet-4-5|sonnet45"
 )
 
-CONDITIONS=(
+PRESETS=(
     single_agent
     star_batch_relaxed
     star_batch
@@ -64,13 +64,13 @@ CONDITIONS=(
 
 log() { echo ""; echo "$(date '+%Y-%m-%d %H:%M:%S') | $1"; }
 
-# Check if a condition has a completed 44-sample eval.
-condition_done() {
-    local log_dir="$1" cond="$2"
+# Check if a preset has a completed 44-sample eval.
+preset_done() {
+    local log_dir="$1" preset="$2"
     python3 -c "
 import zipfile, json
 from pathlib import Path
-d = Path('$log_dir/$cond/misuse')
+d = Path('$log_dir/$preset/misuse')
 if not d.exists(): exit(1)
 found = False
 for ep in sorted(d.glob('*.eval'), reverse=True):
@@ -94,7 +94,7 @@ docker_reset() {
     sleep 5
     docker container prune -f > /dev/null 2>&1
     # NOTE: Do NOT use 'docker image prune -a' here — it deletes the OSWorld
-    # base image (16GB, 14min rebuild) causing all subsequent conditions to
+    # base image (16GB, 14min rebuild) causing all subsequent presets to
     # timeout on compose up.  Only prune dangling (untagged) images.
     docker image prune -f > /dev/null 2>&1
     docker builder prune -f > /dev/null 2>&1
@@ -131,35 +131,35 @@ for i in "${!MODELS[@]}"; do
     MODEL_SKIP=0
     MODEL_START=$(date +%s)
 
-    for cond in "${CONDITIONS[@]}"; do
-        # Skip completed conditions
-        if condition_done "$LOG_DIR" "$cond"; then
-            echo "  [ OK ] $cond — already complete"
+    for preset in "${PRESETS[@]}"; do
+        # Skip completed presets
+        if preset_done "$LOG_DIR" "$preset"; then
+            echo "  [ OK ] $preset — already complete"
             MODEL_SKIP=$((MODEL_SKIP + 1))
             continue
         fi
 
-        # Light cleanup between conditions
+        # Light cleanup between presets
         docker_cleanup
 
-        echo "  [RUN ] $cond — starting..."
-        COND_START=$(date +%s)
+        echo "  [RUN ] $preset — starting..."
+        PRESET_START=$(date +%s)
 
-        # Run the single condition
+        # Run the single preset
         sg docker -c "uv run python -u scripts/run_osharm_experiments.py \
             --model '$MODEL' --seed $SEED --parallel 1 --max-samples $MAX_SAMPLES \
             --log-root '$LOG_DIR' \
-            --condition '$cond'" 2>&1 || true
+            --preset '$preset'" 2>&1 || true
 
-        COND_END=$(date +%s)
-        COND_MINS=$(( (COND_END - COND_START) / 60 ))
+        PRESET_END=$(date +%s)
+        PRESET_MINS=$(( (PRESET_END - PRESET_START) / 60 ))
 
         # Verify completion
-        if condition_done "$LOG_DIR" "$cond"; then
-            echo "  [ OK ] $cond — done (${COND_MINS}m)"
+        if preset_done "$LOG_DIR" "$preset"; then
+            echo "  [ OK ] $preset — done (${PRESET_MINS}m)"
             MODEL_OK=$((MODEL_OK + 1))
         else
-            echo "  [FAIL] $cond — incomplete after ${COND_MINS}m"
+            echo "  [FAIL] $preset — incomplete after ${PRESET_MINS}m"
             MODEL_FAIL=$((MODEL_FAIL + 1))
             # Full restart after failure
             docker_reset

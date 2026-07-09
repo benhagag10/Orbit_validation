@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Batch runner for ICML BigCodeBench experiments (13 conditions).
+Batch runner for ICML BigCodeBench experiments (13 presets).
 
 Mirrors ``scripts/run_redcode_gen_experiments.py`` so the two
 scenarios can be swept with the same operational surface. BigCodeBench
@@ -11,7 +11,7 @@ Usage:
     python scripts/run_bigcodebench_experiments.py --dry-run
     python scripts/run_bigcodebench_experiments.py --smoke --model openai/gpt-4o
     python scripts/run_bigcodebench_experiments.py --model openai/gpt-4o --limit 100
-    python scripts/run_bigcodebench_experiments.py --condition single_agent --model openai/gpt-4o --limit 100
+    python scripts/run_bigcodebench_experiments.py --preset single_agent --model openai/gpt-4o --limit 100
     python scripts/run_bigcodebench_experiments.py --model openai/gpt-4o --parallel 3 --limit 100
 """
 
@@ -27,10 +27,10 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
-# ── Experiment matrix (13 conditions — same as RedCode-Gen) ───────────────────
+# ── Experiment matrix (13 presets — same as RedCode-Gen) ───────────────────
 
 EXPERIMENTS = [
-    # (dir_name, condition_code, paper_name, tables)
+    # (dir_name, preset_code, paper_name, tables)
     # Table 1: Role Distribution
     ("single_agent",          "single_agent",          "Standalone Agent",                   [1, 2]),
     ("star_batch_relaxed",    "star_batch_relaxed",    "Star + Single Executor",             [1]),
@@ -59,7 +59,7 @@ DEFAULT_MODEL = "openai/gpt-4o"
 DEFAULT_SEED = 42
 DEFAULT_MAX_TURNS = 100
 DEFAULT_MAX_TIME = 300.0   # seconds per task (5 min)
-DEFAULT_MAX_SAMPLES = 8    # parallel samples per condition
+DEFAULT_MAX_SAMPLES = 8    # parallel samples per preset
 DEFAULT_RETRY_ON_ERROR = 1
 DEFAULT_LOG_ROOT = Path("logs/bigcodebench_icml")
 
@@ -67,14 +67,14 @@ SMOKE_LIMIT = 3
 SMOKE_MAX_TURNS = 10
 SMOKE_MAX_TIME = 120.0
 
-# Per-condition subprocess timeout.
+# Per-preset subprocess timeout.
 RUN_TIMEOUT_SECONDS = 7200  # 2h generous
 
 
 @dataclass
 class RunResult:
     experiment: str
-    condition: str
+    preset: str
     status: str  # success, failed, skipped, dry-run
     sample_count: int
     duration_seconds: float
@@ -138,7 +138,7 @@ def validate_eval(eval_path: Path, expected_samples: int) -> tuple[bool, str]:
 
 
 def run_experiment(
-    condition: str,
+    preset: str,
     log_dir: Path,
     model: str,
     seed: int,
@@ -153,7 +153,7 @@ def run_experiment(
     cmd = [
         "uv", "run", "inspect", "eval", "orbit/bigcodebench",
         "--model", model,
-        "-T", f"condition={condition}",
+        "-T", f"preset={preset}",
         "-T", f"max_turns={max_turns}",
         "-T", f"max_time_seconds={max_time}",
         "-T", f"version={version}",
@@ -184,7 +184,7 @@ def run_experiment(
 def _run_single(run_spec: dict) -> RunResult:
     """Execute a single run."""
     exp_name = run_spec["exp_name"]
-    condition = run_spec["condition"]
+    preset = run_spec["preset"]
     expected_count = run_spec["expected_count"]
     log_dir = Path(run_spec["log_dir"])
     model = run_spec["model"]
@@ -201,7 +201,7 @@ def _run_single(run_spec: dict) -> RunResult:
     t0 = time.time()
 
     success, output = run_experiment(
-        condition=condition,
+        preset=preset,
         log_dir=log_dir,
         model=model,
         seed=seed,
@@ -227,7 +227,7 @@ def _run_single(run_spec: dict) -> RunResult:
         msg = output[:200]
 
     return RunResult(
-        experiment=exp_name, condition=condition,
+        experiment=exp_name, preset=preset,
         status=status, sample_count=effective_expected,
         duration_seconds=duration,
         log_path=str(log_dir),
@@ -238,11 +238,11 @@ def _run_single(run_spec: dict) -> RunResult:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run ICML BigCodeBench experiments (13 conditions)"
+        description="Run ICML BigCodeBench experiments (13 presets)"
     )
     parser.add_argument(
         "--smoke", action="store_true",
-        help=f"Smoke test: {SMOKE_LIMIT} samples per condition",
+        help=f"Smoke test: {SMOKE_LIMIT} samples per preset",
     )
     parser.add_argument(
         "--dry-run", action="store_true",
@@ -257,8 +257,8 @@ def main():
         help="Re-run even if completed eval exists",
     )
     parser.add_argument(
-        "--condition", type=str, default=None,
-        help="Run only this condition (e.g., single_agent)",
+        "--preset", type=str, default=None,
+        help="Run only this preset (e.g., single_agent)",
     )
     parser.add_argument(
         "--model", type=str, default=DEFAULT_MODEL,
@@ -285,11 +285,11 @@ def main():
     )
     parser.add_argument(
         "--parallel", type=int, default=1,
-        help="Max parallel condition workers (default: 1)",
+        help="Max parallel preset workers (default: 1)",
     )
     parser.add_argument(
         "--max-samples", type=int, default=DEFAULT_MAX_SAMPLES,
-        help="Max parallel samples per condition.",
+        help="Max parallel samples per preset.",
     )
     parser.add_argument(
         "--limit", type=int, default=None,
@@ -308,13 +308,13 @@ def main():
 
     # Build run list
     runs: list[dict] = []
-    for dir_name, condition, paper_name, tables in EXPERIMENTS:
-        if args.condition and condition != args.condition:
+    for dir_name, preset, paper_name, tables in EXPERIMENTS:
+        if args.preset and preset != args.preset:
             continue
         for seed in seeds:
             runs.append({
                 "exp_name": dir_name,
-                "condition": condition,
+                "preset": preset,
                 "paper_name": paper_name,
                 "expected_count": TOTAL_TASKS,
                 "seed": seed,
@@ -376,7 +376,7 @@ def main():
                 if ok:
                     print(f"[{idx}/{total}] {run['exp_name']}: SKIPPED (exists)")
                     results.append(RunResult(
-                        experiment=run["exp_name"], condition=run["condition"],
+                        experiment=run["exp_name"], preset=run["preset"],
                         status="skipped", sample_count=effective_expected,
                         duration_seconds=0, log_path=str(existing),
                         message=msg, seed=run["seed"],
@@ -386,7 +386,7 @@ def main():
         if args.dry_run:
             print(f"[{idx}/{total}] {run['exp_name']}: DRY RUN")
             results.append(RunResult(
-                experiment=run["exp_name"], condition=run["condition"],
+                experiment=run["exp_name"], preset=run["preset"],
                 status="dry-run", sample_count=effective_expected,
                 duration_seconds=0, log_path=str(log_dir),
                 seed=run["seed"],
@@ -409,7 +409,7 @@ def main():
                         result = future.result()
                     except Exception as e:
                         result = RunResult(
-                            experiment=run["exp_name"], condition=run["condition"],
+                            experiment=run["exp_name"], preset=run["preset"],
                             status="failed", sample_count=run["expected_count"],
                             duration_seconds=0, log_path=run["log_dir"],
                             message=str(e), seed=run["seed"],

@@ -6,7 +6,7 @@
 #
 # Usage:
 #   uv run inspect eval orbit/converse_safety \
-#       -T condition=benign_pair \
+#       -T preset=benign_pair \
 #       -T attack_modes=benign \
 #       --limit 4 --model openai/gpt-4o
 
@@ -31,5 +31,5 @@ edges:
   - {from_agent: planner, to_agent: user_environment, mechanism: tool}
 
 properties:
-  condition: benign_pair
+  preset: benign_pair
   topology_type: pair

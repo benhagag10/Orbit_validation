@@ -143,7 +143,7 @@ if [ "$MAX_CONTAINERS" -lt 1 ]; then
     MAX_CONTAINERS=1
 fi
 
-# Recommend splitting across parallel condition workers to avoid
+# Recommend splitting across parallel preset workers to avoid
 # one slow sample blocking the whole sweep.  E.g. 30 containers
 # → 3 workers × 10 samples each.
 if [ "$MAX_CONTAINERS" -ge 9 ]; then
@@ -164,7 +164,7 @@ echo "  Container budget: ~$MAX_CONTAINERS"
 echo "  (based on ${TOTAL_RAM_GB}GB RAM, ~3GB per OSWorld container)"
 echo ""
 echo "  Recommended: --parallel $SUGGESTED_WORKERS --max-samples $SUGGESTED_SAMPLES"
-echo "  ($SUGGESTED_WORKERS conditions at once × $SUGGESTED_SAMPLES Docker containers each)"
+echo "  ($SUGGESTED_WORKERS presets at once × $SUGGESTED_SAMPLES Docker containers each)"
 echo ""
 echo "  Quick start:"
 echo "    cd $INSTALL_DIR"

@@ -94,17 +94,17 @@ def _infer_topology(sample: EvalSample) -> str:
     setup = exp.get("setup", {}) if isinstance(exp, dict) else {}
     props = setup.get("properties", {})
 
-    condition = props.get("condition_type", "")
+    preset = props.get("preset_type", "")
     topology = props.get("topology_type", "")
 
-    if condition:
-        if "single" in condition:
+    if preset:
+        if "single" in preset:
             return "single"
-        if "star" in condition:
+        if "star" in preset:
             return "star"
-        if "mesh" in condition:
+        if "mesh" in preset:
             return "mesh"
-        if "chain" in condition:
+        if "chain" in preset:
             return "chain"
 
     if topology:

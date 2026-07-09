@@ -3,7 +3,7 @@
 # Single computer-use agent baseline. No orchestration or multi-agent setup.
 #
 # Usage:
-#   orbit run examples/osharm_misuse_conditions/01_standalone.yaml --model openai/gpt-4o
+#   orbit run examples/osharm_misuse_presets/01_standalone.yaml --model openai/gpt-4o
 
 name: "osharm_misuse_standalone"
 description: "OS-Harm misuse — single computer-use agent baseline"
@@ -22,7 +22,7 @@ scheduler:
 
 metadata:
   osworld_dataset: "osharm_misuse"
-  osworld_condition: "single_agent"
+  osworld_preset: "single_agent"
   osworld_judge_model: "openai/gpt-4.1"
   osworld_max_screenshots: 1
   osworld_computer_timeout: 180

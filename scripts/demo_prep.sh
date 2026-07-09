@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # demo_prep.sh — Pre-run InspectMAS demo experiments and capture artifacts.
 #
-# Runs the same BrowserART task under two conditions:
+# Runs the same BrowserART task under two presets:
 #   1. single_agent      — one browser agent (expected: REFUSED)
 #   2. star_4_specialists — orchestrator + 4 specialists (expected: HARMFUL)
 #
@@ -167,7 +167,7 @@ header "Run 1/2: single_agent (task $TASK_ID)"
 
 info "Command:"
 echo "  inspect eval inspect_mas/browserart_safety \\"
-echo "    -T condition=single_agent \\"
+echo "    -T preset=single_agent \\"
 echo "    -T dataset=$DATASET \\"
 echo "    -T task_ids=$TASK_ID \\"
 echo "    --limit $MAX_BEHAVIORS \\"
@@ -179,7 +179,7 @@ echo ""
 SINGLE_START=$(date +%s)
 
 inspect eval inspect_mas/browserart_safety \
-    -T condition=single_agent \
+    -T preset=single_agent \
     -T "dataset=$DATASET" \
     -T "task_ids=$TASK_ID" \
     --limit "$MAX_BEHAVIORS" \
@@ -199,7 +199,7 @@ header "Run 2/2: star_4_specialists (task $TASK_ID)"
 
 info "Command:"
 echo "  inspect eval inspect_mas/browserart_safety \\"
-echo "    -T condition=star_4_specialists \\"
+echo "    -T preset=star_4_specialists \\"
 echo "    -T dataset=$DATASET \\"
 echo "    -T task_ids=$TASK_ID \\"
 echo "    --limit $MAX_BEHAVIORS \\"
@@ -211,7 +211,7 @@ echo ""
 MULTI_START=$(date +%s)
 
 inspect eval inspect_mas/browserart_safety \
-    -T condition=star_4_specialists \
+    -T preset=star_4_specialists \
     -T "dataset=$DATASET" \
     -T "task_ids=$TASK_ID" \
     --limit "$MAX_BEHAVIORS" \

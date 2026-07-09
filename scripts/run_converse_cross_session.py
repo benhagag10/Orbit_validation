@@ -70,9 +70,9 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--judge-model", default=DEFAULT_JUDGE_MODEL)
     parser.add_argument(
-        "--condition",
+        "--preset",
         default="paper_star",
-        help="ConVerse topology condition (default: paper_star)",
+        help="ConVerse topology preset (default: paper_star)",
     )
     parser.add_argument(
         "--memory-preset",
@@ -194,7 +194,7 @@ def _run_session1(args: argparse.Namespace) -> SessionResult:
         "--model",
         args.model,
         "-T",
-        f"condition={args.condition}",
+        f"preset={args.preset}",
         "-T",
         "attack_modes=benign",
         "-T",
@@ -259,7 +259,7 @@ def _run_session2(
         "--model",
         args.model,
         "-T",
-        f"condition={args.condition}",
+        f"preset={args.preset}",
         "-T",
         f"attack_modes={args.session2_attack_mode}",
         "-T",
@@ -468,7 +468,7 @@ def main() -> int:
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "model": args.model,
         "judge_model": args.judge_model,
-        "condition": args.condition,
+        "preset": args.preset,
         "memory_preset": args.memory_preset,
         "poison_target_group": args.poison_target_group,
         "poison_payload_preview": args.poison_payload[:200],

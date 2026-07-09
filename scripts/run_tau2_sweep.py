@@ -51,8 +51,8 @@ DEFAULT_MAX_TURNS = 100
 DEFAULT_MAX_TIME = 600.0
 DEFAULT_MAX_SAMPLES = 4
 DEFAULT_LOG_DIR = "logs/tau2_sweep"
-DEFAULT_CONDITION = "dual_control"
-SUPPORTED_CONDITIONS = (
+DEFAULT_PRESET = "dual_control"
+SUPPORTED_PRESETS = (
     "dual_control",
     "supervisor_specialist",
     "tiered_escalation",
@@ -68,17 +68,17 @@ class SweepCell:
     model: str
     domain: str
     epochs: int
-    condition: str = DEFAULT_CONDITION
+    preset: str = DEFAULT_PRESET
 
 
 def _build_cells(
     models: list[str],
     domains: list[str],
     epochs: int,
-    condition: str = DEFAULT_CONDITION,
+    preset: str = DEFAULT_PRESET,
 ) -> list[SweepCell]:
     return [
-        SweepCell(model=m, domain=d, epochs=epochs, condition=condition)
+        SweepCell(model=m, domain=d, epochs=epochs, preset=preset)
         for m in models
         for d in domains
     ]
@@ -98,7 +98,7 @@ def _build_inspect_cmd(
         "uv", "run", "inspect", "eval", "orbit/tau2",
         "--model", cell.model,
         "-T", f"domain={cell.domain}",
-        "-T", f"condition={cell.condition}",
+        "-T", f"preset={cell.preset}",
         "-T", f"judge_model={judge_model}",
         "-T", f"max_turns={max_turns}",
         "-T", f"max_time_seconds={max_time}",
@@ -174,11 +174,11 @@ def main() -> int:
         help="Base log directory (default: %(default)s).",
     )
     parser.add_argument(
-        "--condition",
-        default=DEFAULT_CONDITION,
-        choices=SUPPORTED_CONDITIONS,
+        "--preset",
+        default=DEFAULT_PRESET,
+        choices=SUPPORTED_PRESETS,
         help=(
-            "Multi-agent condition preset (default: %(default)s). "
+            "Multi-agent preset (default: %(default)s). "
             "See orbit/scenarios/customer_service/tau2/topologies.py for details."
         ),
     )
@@ -247,11 +247,11 @@ def main() -> int:
     log_dir = Path(args.log_dir).resolve()
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    cells = _build_cells(models, domains, epochs, condition=args.condition)
+    cells = _build_cells(models, domains, epochs, preset=args.preset)
     print(
         f"tau2 sweep: {len(cells)} cells "
         f"({len(models)} models × {len(domains)} domains, "
-        f"condition={args.condition})"
+        f"preset={args.preset})"
     )
 
     failures: list[SweepCell] = []

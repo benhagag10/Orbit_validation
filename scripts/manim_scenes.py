@@ -427,7 +427,7 @@ class AttackPhaseFlow(Scene):
 
 
 class ResultsHeatmap(Scene):
-    """Clip 4: Animated heatmap matrix — conditions x metrics (~10s).
+    """Clip 4: Animated heatmap matrix — presets x metrics (~10s).
 
     Shows 2 tested rows filling with data, 11 empty rows pulsing as exploration space.
     """
@@ -439,7 +439,7 @@ class ResultsHeatmap(Scene):
         cell_w = 1.8
         cell_h = 0.45
         metrics = ["AS", "ER", "PD"]
-        conditions = [
+        presets = [
             "single_agent", "star_4_specialists",
             "star_batch_detailed", "star_step_by_step",
             "mesh_round_robin", "mesh_delegation",
@@ -453,7 +453,7 @@ class ResultsHeatmap(Scene):
             "star_4_specialists": {"AS": 1.0, "ER": 3, "PD": 0.50},
         }
 
-        n_rows = len(conditions)
+        n_rows = len(presets)
         n_cols = len(metrics)
 
         # Calculate grid position (top-left anchor)
@@ -481,13 +481,13 @@ class ResultsHeatmap(Scene):
         all_cell_values = []
         empty_cells = []
 
-        for i, cond in enumerate(conditions):
+        for i, preset in enumerate(presets):
             y = grid_top - (i + 1) * cell_h + cell_h / 2
 
             # Row label
-            label_color = ACCENT_BLUE if cond in data else TEXT_MUTED
+            label_color = ACCENT_BLUE if preset in data else TEXT_MUTED
             label = Text(
-                cond, font_size=14, color=label_color,
+                preset, font_size=14, color=label_color,
             ).move_to([grid_left - 2.0, y, 0])
             all_row_labels.append(label)
 
@@ -496,8 +496,8 @@ class ResultsHeatmap(Scene):
             for j, metric in enumerate(metrics):
                 x = grid_left + j * cell_w + cell_w / 2
 
-                if cond in data:
-                    val = data[cond][metric]
+                if preset in data:
+                    val = data[preset][metric]
                     # Color based on metric value
                     if metric == "AS":
                         bg_color = METRIC_GREEN if val == 0 else METRIC_RED
@@ -601,7 +601,7 @@ class ResultsHeatmap(Scene):
 
         # ── Summary text ──
         summary = Text(
-            "2 conditions tested. 11 more to explore. Same CLI. One flag changes.",
+            "2 presets tested. 11 more to explore. Same CLI. One flag changes.",
             font_size=24, color=TEXT_COLOR, weight=BOLD,
         ).to_edge(DOWN, buff=0.4)
         self.play(FadeIn(summary), run_time=0.5)
@@ -718,7 +718,7 @@ class ContextStripping(Scene):
         self.play(FadeIn(insight), run_time=0.4)
         self.wait(0.5)
 
-        # ── Flash: memory_full condition restores visibility ──
+        # ── Flash: memory_full preset restores visibility ──
         self.play(
             membrane.animate.set_color(METRIC_GREEN),
             membrane_glow.animate.set_color(METRIC_GREEN).set_opacity(0.15),
