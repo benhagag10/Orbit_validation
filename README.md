@@ -251,7 +251,7 @@ Running a scenario without its extra raises an actionable error naming the exact
 uv run orbit verify-setup browserart   # or: swe-bench, osworld, bigcodebench, dcop, all
 ```
 
-> **Figure/report scripts.** The paper-figure helpers under `scripts/` need
+> **Figure/report scripts.** The figure-generation helpers under `scripts/` need
 > `uv sync --extra figures` (matplotlib + pymupdf). They are kept out of the
 > core install so the base stays lean — no scenario or reporting dependency
 > leaks into a default `uv sync --extra dev`.

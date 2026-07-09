@@ -65,9 +65,3 @@ upstreams:
 When you fetch the upstream data, the compiled listing inherits all
 three licenses for its respective rows; see each row's `"source"`
 field.
-
-## NeurIPS paper note
-
-The paper should reflect that Orbit does not redistribute BrowserART's
-upstream datasets, and that users fetch the data directly from the
-authoritative upstream under its own license terms.

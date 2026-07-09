@@ -115,11 +115,11 @@ def full_guard_defense_preset() -> list[DefenseConfig]:
 
 
 # ---------------------------------------------------------------------------
-# NeurIPS defense presets
+# Defense presets
 # ---------------------------------------------------------------------------
 
-NEURIPS_MONITOR_MODEL = "openai/gpt-4o-mini"
-NEURIPS_MAX_RESAMPLES = 3
+DEFENSE_MONITOR_MODEL = "openai/gpt-4o-mini"
+DEFENSE_MAX_RESAMPLES = 3
 
 
 def system_prompt_defense_preset() -> list[DefenseConfig]:
@@ -141,8 +141,8 @@ def llm_monitor_defense_preset() -> list[DefenseConfig]:
             name="myopic_llm_monitor",
             defense_type="llm_monitor",
             invocation="automatic",
-            model_override=NEURIPS_MONITOR_MODEL,
-            max_resamples=NEURIPS_MAX_RESAMPLES,
+            model_override=DEFENSE_MONITOR_MODEL,
+            max_resamples=DEFENSE_MAX_RESAMPLES,
             config={"attack_aware": True},
         ),
     ]
@@ -155,8 +155,8 @@ def guardian_agent_defense_preset() -> list[DefenseConfig]:
             name="history_aware_guardian",
             defense_type="guardian_agent",
             invocation="scheduler",
-            model_override=NEURIPS_MONITOR_MODEL,
-            max_resamples=NEURIPS_MAX_RESAMPLES,
+            model_override=DEFENSE_MONITOR_MODEL,
+            max_resamples=DEFENSE_MAX_RESAMPLES,
             config={"attack_aware": True},
         ),
     ]
@@ -174,7 +174,7 @@ def dual_llm_defense_preset() -> list[DefenseConfig]:
             name="dual_llm_quarantine",
             defense_type="dual_llm",
             invocation="automatic",
-            model_override=NEURIPS_MONITOR_MODEL,
+            model_override=DEFENSE_MONITOR_MODEL,
         ),
     ]
 

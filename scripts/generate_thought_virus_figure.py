@@ -1,6 +1,6 @@
 """
 Figure 1 — Thought Virus: "The Invisible Contagion"
-Square, two-column-width figure for ICML format (~6.75" × 6.0").
+Square figure sized for two-column paper format (~6.75" × 6.0").
 """
 
 import matplotlib
@@ -14,7 +14,7 @@ from matplotlib.collections import LineCollection
 
 # ─── Layout ──────────────────────────────────────────────────────────────────
 N = 6
-FIG_W, FIG_H = 6.75, 5.8  # ICML two-column width, near-square
+FIG_W, FIG_H = 6.75, 5.8  # two-column width, near-square
 
 CLEAN_BG = "#F3F6FB"
 DARK_BG = "#0D0D1A"

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-NeurIPS validity checking for BrowserART eval logs.
+Validity checking for BrowserART eval logs.
 
 Runs all 5 heuristic validity groups from check_browserart_validity.py
 with the AI-assisted trajectory review always enabled (not opt-in).
@@ -202,7 +202,7 @@ def review_log(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="NeurIPS validity checking with always-on LLM judge for BrowserART eval logs"
+        description="Validity checking with always-on LLM judge for BrowserART eval logs"
     )
     parser.add_argument(
         "path", type=Path,

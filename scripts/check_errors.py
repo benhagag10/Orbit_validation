@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-NeurIPS error detection for BrowserART eval logs.
+Error detection for BrowserART eval logs.
 
 Runs all 9 heuristic check groups from check_browserart_errors.py,
 then adds an LLM-as-a-judge pass that classifies ambiguous findings
@@ -216,7 +216,7 @@ def review_log(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="NeurIPS error detection with LLM-as-a-judge for BrowserART eval logs"
+        description="Error detection with LLM-as-a-judge for BrowserART eval logs"
     )
     parser.add_argument(
         "path", type=Path,

@@ -1,7 +1,7 @@
 """
 Figure 1 (table version) — Thought Virus: Defense Penetration Diagram.
 Three attack lanes hitting two defense walls. Only Thought Virus passes both.
-ICML two-column width.
+Sized for two-column paper width.
 """
 
 import matplotlib

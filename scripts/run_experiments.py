@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Batch runner for ICML BrowserART experiments (GPT-4o, paper-matching).
+Batch runner for BrowserART experiments (GPT-4o, paper-matching).
 
 Runs 9 presets x 2 datasets (hbb, hbb_benign) = 18 eval runs.
 Supports parallel execution, skip-existing, and multi-seed runs.
@@ -64,7 +64,7 @@ DEFAULT_CLASSIFIER = "openai/gpt-4o"
 DEFAULT_SEED = 42
 DEFAULT_MAX_TURNS = 15
 DEFAULT_RETRY_ON_ERROR = 1
-DEFAULT_LOG_ROOT = Path("logs/icml_gpt4o")
+DEFAULT_LOG_ROOT = Path("logs/browserart_gpt4o")
 
 SMOKE_LIMIT = 3
 SMOKE_MAX_TURNS = 5
@@ -253,7 +253,7 @@ def print_progress(idx: int, total: int, exp_name: str, dataset_label: str,
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run ICML BrowserART experiments (GPT-4o, paper-matching)"
+        description="Run BrowserART experiments (GPT-4o, paper-matching)"
     )
     parser.add_argument(
         "--smoke", action="store_true",
@@ -359,7 +359,7 @@ def main():
     # Determine params
     limit = args.limit if args.limit is not None else (SMOKE_LIMIT if args.smoke else None)
     max_turns = SMOKE_MAX_TURNS if args.smoke else args.max_turns
-    log_root = args.log_root.parent / "icml_gpt4o_smoke" if args.smoke else args.log_root
+    log_root = args.log_root.parent / "browserart_gpt4o_smoke" if args.smoke else args.log_root
 
     # Compute log dirs and populate run specs
     for run in runs:
@@ -380,7 +380,7 @@ def main():
     print(f"\n{'='*60}")
     mode = "SMOKE TEST" if args.smoke else "FULL RUN"
     seed_str = ", ".join(str(s) for s in seeds)
-    print(f"  ICML BrowserART Experiments — {mode}")
+    print(f"  BrowserART Experiments — {mode}")
     print(f"  {total} runs, model={args.model}, seed(s)={seed_str}")
     print(f"  Parallel workers: {args.parallel}")
     if args.smoke:

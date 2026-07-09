@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Batch runner for NeurIPS defense experiments.
+Batch runner for defense experiments.
 
 Runs 4 presets × 3 models × 2 datasets × 3 defenses = 72 eval runs.
 Presets: single_agent (Baseline), star_specialist (Star),
@@ -65,7 +65,7 @@ DEFENSES = [
 DEFAULT_CLASSIFIER = "openai/gpt-4.1"
 DEFAULT_SEED = 42
 DEFAULT_MAX_TURNS = 15
-DEFAULT_LOG_ROOT = Path("neurips/logs_defenses")
+DEFAULT_LOG_ROOT = Path("logs/defenses")
 
 SMOKE_LIMIT = 3
 SMOKE_MAX_TURNS = 5
@@ -194,7 +194,7 @@ def _run_single(spec: dict) -> RunResult:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run NeurIPS defense experiments (3 defenses × 4 presets × 3 models × 2 datasets)"
+        description="Run defense experiments (3 defenses × 4 presets × 3 models × 2 datasets)"
     )
     parser.add_argument("--smoke", action="store_true",
                         help=f"Smoke test: {SMOKE_LIMIT} samples, max-turns={SMOKE_MAX_TURNS}")
@@ -264,7 +264,7 @@ def main():
     total = len(runs)
     print(f"\n{'='*70}")
     mode = "SMOKE TEST" if args.smoke else "FULL RUN"
-    print(f"  NeurIPS Defense Experiments — {mode}")
+    print(f"  Defense Experiments — {mode}")
     print(f"  {total} runs")
     print(f"  Parallel workers: {args.parallel}")
     if args.smoke:

@@ -342,7 +342,7 @@ class TestMultiAgentTopologies:
             assert config.user_prompt == b.behavior
 
     def test_all_preset_registry(self, sample_behaviors):
-        """Every ICML preset produces a valid config for sample behaviors."""
+        """Every preset produces a valid config for sample behaviors."""
         from orbit.scenarios.browser.browserart.preset_registry import (
             PRESET_REGISTRY,
             get_preset_setup,

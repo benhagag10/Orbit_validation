@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# run_full_sweep.sh — Orchestrate sequential ICML sweeps across multiple models.
+# run_full_sweep.sh — Orchestrate sequential sweeps across multiple models.
 #
 # Runs on the LOCAL machine. For each model, runs presets one at a time
 # with Docker daemon restart between each to avoid state degradation.
@@ -17,7 +17,7 @@ GCLOUD="$HOME/google-cloud-sdk/bin/gcloud"
 PROJECT="mats-masec-arch-9"
 ZONE="us-central1-a"
 INSTANCE="osharm-sweep"
-LOCAL_LOG_ROOT="logs/osharm_icml_v2"
+LOCAL_LOG_ROOT="logs/osharm_v2"
 
 MAX_SAMPLES=10
 SEED=42
@@ -160,7 +160,7 @@ MODELS_SKIP=0
 for i in "${!MODELS[@]}"; do
     IFS='|' read -r MODEL LOG_SUFFIX <<< "${MODELS[$i]}"
     MODEL_IDX=$((i + 1))
-    REMOTE_LOG_DIR="logs/osharm_icml_v2_${LOG_SUFFIX}"
+    REMOTE_LOG_DIR="logs/osharm_v2_${LOG_SUFFIX}"
     LOCAL_LOG_DIR="${LOCAL_LOG_ROOT}_${LOG_SUFFIX}"
 
     log "================================================================"

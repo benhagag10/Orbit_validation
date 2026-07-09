@@ -115,7 +115,7 @@ def check_no_safety_interference(
         report.error(
             "safety.defense_activations",
             f"DefenseLog shows {activations} activation(s) — "
-            "defense should not be active for ICML experiments",
+            "defense should not be active for these experiments",
         )
 
     blocks = metrics.get("defense_blocks", [])

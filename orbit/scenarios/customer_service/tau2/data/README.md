@@ -41,7 +41,7 @@ prompt verbatim (~33 KB combined) to match upstream.
   14 MB) is not vendored. Point `Tau2ScenarioConfig.data_path` (or the
   `-T data_path=...` CLI flag) at a locally-downloaded copy if you
   want to run the full set. The small set (20 tasks) is what upstream
-  uses for most paper numbers.
+  uses for most of its published numbers.
 - **Retail** uses `reward_basis=['DB', 'NL_ASSERTION']` on 112/114
   tasks, so the LLM judge added in PR 2 is finally exercised for real
   (airline never uses NL_ASSERTION).

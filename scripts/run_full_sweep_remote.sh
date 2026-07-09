@@ -117,7 +117,7 @@ GRAND_FAIL=0
 for i in "${!MODELS[@]}"; do
     IFS='|' read -r MODEL LOG_SUFFIX <<< "${MODELS[$i]}"
     MODEL_IDX=$((i + 1))
-    LOG_DIR="logs/osharm_icml_v2_${LOG_SUFFIX}"
+    LOG_DIR="logs/osharm_v2_${LOG_SUFFIX}"
 
     log "================================================================"
     log "[$MODEL_IDX/$TOTAL_MODELS] Model: $MODEL"

@@ -41,7 +41,7 @@ MODELS = [
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
 
-DEFAULT_LOG_ROOT = Path("neurips/logs_collusion_v3")
+DEFAULT_LOG_ROOT = Path("logs/collusion_v3")
 DEFAULT_SEED = 42
 DEFAULT_SEEDS = [42, 73, 117]
 DEFAULT_TIMEOUT = 3600
