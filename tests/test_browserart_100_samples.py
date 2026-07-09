@@ -7,7 +7,7 @@ Validates the full pipeline for every sample in hbb.json:
   3. Sample factory roundtrip (metadata preserved through Inspect Sample)
   4. Task construction (solver, scorer, dataset wiring)
   5. Scorer prompt formatting for each behavior
-  6. Condition presets produce valid topologies for all samples
+  6. Presets produce valid topologies for all samples
   7. Filtering edge cases across the full dataset
 """
 
@@ -341,22 +341,22 @@ class TestMultiAgentTopologies:
             assert len(config.setup.edges) == 1
             assert config.user_prompt == b.behavior
 
-    def test_all_condition_presets(self, sample_behaviors):
-        """Every ICML condition preset produces a valid config for sample behaviors."""
-        from orbit.scenarios.browser.browserart.condition_presets import (
-            CONDITION_REGISTRY,
-            get_condition_setup,
+    def test_all_preset_registry(self, sample_behaviors):
+        """Every ICML preset produces a valid config for sample behaviors."""
+        from orbit.scenarios.browser.browserart.preset_registry import (
+            PRESET_REGISTRY,
+            get_preset_setup,
         )
 
-        for condition_name in CONDITION_REGISTRY:
-            topo = get_condition_setup(condition_name)
+        for preset_name in PRESET_REGISTRY:
+            topo = get_preset_setup(preset_name)
             for b in sample_behaviors:
                 config = build_experiment_config(b, topology_template=topo)
                 assert config.name == f"browserart_{b.behavior_id:03d}"
                 assert len(config.setup.agents) >= 1
 
     def test_attack_preset(self, sample_behaviors):
-        from orbit.scenarios.browser.browserart.presets import get_attack_preset
+        from orbit.scenarios.browser.browserart.security_presets import get_attack_preset
 
         attacks = get_attack_preset("compromised_executor")
         for b in sample_behaviors:
@@ -365,7 +365,7 @@ class TestMultiAgentTopologies:
             assert config.attacks[0].attack_type == "compromised_agent"
 
     def test_defense_presets(self, sample_behaviors):
-        from orbit.scenarios.browser.browserart.presets import get_defense_preset
+        from orbit.scenarios.browser.browserart.security_presets import get_defense_preset
 
         for preset_name in ["caution", "vaccination", "text_guard", "full_guard"]:
             defenses = get_defense_preset(preset_name)
@@ -523,23 +523,23 @@ class TestTaskConstruction:
         for s in task.dataset:
             assert s.input, f"Sample {s.id}: empty input"
 
-    def test_task_condition_m1_0(self):
-        """Condition preset single_agent creates task with single agent."""
+    def test_task_preset_m1_0(self):
+        """Preset single_agent creates task with single agent."""
         from orbit.scenarios.browser.browserart.task import browserart_safety
 
-        task = browserart_safety(task_ids="0", condition="single_agent")
+        task = browserart_safety(task_ids="0", preset="single_agent")
         samples = list(task.dataset)
         assert len(samples) == 1
 
-    def test_task_condition_star_specialist(self):
-        """Condition preset star_specialist creates task with multi-agent topology."""
+    def test_task_preset_star_specialist(self):
+        """Preset star_specialist creates task with multi-agent topology."""
         from orbit.scenarios.browser.browserart.task import browserart_safety
 
-        task = browserart_safety(task_ids="0", condition="star_specialist")
+        task = browserart_safety(task_ids="0", preset="star_specialist")
         samples = list(task.dataset)
         assert len(samples) == 1
         meta = MASMetadata.model_validate(samples[0].metadata)
-        assert meta.experiment.metadata.get("browserart_resolved_condition") == "star_specialist"
+        assert meta.experiment.metadata.get("browserart_resolved_preset") == "star_specialist"
 
 
 # ---------------------------------------------------------------------------

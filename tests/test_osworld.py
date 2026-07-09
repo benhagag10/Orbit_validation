@@ -1,6 +1,6 @@
 """Tests for the OSWorld multi-agent safety scenario module.
 
-Covers config models, condition presets, resolver, dataset filtering,
+Covers config models, presets, resolver, dataset filtering,
 config builder, scorer response parsing, presets, topology_file fallback,
 and runner dispatch.
 """
@@ -14,11 +14,11 @@ import pytest
 
 from orbit.configs.experiment import ExperimentConfig
 from orbit.configs.setup import SetupConfig
-from orbit.scenarios.desktop.osworld.condition_presets import (
-    CONDITION_REGISTRY,
-    get_condition_setup,
-    list_conditions,
-    resolve_condition,
+from orbit.scenarios.desktop.osworld.preset_registry import (
+    PRESET_REGISTRY,
+    get_preset_setup,
+    list_presets,
+    resolve_preset,
 )
 from orbit.scenarios.desktop.osworld.config_builder import (
     build_experiment_config,
@@ -33,7 +33,7 @@ from orbit.scenarios.desktop.osworld.dataset_builder import (
     filter_tasks,
     get_task_statistics,
 )
-from orbit.scenarios.desktop.osworld.presets import (
+from orbit.scenarios.desktop.osworld.security_presets import (
     get_attack_preset,
     get_defense_preset,
 )
@@ -91,8 +91,8 @@ def _sample_tasks() -> list[OSHarmTask]:
     ]
 
 
-# Expected agent counts per condition (template)
-_CONDITION_TEMPLATE_AGENTS: dict[str, int] = {
+# Expected agent counts per preset (template)
+_PRESET_TEMPLATE_AGENTS: dict[str, int] = {
     "single_agent": 1,
     "star_batch": 2,
     "star_batch_relaxed": 2,
@@ -127,7 +127,7 @@ _CONDITION_TEMPLATE_AGENTS: dict[str, int] = {
     "memory_full": 5,
 }
 
-_CONDITION_TEMPLATE_EDGES: dict[str, int] = {
+_PRESET_TEMPLATE_EDGES: dict[str, int] = {
     "single_agent": 0,
     "star_batch": 1,
     "star_batch_relaxed": 1,
@@ -224,12 +224,12 @@ class TestOSWorldScenarioConfig:
 
 
 # ===========================================================================
-# Condition preset tests
+# Preset tests
 # ===========================================================================
 
 
-class TestConditionRegistry:
-    def test_all_conditions_present(self) -> None:
+class TestPresetRegistry:
+    def test_all_presets_present(self) -> None:
         expected = {
             "single_agent", "star_batch", "star_batch_relaxed", "star_step",
             # Tool-action specialists
@@ -248,66 +248,66 @@ class TestConditionRegistry:
             "memory_none", "memory_own_actions", "memory_own_reasoning",
             "memory_shared_actions", "memory_full",
         }
-        assert expected == set(CONDITION_REGISTRY.keys())
+        assert expected == set(PRESET_REGISTRY.keys())
 
-    def test_list_conditions_sorted(self) -> None:
-        conditions = list_conditions()
-        assert len(conditions) == 30
-        assert conditions == sorted(conditions)
+    def test_list_presets_sorted(self) -> None:
+        presets = list_presets()
+        assert len(presets) == 30
+        assert presets == sorted(presets)
 
-    def test_unknown_condition_raises(self) -> None:
-        with pytest.raises(ValueError, match="Unknown condition"):
-            get_condition_setup("nonexistent")
+    def test_unknown_preset_raises(self) -> None:
+        with pytest.raises(ValueError, match="Unknown preset"):
+            get_preset_setup("nonexistent")
 
 
-class TestAllConditionsProduceValidSetup:
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_produces_setup_config(self, condition: str) -> None:
-        setup = get_condition_setup(condition)
+class TestAllPresetsProduceValidSetup:
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_produces_setup_config(self, preset: str) -> None:
+        setup = get_preset_setup(preset)
         assert isinstance(setup, SetupConfig)
-        assert len(setup.agents) == _CONDITION_TEMPLATE_AGENTS[condition]
-        assert len(setup.edges) == _CONDITION_TEMPLATE_EDGES[condition]
+        assert len(setup.agents) == _PRESET_TEMPLATE_AGENTS[preset]
+        assert len(setup.edges) == _PRESET_TEMPLATE_EDGES[preset]
 
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_has_topology_type_property(self, condition: str) -> None:
-        setup = get_condition_setup(condition)
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_has_topology_type_property(self, preset: str) -> None:
+        setup = get_preset_setup(preset)
         assert "topology_type" in setup.properties
 
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_non_orchestrator_agents_have_valid_tools(self, condition: str) -> None:
-        setup = get_condition_setup(condition)
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_non_orchestrator_agents_have_valid_tools(self, preset: str) -> None:
+        setup = get_preset_setup(preset)
         for agent in setup.agents:
             if agent.role == "orchestrator":
                 continue
             assert "submit" in agent.tools, (
-                f"Agent {agent.name} in {condition} missing submit"
+                f"Agent {agent.name} in {preset} missing submit"
             )
             has_full = "computer" in agent.tools
             has_focused = any(t.startswith("computer_") for t in agent.tools)
             assert has_full or has_focused, (
-                f"Agent {agent.name} in {condition} has no computer tools: {agent.tools}"
+                f"Agent {agent.name} in {preset} has no computer tools: {agent.tools}"
             )
 
 
-class TestSingleAgentCondition:
+class TestSingleAgentPreset:
     def test_structure(self) -> None:
-        setup = get_condition_setup("single_agent")
+        setup = get_preset_setup("single_agent")
         assert len(setup.agents) == 1
         assert len(setup.edges) == 0
         assert setup.agents[0].name == "computer_use_agent"
 
 
-class TestStarConditions:
-    @pytest.mark.parametrize("condition", ["star_batch", "star_batch_relaxed"])
-    def test_batch(self, condition: str) -> None:
-        setup = get_condition_setup(condition)
+class TestStarPresets:
+    @pytest.mark.parametrize("preset", ["star_batch", "star_batch_relaxed"])
+    def test_batch(self, preset: str) -> None:
+        setup = get_preset_setup(preset)
         assert len(setup.agents) == 2
         assert len(setup.edges) == 1
         assert setup.properties["execution_style"] == "batch"
 
-    @pytest.mark.parametrize("condition", ["star_tool_specialist", "star_tool_specialist_relaxed"])
-    def test_tool_specialist(self, condition: str) -> None:
-        setup = get_condition_setup(condition)
+    @pytest.mark.parametrize("preset", ["star_tool_specialist", "star_tool_specialist_relaxed"])
+    def test_tool_specialist(self, preset: str) -> None:
+        setup = get_preset_setup(preset)
         assert len(setup.agents) == 5
         assert len(setup.edges) == 4
         assert setup.properties["execution_style"] == "specialist_dispatch"
@@ -319,7 +319,7 @@ class TestStarConditions:
 
     def test_tool_specialists_have_focused_tools(self) -> None:
         """Tool-action specialists get focused tools, not the full computer tool."""
-        setup = get_condition_setup("star_tool_specialist")
+        setup = get_preset_setup("star_tool_specialist")
         for agent in setup.agents:
             if agent.role == "orchestrator":
                 continue
@@ -339,7 +339,7 @@ class TestStarConditions:
 
     def test_combined_specialists_have_correct_tools(self) -> None:
         """2-specialist and 3-specialist configs get combined tool sets."""
-        setup_2 = get_condition_setup("star_tool_2_specialist")
+        setup_2 = get_preset_setup("star_tool_2_specialist")
         agents_2 = {a.name: a for a in setup_2.agents if a.role != "orchestrator"}
         assert "computer_click" in agents_2["click_scroll_specialist"].tools
         assert "computer_scroll" in agents_2["click_scroll_specialist"].tools
@@ -350,18 +350,18 @@ class TestStarConditions:
 
     def test_non_specialist_agents_keep_full_computer_tool(self) -> None:
         """Single agent, batch executors, and app specialists keep 'computer'."""
-        for condition in ["single_agent", "star_batch", "star_specialist"]:
-            setup = get_condition_setup(condition)
+        for preset in ["single_agent", "star_batch", "star_specialist"]:
+            setup = get_preset_setup(preset)
             for agent in setup.agents:
                 if agent.role == "orchestrator":
                     continue
                 assert "computer" in agent.tools, (
-                    f"{agent.name} in {condition} should have full 'computer' tool"
+                    f"{agent.name} in {preset} should have full 'computer' tool"
                 )
 
-    @pytest.mark.parametrize("condition", ["star_specialist", "star_specialist_relaxed"])
-    def test_app_specialist(self, condition: str) -> None:
-        setup = get_condition_setup(condition)
+    @pytest.mark.parametrize("preset", ["star_specialist", "star_specialist_relaxed"])
+    def test_app_specialist(self, preset: str) -> None:
+        setup = get_preset_setup(preset)
         assert len(setup.agents) == 5
         assert len(setup.edges) == 4
         assert setup.properties["execution_style"] == "specialist_dispatch"
@@ -372,7 +372,7 @@ class TestStarConditions:
         }
 
     def test_star_2_specialist(self) -> None:
-        setup = get_condition_setup("star_2_specialist")
+        setup = get_preset_setup("star_2_specialist")
         assert len(setup.agents) == 3
         assert len(setup.edges) == 2
         assert setup.properties["execution_style"] == "specialist_dispatch"
@@ -380,7 +380,7 @@ class TestStarConditions:
         assert names == {"email_browser_specialist", "document_code_specialist"}
 
     def test_star_3_specialist(self) -> None:
-        setup = get_condition_setup("star_3_specialist")
+        setup = get_preset_setup("star_3_specialist")
         assert len(setup.agents) == 4
         assert len(setup.edges) == 3
         assert setup.properties["execution_style"] == "specialist_dispatch"
@@ -388,14 +388,14 @@ class TestStarConditions:
         assert names == {"email_browser_specialist", "document_specialist", "code_specialist"}
 
     def test_step(self) -> None:
-        setup = get_condition_setup("star_step")
+        setup = get_preset_setup("star_step")
         assert len(setup.agents) == 2
         assert setup.properties["execution_style"] == "step"
 
 
-class TestMeshConditions:
+class TestMeshPresets:
     def test_tool_round_robin(self) -> None:
-        setup = get_condition_setup("mesh_tool_round_robin")
+        setup = get_preset_setup("mesh_tool_round_robin")
         assert len(setup.agents) == 4
         assert len(setup.edges) == 12
         assert setup.properties["execution_style"] == "round_robin"
@@ -403,7 +403,7 @@ class TestMeshConditions:
         assert names == {"click_specialist", "type_specialist", "key_specialist", "scroll_specialist"}
 
     def test_tool_delegation(self) -> None:
-        setup = get_condition_setup("mesh_tool_delegation")
+        setup = get_preset_setup("mesh_tool_delegation")
         assert len(setup.agents) == 4
         assert len(setup.edges) == 12
         assert setup.properties["execution_style"] == "delegation"
@@ -411,20 +411,20 @@ class TestMeshConditions:
         assert names == {"click_specialist", "type_specialist", "key_specialist", "scroll_specialist"}
 
     def test_app_round_robin(self) -> None:
-        setup = get_condition_setup("mesh_round_robin")
+        setup = get_preset_setup("mesh_round_robin")
         assert len(setup.agents) == 4
         assert len(setup.edges) == 12
         assert setup.properties["execution_style"] == "round_robin"
 
     def test_app_delegation(self) -> None:
-        setup = get_condition_setup("mesh_delegation")
+        setup = get_preset_setup("mesh_delegation")
         assert len(setup.agents) == 4
         assert len(setup.edges) == 12
         assert setup.properties["execution_style"] == "delegation"
 
-    @pytest.mark.parametrize("condition", ["mesh_delegation_cot", "mesh_delegation_full"])
-    def test_mesh_delegation_memory(self, condition: str) -> None:
-        setup = get_condition_setup(condition)
+    @pytest.mark.parametrize("preset", ["mesh_delegation_cot", "mesh_delegation_full"])
+    def test_mesh_delegation_memory(self, preset: str) -> None:
+        setup = get_preset_setup(preset)
         assert len(setup.agents) == 4
         assert len(setup.edges) == 12
         assert setup.properties["execution_style"] == "delegation"
@@ -436,16 +436,16 @@ class TestMeshConditions:
         }
 
 
-class TestMemoryConditions:
+class TestMemoryPresets:
     def test_memory_none_flags_false(self) -> None:
-        setup = get_condition_setup("memory_none")
+        setup = get_preset_setup("memory_none")
         for access in setup.memory.agent_memory_access:
             assert access.own_action_history is False
             assert access.own_cot is False
             assert access.shared_action_history is False
 
     def test_memory_full_flags_true(self) -> None:
-        setup = get_condition_setup("memory_full")
+        setup = get_preset_setup("memory_full")
         for access in setup.memory.agent_memory_access:
             assert access.own_action_history is True
             assert access.own_cot is True
@@ -459,8 +459,8 @@ class TestMemoryConditions:
             "memory_shared_actions", "memory_full",
         ]
 
-        def _count_flags(condition: str) -> int:
-            setup = get_condition_setup(condition)
+        def _count_flags(preset: str) -> int:
+            setup = get_preset_setup(preset)
             access = setup.memory.agent_memory_access[0]
             return sum(
                 getattr(access, f)
@@ -482,8 +482,8 @@ class TestMemoryConditions:
             "tool_memory_full",
         ]
 
-        def _count_flags(condition: str) -> int:
-            setup = get_condition_setup(condition)
+        def _count_flags(preset: str) -> int:
+            setup = get_preset_setup(preset)
             access = setup.memory.agent_memory_access[0]
             return sum(
                 getattr(access, f)
@@ -499,34 +499,34 @@ class TestMemoryConditions:
             assert counts[i] >= counts[i - 1]
 
     def test_tool_memory_uses_tool_specialists(self) -> None:
-        setup = get_condition_setup("tool_memory_full")
+        setup = get_preset_setup("tool_memory_full")
         names = {a.name for a in setup.agents if a.role != "orchestrator"}
         assert names == {
             "click_specialist", "type_specialist",
             "key_specialist", "scroll_specialist",
         }
 
-    @pytest.mark.parametrize("condition", [
+    @pytest.mark.parametrize("preset", [
         "memory_none", "memory_own_actions", "memory_own_reasoning",
         "memory_shared_actions", "memory_full",
         "tool_memory_none", "tool_memory_own_actions",
         "tool_memory_own_reasoning", "tool_memory_shared_actions",
         "tool_memory_full",
     ])
-    def test_memory_star_topology(self, condition: str) -> None:
-        setup = get_condition_setup(condition)
+    def test_memory_star_topology(self, preset: str) -> None:
+        setup = get_preset_setup(preset)
         assert len(setup.agents) == 5
         assert len(setup.edges) == 4
 
     def test_mesh_delegation_cot_flags(self) -> None:
-        setup = get_condition_setup("mesh_delegation_cot")
+        setup = get_preset_setup("mesh_delegation_cot")
         for access in setup.memory.agent_memory_access:
             assert access.own_action_history is True
             assert access.own_cot is True
             assert access.shared_action_history is False
 
     def test_mesh_delegation_full_flags(self) -> None:
-        setup = get_condition_setup("mesh_delegation_full")
+        setup = get_preset_setup("mesh_delegation_full")
         for access in setup.memory.agent_memory_access:
             assert access.own_action_history is True
             assert access.own_cot is True
@@ -536,72 +536,72 @@ class TestMemoryConditions:
 
 
 # ===========================================================================
-# resolve_condition tests
+# resolve_preset tests
 # ===========================================================================
 
 
-class TestResolveCondition:
+class TestResolvePreset:
     def test_single_agent(self) -> None:
-        assert resolve_condition(agents="single") == "single_agent"
+        assert resolve_preset(agents="single") == "single_agent"
 
     def test_star_batch(self) -> None:
-        assert resolve_condition(agents="batch") == "star_batch"
+        assert resolve_preset(agents="batch") == "star_batch"
 
     def test_star_batch_relaxed(self) -> None:
-        assert resolve_condition(agents="batch", instructions="relaxed") == "star_batch_relaxed"
+        assert resolve_preset(agents="batch", instructions="relaxed") == "star_batch_relaxed"
 
     def test_specialist_defaults_to_tool(self) -> None:
-        assert resolve_condition(agents="specialist") == "star_tool_specialist"
+        assert resolve_preset(agents="specialist") == "star_tool_specialist"
 
     def test_specialist_mesh_round_robin(self) -> None:
-        assert resolve_condition(agents="specialist", topology="round_robin") == "mesh_tool_round_robin"
+        assert resolve_preset(agents="specialist", topology="round_robin") == "mesh_tool_round_robin"
 
     def test_specialist_mesh_delegation(self) -> None:
-        assert resolve_condition(agents="specialist", topology="delegation") == "mesh_tool_delegation"
+        assert resolve_preset(agents="specialist", topology="delegation") == "mesh_tool_delegation"
 
     def test_specialist_memory_full(self) -> None:
-        assert resolve_condition(agents="specialist", memory="full") == "tool_memory_full"
+        assert resolve_preset(agents="specialist", memory="full") == "tool_memory_full"
 
     def test_app_specialist_star(self) -> None:
-        assert resolve_condition(agents="app_specialist") == "star_specialist"
+        assert resolve_preset(agents="app_specialist") == "star_specialist"
 
     def test_app_specialist_mesh_round_robin(self) -> None:
-        assert resolve_condition(agents="app_specialist", topology="round_robin") == "mesh_round_robin"
+        assert resolve_preset(agents="app_specialist", topology="round_robin") == "mesh_round_robin"
 
     def test_app_specialist_mesh_delegation(self) -> None:
-        assert resolve_condition(agents="app_specialist", topology="delegation") == "mesh_delegation"
+        assert resolve_preset(agents="app_specialist", topology="delegation") == "mesh_delegation"
 
     def test_app_specialist_memory_full(self) -> None:
-        assert resolve_condition(agents="app_specialist", memory="full") == "memory_full"
+        assert resolve_preset(agents="app_specialist", memory="full") == "memory_full"
 
     def test_invalid_agents_raises(self) -> None:
         with pytest.raises(ValueError, match="Invalid --agents"):
-            resolve_condition(agents="unknown")
+            resolve_preset(agents="unknown")
 
     def test_invalid_topology_raises(self) -> None:
         with pytest.raises(ValueError, match="Invalid --topology"):
-            resolve_condition(topology="invalid")
+            resolve_preset(topology="invalid")
 
     def test_invalid_memory_raises(self) -> None:
         with pytest.raises(ValueError, match="Invalid --memory"):
-            resolve_condition(memory="invalid")
+            resolve_preset(memory="invalid")
 
     def test_invalid_instructions_raises(self) -> None:
         with pytest.raises(ValueError, match="Invalid --instructions"):
-            resolve_condition(instructions="invalid")
+            resolve_preset(instructions="invalid")
 
     def test_unsupported_combo_raises(self) -> None:
         with pytest.raises(ValueError, match="Unsupported"):
-            resolve_condition(agents="batch", topology="round_robin")
+            resolve_preset(agents="batch", topology="round_robin")
 
     def test_relaxed_fallback_to_detailed(self) -> None:
-        # Conditions without a relaxed variant silently fall back to detailed
-        assert resolve_condition(agents="single", instructions="relaxed") == "single_agent"
-        assert resolve_condition(agents="step", instructions="relaxed") == "star_step"
-        assert resolve_condition(agents="specialist", topology="round_robin", instructions="relaxed") == "mesh_tool_round_robin"
-        assert resolve_condition(agents="specialist", topology="delegation", instructions="relaxed") == "mesh_tool_delegation"
-        assert resolve_condition(agents="app_specialist", topology="round_robin", instructions="relaxed") == "mesh_round_robin"
-        assert resolve_condition(agents="app_specialist", topology="delegation", instructions="relaxed") == "mesh_delegation"
+        # Presets without a relaxed variant silently fall back to detailed
+        assert resolve_preset(agents="single", instructions="relaxed") == "single_agent"
+        assert resolve_preset(agents="step", instructions="relaxed") == "star_step"
+        assert resolve_preset(agents="specialist", topology="round_robin", instructions="relaxed") == "mesh_tool_round_robin"
+        assert resolve_preset(agents="specialist", topology="delegation", instructions="relaxed") == "mesh_tool_delegation"
+        assert resolve_preset(agents="app_specialist", topology="round_robin", instructions="relaxed") == "mesh_round_robin"
+        assert resolve_preset(agents="app_specialist", topology="delegation", instructions="relaxed") == "mesh_delegation"
 
 
 # ===========================================================================
@@ -701,10 +701,10 @@ class TestBuildExperimentConfig:
 
     def test_custom_topology(self) -> None:
         task = _make_task()
-        topo = get_condition_setup("star_specialist")
+        topo = get_preset_setup("star_specialist")
         config = build_experiment_config(task, topology_template=topo)
         assert len(config.setup.agents) == 5
-        assert config.metadata.get("osworld_condition_type") == "star_specialist"
+        assert config.metadata.get("osworld_preset_type") == "star_specialist"
 
     def test_with_attacks_and_defenses(self) -> None:
         task = _make_task()
@@ -741,20 +741,20 @@ class TestBuildExperimentConfigsFromScenario:
         assert configs[2].name == "osworld_t3"
 
 
-class TestConfigBuilderConditionIntegration:
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_condition_to_experiment_config(self, condition: str) -> None:
-        setup = get_condition_setup(condition)
+class TestConfigBuilderPresetIntegration:
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_preset_to_experiment_config(self, preset: str) -> None:
+        setup = get_preset_setup(preset)
         task = _make_task()
         config = build_experiment_config(task, topology_template=setup)
-        assert len(config.setup.agents) == _CONDITION_TEMPLATE_AGENTS[condition]
-        assert len(config.setup.edges) == _CONDITION_TEMPLATE_EDGES[condition]
+        assert len(config.setup.agents) == _PRESET_TEMPLATE_AGENTS[preset]
+        assert len(config.setup.edges) == _PRESET_TEMPLATE_EDGES[preset]
 
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_condition_to_sample(self, condition: str) -> None:
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_preset_to_sample(self, preset: str) -> None:
         from orbit.dataset.sample_factory import build_sample
 
-        setup = get_condition_setup(condition)
+        setup = get_preset_setup(preset)
         task = _make_task()
         config = build_experiment_config(task, topology_template=setup)
         sample = build_sample(config, sample_id=config.name)
@@ -762,9 +762,9 @@ class TestConfigBuilderConditionIntegration:
         meta = sample.metadata["experiment"]
         assert meta["metadata"]["osworld_task_id"] == "test_task_1"
 
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_setup_json_roundtrip(self, condition: str) -> None:
-        setup = get_condition_setup(condition)
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_setup_json_roundtrip(self, preset: str) -> None:
+        setup = get_preset_setup(preset)
         data = json.loads(setup.model_dump_json())
         restored = SetupConfig(**data)
         assert len(restored.agents) == len(setup.agents)
@@ -1034,17 +1034,17 @@ class TestModuleExports:
             build_experiment_config,
             build_experiment_configs,
             default_topology_template,
-            get_condition_setup,
-            list_conditions,
+            get_preset_setup,
+            list_presets,
             load_osharm_tasks,
             load_tasks_by_category,
             osworld_scorer,
-            resolve_condition,
+            resolve_preset,
         )
 
         assert callable(build_experiment_config)
         assert callable(osworld_scorer)
-        assert callable(resolve_condition)
+        assert callable(resolve_preset)
 
 
 # ===========================================================================
@@ -1162,94 +1162,94 @@ class TestTaskIdsFilter:
         assert result[0].task_id == "t01"
 
 # ===========================================================================
-# Condition-aware attack targeting tests
+# Preset-aware attack targeting tests
 # ===========================================================================
 
 
-class TestConditionAttackTargets:
-    def test_all_conditions_have_targets(self) -> None:
-        from orbit.scenarios.desktop.osworld.presets import CONDITION_ATTACK_TARGETS
+class TestPresetAttackTargets:
+    def test_all_presets_have_targets(self) -> None:
+        from orbit.scenarios.desktop.osworld.security_presets import PRESET_ATTACK_TARGETS
 
-        for condition in CONDITION_REGISTRY.keys():
-            assert condition in CONDITION_ATTACK_TARGETS, (
-                f"Condition '{condition}' missing from CONDITION_ATTACK_TARGETS"
+        for preset in PRESET_REGISTRY.keys():
+            assert preset in PRESET_ATTACK_TARGETS, (
+                f"Preset '{preset}' missing from PRESET_ATTACK_TARGETS"
             )
 
     def test_single_agent_targets_computer_use_agent(self) -> None:
-        from orbit.scenarios.desktop.osworld.presets import CONDITION_ATTACK_TARGETS
+        from orbit.scenarios.desktop.osworld.security_presets import PRESET_ATTACK_TARGETS
 
-        assert CONDITION_ATTACK_TARGETS["single_agent"] == "computer_use_agent"
+        assert PRESET_ATTACK_TARGETS["single_agent"] == "computer_use_agent"
 
     def test_star_batch_targets_executor(self) -> None:
-        from orbit.scenarios.desktop.osworld.presets import CONDITION_ATTACK_TARGETS
+        from orbit.scenarios.desktop.osworld.security_presets import PRESET_ATTACK_TARGETS
 
         for cond in ("star_batch", "star_batch_relaxed", "star_step"):
-            assert CONDITION_ATTACK_TARGETS[cond] == "executor"
+            assert PRESET_ATTACK_TARGETS[cond] == "executor"
 
-    def test_tool_specialist_conditions_target_click_specialist(self) -> None:
-        from orbit.scenarios.desktop.osworld.presets import CONDITION_ATTACK_TARGETS
+    def test_tool_specialist_presets_target_click_specialist(self) -> None:
+        from orbit.scenarios.desktop.osworld.security_presets import PRESET_ATTACK_TARGETS
 
-        tool_specialist_conditions = [
+        tool_specialist_presets = [
             "star_tool_specialist", "star_tool_specialist_relaxed",
             "mesh_tool_round_robin", "mesh_tool_delegation",
         ]
-        for cond in tool_specialist_conditions:
-            assert CONDITION_ATTACK_TARGETS[cond] == "click_specialist"
+        for cond in tool_specialist_presets:
+            assert PRESET_ATTACK_TARGETS[cond] == "click_specialist"
 
-    def test_app_specialist_conditions_target_email_specialist(self) -> None:
-        from orbit.scenarios.desktop.osworld.presets import CONDITION_ATTACK_TARGETS
+    def test_app_specialist_presets_target_email_specialist(self) -> None:
+        from orbit.scenarios.desktop.osworld.security_presets import PRESET_ATTACK_TARGETS
 
-        app_specialist_conditions = [
+        app_specialist_presets = [
             "star_specialist", "star_specialist_relaxed",
             "mesh_round_robin", "mesh_delegation",
         ]
-        for cond in app_specialist_conditions:
-            assert CONDITION_ATTACK_TARGETS[cond] == "email_specialist"
+        for cond in app_specialist_presets:
+            assert PRESET_ATTACK_TARGETS[cond] == "email_specialist"
 
-    def test_combined_specialist_conditions_target_email_browser(self) -> None:
-        from orbit.scenarios.desktop.osworld.presets import CONDITION_ATTACK_TARGETS
+    def test_combined_specialist_presets_target_email_browser(self) -> None:
+        from orbit.scenarios.desktop.osworld.security_presets import PRESET_ATTACK_TARGETS
 
         for cond in ("star_2_specialist", "star_3_specialist"):
-            assert CONDITION_ATTACK_TARGETS[cond] == "email_browser_specialist"
+            assert PRESET_ATTACK_TARGETS[cond] == "email_browser_specialist"
 
-    def test_mesh_delegation_memory_conditions_target_email_specialist(self) -> None:
-        from orbit.scenarios.desktop.osworld.presets import CONDITION_ATTACK_TARGETS
+    def test_mesh_delegation_memory_presets_target_email_specialist(self) -> None:
+        from orbit.scenarios.desktop.osworld.security_presets import PRESET_ATTACK_TARGETS
 
         for cond in ("mesh_delegation_cot", "mesh_delegation_full"):
-            assert CONDITION_ATTACK_TARGETS[cond] == "email_specialist"
+            assert PRESET_ATTACK_TARGETS[cond] == "email_specialist"
 
-    def test_tool_memory_conditions_target_click_specialist(self) -> None:
-        from orbit.scenarios.desktop.osworld.presets import CONDITION_ATTACK_TARGETS
+    def test_tool_memory_presets_target_click_specialist(self) -> None:
+        from orbit.scenarios.desktop.osworld.security_presets import PRESET_ATTACK_TARGETS
 
-        tool_memory_conditions = [
+        tool_memory_presets = [
             "tool_memory_none", "tool_memory_own_actions",
             "tool_memory_own_reasoning", "tool_memory_shared_actions",
             "tool_memory_full",
         ]
-        for cond in tool_memory_conditions:
-            assert CONDITION_ATTACK_TARGETS[cond] == "click_specialist"
+        for cond in tool_memory_presets:
+            assert PRESET_ATTACK_TARGETS[cond] == "click_specialist"
 
-    def test_app_memory_conditions_target_email_specialist(self) -> None:
-        from orbit.scenarios.desktop.osworld.presets import CONDITION_ATTACK_TARGETS
+    def test_app_memory_presets_target_email_specialist(self) -> None:
+        from orbit.scenarios.desktop.osworld.security_presets import PRESET_ATTACK_TARGETS
 
-        memory_conditions = [
+        memory_presets = [
             "memory_none", "memory_own_actions", "memory_own_reasoning",
             "memory_shared_actions", "memory_full",
         ]
-        for cond in memory_conditions:
-            assert CONDITION_ATTACK_TARGETS[cond] == "email_specialist"
+        for cond in memory_presets:
+            assert PRESET_ATTACK_TARGETS[cond] == "email_specialist"
 
-    def test_attack_preset_with_condition_overrides_target(self) -> None:
-        attacks = get_attack_preset("prompt_injection", condition="star_batch")
+    def test_attack_preset_with_preset_overrides_target(self) -> None:
+        attacks = get_attack_preset("prompt_injection", preset="star_batch")
         assert attacks[0].target_agent == "executor"
 
-    def test_attack_preset_without_condition_defaults(self) -> None:
+    def test_attack_preset_without_preset_defaults(self) -> None:
         attacks = get_attack_preset("prompt_injection")
         assert attacks[0].target_agent == "computer_use_agent"
 
-    def test_explicit_target_overrides_condition(self) -> None:
+    def test_explicit_target_overrides_preset(self) -> None:
         attacks = get_attack_preset(
-            "misuse", condition="star_batch", target_agent="my_agent"
+            "misuse", preset="star_batch", target_agent="my_agent"
         )
         assert attacks[0].target_agent == "my_agent"
 
@@ -1486,7 +1486,7 @@ class TestTopologySummaryInConfigBuilder:
 
     def test_star_specialist_topology_summary(self) -> None:
         task = _make_task()
-        topo = get_condition_setup("star_specialist")
+        topo = get_preset_setup("star_specialist")
         config = build_experiment_config(task, topology_template=topo)
         summary = config.metadata["topology_summary"]
         assert summary["agent_count"] == 5
@@ -2014,7 +2014,7 @@ class TestEnrichedTaskPropagation:
 # ---------------------------------------------------------------------------
 
 # Text-format delegation keywords that should NOT appear in orchestrator
-# prompts for conditions run via mas_orchestrator (which uses Inspect's
+# prompts for presets run via mas_orchestrator (which uses Inspect's
 # react() + as_tool() and requires tool calls, not text-based delegation).
 _TEXT_DELEGATION_PATTERNS = ["DISPATCH:", "DELEGATE:"]
 
@@ -2027,15 +2027,15 @@ class TestNoTextDelegationInOrchestratorPrompts:
     is silently ignored by react(). See notes/fix_plan_group_a_detailed.md.
     """
 
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_no_text_delegation(self, condition: str) -> None:
-        setup = get_condition_setup(condition)
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_no_text_delegation(self, preset: str) -> None:
+        setup = get_preset_setup(preset)
         for spec in setup.agents:
             if spec.role != "orchestrator":
                 continue
             for pattern in _TEXT_DELEGATION_PATTERNS:
                 assert pattern not in (spec.system_prompt or ""), (
                     f"Found '{pattern}' in orchestrator prompt for "
-                    f"OSWorld condition '{condition}', agent '{spec.name}'. "
+                    f"OSWorld preset '{preset}', agent '{spec.name}'. "
                     f"Orchestrator prompts must instruct tool-call delegation."
                 )

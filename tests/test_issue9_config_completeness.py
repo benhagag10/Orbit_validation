@@ -290,8 +290,8 @@ class TestExpandingPluginsPreserveDimensions:
             _skip_if_missing_dep(exc)
 
     def test_tau2_threads_attacks_defenses(self):
-        # tau2 derives its roster from tau2_condition (SCENARIO topology
-        # source); an inline setup that doesn't mirror the condition's roster
+        # tau2 derives its roster from tau2_preset (SCENARIO topology
+        # source); an inline setup that doesn't mirror the preset's roster
         # is now a hard conflict (issue #32), so this threading test declares
         # none.
         task = self._build_or_skip(
@@ -305,9 +305,9 @@ class TestExpandingPluginsPreserveDimensions:
 
 
 class TestShorthandResolvedOnOrbitRun:
-    """`orbit run` must resolve scenario *shorthand* (preset / condition metadata
+    """`orbit run` must resolve scenario *shorthand* (preset / preset metadata
     keys) into the full config — the deleted runner dispatch was the only
-    resolver, so a shipped YAML relying on a preset/condition silently degraded.
+    resolver, so a shipped YAML relying on a preset/preset silently degraded.
     These lock in the ``ScenarioPlugin.resolve`` hook (same issue-#9 class, on
     the reader path the builder invariant alone could not see).
     """
@@ -334,18 +334,18 @@ class TestShorthandResolvedOnOrbitRun:
             "swe_bench_attack_preset must resolve into an attack on `orbit run`"
         )
 
-    def test_osworld_condition_resolved_to_correct_memory(self):
+    def test_osworld_preset_resolved_to_correct_memory(self):
         # 08 names memory_shared_actions; must restore shared=True + shared-action
         # access (was degrading to default non-shared memory — a P0 violation).
         task = self._build_or_skip(
-            "examples/osharm_misuse_conditions/08_star_shared_memory.yaml"
+            "examples/osharm_misuse_presets/08_star_shared_memory.yaml"
         )
         exp = _sample_configs(task)[0]
         mem = exp.setup.memory
         assert mem.shared is True
         assert mem.agent_memory_access and all(
             a.shared_action_history for a in mem.agent_memory_access
-        ), "osworld_condition=memory_shared_actions must restore shared-action access"
+        ), "osworld_preset=memory_shared_actions must restore shared-action access"
 
 
 class TestSweBenchInlineAttacksOnOrbitRun:
@@ -565,13 +565,13 @@ class TestEpochsHonoredForPluginScenarios:
         assert self._epochs(build_scenario_task(config, plugin=plugin)) == 1
 
 
-class TestConditionSetupResolution:
-    """Topology comes from an inline ``setup`` OR a ``*_condition`` preset — both
-    single-source forms work. If BOTH are declared, the explicit condition WINS
+class TestPresetSetupResolution:
+    """Topology comes from an inline ``setup`` OR a ``*_preset`` preset — both
+    single-source forms work. If BOTH are declared, the explicit preset WINS
     (issue #32, uniform across scenarios): silently when the inline roster
-    matches the condition's roster (redundant documentation), as a hard
+    matches the preset's roster (redundant documentation), as a hard
     ``ShorthandConflictError`` when the rosters materially differ (a stray
-    inline setup silently relabeling a condition sweep is the mislabeled-control
+    inline setup silently relabeling a preset sweep is the mislabeled-control
     failure), downgradable to a warning with ``ORBIT_LENIENT=1``.
     """
 
@@ -588,30 +588,30 @@ class TestConditionSetupResolution:
 
         return resolve_scenario_shorthand(config)
 
-    def test_browserart_condition_only_resolves_topology(self):
+    def test_browserart_preset_only_resolves_topology(self):
         self._require_spec("browserart")
         c = _exp(
             "browserart",
             setup=SetupConfig(agents=[]),
             attacks=[],
             defenses=[],
-            metadata={"browserart_condition": "star_specialist"},
+            metadata={"browserart_preset": "star_specialist"},
         )
         resolved = self._resolve(c)
         assert len(resolved.setup.agents) > 1, (
-            "condition-only config must resolve to the multi-agent topology, "
+            "preset-only config must resolve to the multi-agent topology, "
             "not collapse to a placeholder"
         )
-        assert resolved.metadata.get("browserart_resolved_condition") == "star_specialist"
-        assert "browserart_condition" not in resolved.metadata
+        assert resolved.metadata.get("browserart_resolved_preset") == "star_specialist"
+        assert "browserart_preset" not in resolved.metadata
 
-    def test_condition_plus_differing_setup_is_an_error(self, monkeypatch):
+    def test_preset_plus_differing_setup_is_an_error(self, monkeypatch):
         from orbit.scenarios.shorthand import ShorthandConflictError
 
         monkeypatch.delenv("ORBIT_LENIENT", raising=False)
         for scenario, meta in (
-            ("browserart", {"browserart_condition": "star_specialist"}),
-            ("osworld", {"osworld_condition": "star_specialist", "osworld_dataset": "osharm"}),
+            ("browserart", {"browserart_preset": "star_specialist"}),
+            ("osworld", {"osworld_preset": "star_specialist", "osworld_dataset": "osharm"}),
         ):
             self._require_spec(scenario)
             c = _exp(
@@ -624,7 +624,7 @@ class TestConditionSetupResolution:
             with pytest.raises(ShorthandConflictError, match="rosters differ"):
                 self._resolve(c)
 
-    def test_condition_plus_differing_setup_lenient_condition_wins(
+    def test_preset_plus_differing_setup_lenient_preset_wins(
         self, caplog, monkeypatch
     ):
         import logging
@@ -636,40 +636,40 @@ class TestConditionSetupResolution:
             setup=SetupConfig(agents=[AgentSpec(name="only_me", role="worker")]),
             attacks=[],
             defenses=[],
-            metadata={"browserart_condition": "star_specialist"},
+            metadata={"browserart_preset": "star_specialist"},
         )
         with caplog.at_level(logging.WARNING):
             resolved = self._resolve(c)
-        # The condition wins (the run is labeled by its condition), loudly.
+        # The preset wins (the run is labeled by its preset), loudly.
         assert len(resolved.setup.agents) > 1
-        assert resolved.metadata.get("browserart_resolved_condition") == "star_specialist"
+        assert resolved.metadata.get("browserart_resolved_preset") == "star_specialist"
         assert any("rosters differ" in r.message for r in caplog.records)
 
-    def test_condition_plus_matching_setup_is_silent(self, caplog):
+    def test_preset_plus_matching_setup_is_silent(self, caplog):
         import logging
 
-        from orbit.scenarios.browser.browserart.condition_presets import (
-            get_condition_setup,
+        from orbit.scenarios.browser.browserart.preset_registry import (
+            get_preset_setup,
         )
 
         self._require_spec("browserart")
-        # Inline roster mirrors the condition's roster (names match): redundant
-        # documentation, not a conflict — resolves silently to the condition.
-        mirrored = get_condition_setup("star_specialist")
+        # Inline roster mirrors the preset's roster (names match): redundant
+        # documentation, not a conflict — resolves silently to the preset.
+        mirrored = get_preset_setup("star_specialist")
         c = _exp(
             "browserart",
             setup=mirrored,
             attacks=[],
             defenses=[],
-            metadata={"browserart_condition": "star_specialist"},
+            metadata={"browserart_preset": "star_specialist"},
         )
         with caplog.at_level(logging.WARNING):
             resolved = self._resolve(c)
-        assert resolved.metadata.get("browserart_resolved_condition") == "star_specialist"
+        assert resolved.metadata.get("browserart_resolved_preset") == "star_specialist"
         assert {a.name for a in resolved.setup.agents} == {
             a.name for a in mirrored.agents
         }
-        assert not [r for r in caplog.records if "condition" in r.message.lower()]
+        assert not [r for r in caplog.records if "preset" in r.message.lower()]
 
     def test_resolve_is_idempotent(self):
         self._require_spec("browserart")
@@ -678,7 +678,7 @@ class TestConditionSetupResolution:
             setup=SetupConfig(agents=[]),
             attacks=[],
             defenses=[],
-            metadata={"browserart_condition": "star_specialist"},
+            metadata={"browserart_preset": "star_specialist"},
         )
         once = self._resolve(c)
         twice = self._resolve(once)  # must not raise (trigger key consumed)

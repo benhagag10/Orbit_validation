@@ -21,7 +21,7 @@ Scope note — item 6 of the kit-contract spec ("a synthetic plugin whose custom
 and is intentionally NOT duplicated here.
 
 Everything is offline: no test calls ``plugin.expand`` (no dataset fetch, no
-Docker, no network). The resolve path only reads pure config/condition/preset
+Docker, no network). The resolve path only reads pure config/preset/preset
 registries.
 """
 
@@ -95,11 +95,11 @@ _FACTORY_MAP: dict[str, tuple[str, str]] = {
 # not load-bearing, but a real one keeps the test representative (and makes a
 # regression that eagerly resolves on the strip path fail loudly).
 _ATTACK_PRESET_BY_MODULE: dict[str, str] = {
-    "orbit.scenarios.coding.swe_bench.presets": "codebase_injection",
-    "orbit.scenarios.browser.browserart.presets": "compromised_executor",
-    "orbit.scenarios.desktop.osworld.presets": "prompt_injection",
-    "orbit.scenarios.coding.redcode_gen.presets": "jailbreak",
-    "orbit.scenarios.coding.code_ipi.presets": "direct_injection",
+    "orbit.scenarios.coding.swe_bench.security_presets": "codebase_injection",
+    "orbit.scenarios.browser.browserart.security_presets": "compromised_executor",
+    "orbit.scenarios.desktop.osworld.security_presets": "prompt_injection",
+    "orbit.scenarios.coding.redcode_gen.security_presets": "jailbreak",
+    "orbit.scenarios.coding.code_ipi.security_presets": "direct_injection",
 }
 
 
@@ -183,15 +183,15 @@ def _resolve(config: ExperimentConfig) -> ExperimentConfig:
     return resolve_scenario_shorthand(config)
 
 
-def _known_condition(spec) -> str | None:
-    """A valid condition name for ``spec`` via the getter module's
-    ``list_conditions()``; ``None`` if that scenario exposes no such helper."""
-    mod = importlib.import_module(spec.condition.__module__)
-    lister = getattr(mod, "list_conditions", None)
+def _known_preset(spec) -> str | None:
+    """A valid preset name for ``spec`` via the getter module's
+    ``list_presets()``; ``None`` if that scenario exposes no such helper."""
+    mod = importlib.import_module(spec.preset.__module__)
+    lister = getattr(mod, "list_presets", None)
     if lister is None:
         return None
-    conditions = lister()
-    return conditions[0] if conditions else None
+    presets = lister()
+    return presets[0] if presets else None
 
 
 def _known_attack_preset(spec) -> str:
@@ -306,29 +306,29 @@ def test_resolve_is_idempotent(name):
         # declared baseline is normalised), so resolution is trivially idempotent.
         config = _exp(name)
     elif plugin.topology_source is TopologySource.SCENARIO:
-        # SCENARIO plugins consume the condition inside expand; the resolver only
+        # SCENARIO plugins consume the preset inside expand; the resolver only
         # arbitrates. With an empty inline setup there is nothing to arbitrate.
-        cond = spec.default_condition or "single_agent"
+        cond = spec.default_preset or "single_agent"
         config = _exp(
             name,
             setup=SetupConfig(agents=[]),
             attacks=[],
             defenses=[],
-            metadata={f"{spec.prefix}_condition": cond},
+            metadata={f"{spec.prefix}_preset": cond},
         )
-    elif spec.condition is not None:
-        cond = _known_condition(spec)
+    elif spec.preset is not None:
+        cond = _known_preset(spec)
         if cond is None:
-            pytest.skip(f"{name}: no condition discoverable via list_conditions()")
+            pytest.skip(f"{name}: no preset discoverable via list_presets()")
         config = _exp(
             name,
             setup=SetupConfig(agents=[]),
             attacks=[],
             defenses=[],
-            metadata={f"{spec.prefix}_condition": cond},
+            metadata={f"{spec.prefix}_preset": cond},
         )
     else:
-        pytest.skip(f"{name}: CONFIG shorthand spec exposes no condition getter")
+        pytest.skip(f"{name}: CONFIG shorthand spec exposes no preset getter")
 
     once = _resolve(config)
     twice = _resolve(once)
@@ -341,8 +341,8 @@ def test_resolve_is_idempotent(name):
 
 
 @pytest.mark.parametrize("name", _SCENARIOS)
-def test_condition_key_stripping_and_breadcrumbs(name):
-    """A resolved ``{prefix}_condition`` leaves a ``{prefix}_resolved_condition``
+def test_preset_key_stripping_and_breadcrumbs(name):
+    """A resolved ``{prefix}_preset`` leaves a ``{prefix}_resolved_preset``
     breadcrumb, is removed from metadata, and materialises a non-empty roster —
     EXCEPT for ``topology_source=SCENARIO`` plugins (tau2), whose expand
     consumes the key natively, so the shared resolver must leave it in place."""
@@ -350,10 +350,10 @@ def test_condition_key_stripping_and_breadcrumbs(name):
     spec = plugin.shorthand
     if spec is None:
         pytest.skip(f"{name}: no shorthand spec")
-    key = f"{spec.prefix}_condition"
+    key = f"{spec.prefix}_preset"
 
     if plugin.topology_source is TopologySource.SCENARIO:
-        cond = spec.default_condition or "single_agent"
+        cond = spec.default_preset or "single_agent"
         config = _exp(
             name,
             setup=SetupConfig(agents=[]),
@@ -369,12 +369,12 @@ def test_condition_key_stripping_and_breadcrumbs(name):
         assert resolved.metadata[key] == cond
         return
 
-    if spec.condition is None:
-        pytest.skip(f"{name}: CONFIG shorthand spec exposes no condition getter")
+    if spec.preset is None:
+        pytest.skip(f"{name}: CONFIG shorthand spec exposes no preset getter")
 
-    cond = _known_condition(spec)
+    cond = _known_preset(spec)
     if cond is None:
-        pytest.skip(f"{name}: no condition discoverable via list_conditions()")
+        pytest.skip(f"{name}: no preset discoverable via list_presets()")
     config = _exp(
         name,
         setup=SetupConfig(agents=[]),
@@ -384,11 +384,11 @@ def test_condition_key_stripping_and_breadcrumbs(name):
     )
     resolved = _resolve(config)
     assert key not in resolved.metadata, f"{name}: consumed key {key!r} not stripped"
-    assert resolved.metadata.get(f"{spec.prefix}_resolved_condition") == cond, (
-        f"{name}: missing/incorrect {spec.prefix}_resolved_condition breadcrumb"
+    assert resolved.metadata.get(f"{spec.prefix}_resolved_preset") == cond, (
+        f"{name}: missing/incorrect {spec.prefix}_resolved_preset breadcrumb"
     )
     assert len(resolved.setup.agents) >= 1, (
-        f"{name}: condition {cond!r} resolved to an empty roster"
+        f"{name}: preset {cond!r} resolved to an empty roster"
     )
 
 
@@ -438,8 +438,8 @@ def test_attack_preset_stripped_by_no_attack_baseline(name):
 def test_factory_exposes_shorthand_params(name):
     """Each shorthand field a plugin declares must have a matching ``-T`` param on
     its @task factory, so the CLI and YAML surfaces cannot drift: a spec
-    ``condition``/``attack_preset``/``defense_preset`` getter implies a factory
-    ``condition``/``attack_preset``/``defense_preset`` parameter."""
+    ``preset``/``attack_preset``/``defense_preset`` getter implies a factory
+    ``preset``/``attack_preset``/``defense_preset`` parameter."""
     plugin = _get_plugin_or_skip(name)
     spec = plugin.shorthand
     if spec is None:
@@ -452,10 +452,10 @@ def test_factory_exposes_shorthand_params(name):
     factory = getattr(importlib.import_module(mod_path), fn_name)
     params = set(inspect.signature(factory).parameters)
 
-    if spec.condition is not None:
-        assert "condition" in params, (
-            f"{name}: spec declares a condition getter but factory {fn_name!r} has "
-            f"no `condition` parameter"
+    if spec.preset is not None:
+        assert "preset" in params, (
+            f"{name}: spec declares a preset getter but factory {fn_name!r} has "
+            f"no `preset` parameter"
         )
     if spec.attack_preset is not None:
         assert "attack_preset" in params, (
@@ -491,7 +491,7 @@ def test_materialized_attack_with_absent_target_is_rejected(monkeypatch):
         attacks=[],
         defenses=[],
         metadata={
-            "redcode_gen_condition": "star_specialist",
+            "redcode_gen_preset": "star_specialist",
             "redcode_gen_attack_preset": "jailbreak",
         },
     )
@@ -506,7 +506,7 @@ def test_materialized_attack_with_absent_target_is_rejected(monkeypatch):
             attacks=[],
             defenses=[],
             metadata={
-                "redcode_gen_condition": "single_agent",
+                "redcode_gen_preset": "single_agent",
                 "redcode_gen_attack_preset": "jailbreak",
             },
         )

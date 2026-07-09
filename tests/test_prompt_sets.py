@@ -1,26 +1,26 @@
 """Tests for the BrowserART PromptSet decoupling layer (Issue #103).
 
 These tests cover the new :class:`PromptSet` abstraction in
-:mod:`orbit.scenarios.browser.browserart.prompts` and the :class:`ConditionSpec`
-machinery in :mod:`orbit.scenarios.browser.browserart.condition_presets` that
+:mod:`orbit.scenarios.browser.browserart.prompts` and the :class:`PresetSpec`
+machinery in :mod:`orbit.scenarios.browser.browserart.preset_registry` that
 lets the same topology shape be used with different prompt sets without
-duplicating a factory function per condition.
+duplicating a factory function per preset.
 """
 
 from __future__ import annotations
 
 import pytest
 
-from orbit.scenarios.browser.browserart.condition_presets import (
-    CONDITION_REGISTRY,
-    ConditionSpec,
+from orbit.scenarios.browser.browserart.preset_registry import (
+    PRESET_REGISTRY,
+    PresetSpec,
     WorkerRole,
     WORKER_ROLE_PRESETS,
-    build_condition,
-    get_condition,
-    get_condition_setup,
-    register_condition,
-    _CONDITION_SPECS,
+    build_preset,
+    get_preset,
+    get_preset_setup,
+    register_preset,
+    _PRESET_SPECS,
     _SHAPE_BUILDERS,
 )
 from orbit.scenarios.browser.browserart.prompts import (
@@ -96,13 +96,13 @@ class TestPromptSetShape:
         assert dict(detailed.workers) == dict(relaxed.workers)
 
 
-class TestConditionSpecCatalog:
-    def test_every_condition_has_spec(self):
-        assert set(_CONDITION_SPECS.keys()) == set(CONDITION_REGISTRY.keys())
+class TestPresetSpecCatalog:
+    def test_every_preset_has_spec(self):
+        assert set(_PRESET_SPECS.keys()) == set(PRESET_REGISTRY.keys())
 
-    @pytest.mark.parametrize("name", sorted(_CONDITION_SPECS.keys()))
+    @pytest.mark.parametrize("name", sorted(_PRESET_SPECS.keys()))
     def test_every_spec_resolves_shape_and_prompt_set(self, name):
-        spec = _CONDITION_SPECS[name]
+        spec = _PRESET_SPECS[name]
         assert spec.shape in _SHAPE_BUILDERS, (
             f"{name}: unknown shape {spec.shape!r}"
         )
@@ -115,10 +115,10 @@ class TestConditionSpecCatalog:
             )
 
     def test_memory_variants_share_prompt_set_with_star_specialist(self):
-        """memory_* conditions must reference the same prompt_set as
+        """memory_* presets must reference the same prompt_set as
         star_specialist. The ONLY variable across memory levels is the
         memory_level field — that's the test's invariant."""
-        baseline = _CONDITION_SPECS["star_specialist"]
+        baseline = _PRESET_SPECS["star_specialist"]
         for level in [
             "memory_none",
             "memory_own_actions",
@@ -126,7 +126,7 @@ class TestConditionSpecCatalog:
             "memory_shared_actions",
             "memory_full",
         ]:
-            spec = _CONDITION_SPECS[level]
+            spec = _PRESET_SPECS[level]
             assert spec.shape == baseline.shape, f"{level}: shape drift"
             assert spec.prompt_set == baseline.prompt_set, (
                 f"{level}: prompt_set drift — should match star_specialist"
@@ -135,14 +135,14 @@ class TestConditionSpecCatalog:
             assert spec.memory_level == level
 
 
-class TestBuildConditionWithCustomPromptSet:
+class TestBuildPresetWithCustomPromptSet:
     """Exercising the core decoupling: same topology, different prompts."""
 
     def test_swap_prompt_set_changes_all_prompts(self):
         """Build star_specialist with a custom PromptSet and verify the
         resulting SetupConfig picks up the overridden text — the topology
         shape stays identical."""
-        baseline = get_condition_setup("star_specialist")
+        baseline = get_preset_setup("star_specialist")
 
         custom = PromptSet(
             name="test_swap",
@@ -154,8 +154,8 @@ class TestBuildConditionWithCustomPromptSet:
                 "navigate_specialist": "CUSTOM NAV",
             },
         )
-        spec = _CONDITION_SPECS["star_specialist"]
-        built = build_condition(spec, prompt_set=custom).setup
+        spec = _PRESET_SPECS["star_specialist"]
+        built = build_preset(spec, prompt_set=custom).setup
 
         # Same topology: same agents, same edges.
         assert [a.name for a in built.agents] == [a.name for a in baseline.agents]
@@ -176,27 +176,27 @@ class TestBuildConditionWithCustomPromptSet:
             workers={"click_specialist": "CLICK"},
             # fill_/scroll_/navigate_specialist prompts missing
         )
-        spec = _CONDITION_SPECS["star_specialist"]
+        spec = _PRESET_SPECS["star_specialist"]
         with pytest.raises(ValueError, match="workers\\['fill_specialist'\\]"):
-            build_condition(spec, prompt_set=incomplete)
+            build_preset(spec, prompt_set=incomplete)
 
     def test_missing_single_slot_raises_clearly(self):
         incomplete = PromptSet(name="test_empty")
-        spec = _CONDITION_SPECS["single_agent"]
+        spec = _PRESET_SPECS["single_agent"]
         with pytest.raises(ValueError, match="single"):
-            build_condition(spec, prompt_set=incomplete)
+            build_preset(spec, prompt_set=incomplete)
 
     def test_missing_peer_slot_raises_clearly(self):
         incomplete = PromptSet(name="test_empty")
-        spec = _CONDITION_SPECS["mesh_round_robin"]
+        spec = _PRESET_SPECS["mesh_round_robin"]
         with pytest.raises(ValueError, match="peer"):
-            build_condition(spec, prompt_set=incomplete)
+            build_preset(spec, prompt_set=incomplete)
 
 
-class TestRegisterCustomCondition:
-    """Conditions can be added without editing condition_presets.py."""
+class TestRegisterCustomPreset:
+    """Presets can be added without editing preset_registry.py."""
 
-    def test_register_and_build_new_condition(self):
+    def test_register_and_build_new_preset(self):
         custom_ps = PromptSet(
             name="issue103_custom_ps",
             orchestrator="TEST ORCH",
@@ -204,37 +204,37 @@ class TestRegisterCustomCondition:
         )
         register_prompt_set(custom_ps)
 
-        spec = ConditionSpec(
+        spec = PresetSpec(
             shape="star",
             prompt_set="issue103_custom_ps",
             workers="one_executor",
             properties={
-                "condition_type": "issue103_custom",
+                "preset_type": "issue103_custom",
                 "execution_style": "batch",
             },
         )
-        register_condition("issue103_custom", spec)
+        register_preset("issue103_custom", spec)
 
         try:
-            setup = get_condition_setup("issue103_custom")
+            setup = get_preset_setup("issue103_custom")
             prompts_by_name = {a.name: a.system_prompt for a in setup.agents}
             assert prompts_by_name["orchestrator"] == "TEST ORCH"
             assert prompts_by_name["executor"] == "TEST EXEC"
-            assert setup.properties["condition_type"] == "issue103_custom"
+            assert setup.properties["preset_type"] == "issue103_custom"
         finally:
             # Clean up so we don't pollute other tests that iterate
-            # CONDITION_REGISTRY via fresh imports.
-            _CONDITION_SPECS.pop("issue103_custom", None)
+            # PRESET_REGISTRY via fresh imports.
+            _PRESET_SPECS.pop("issue103_custom", None)
             PROMPT_SETS.pop("issue103_custom_ps", None)
 
 
 class TestWorkerRolePresets:
-    def test_all_presets_referenced_by_some_condition(self):
+    def test_all_presets_referenced_by_some_preset(self):
         """Every worker-role preset should be in use by at least one
-        condition. Keeps the presets from drifting out of sync."""
+        preset. Keeps the presets from drifting out of sync."""
         in_use = {
             spec.workers
-            for spec in _CONDITION_SPECS.values()
+            for spec in _PRESET_SPECS.values()
             if spec.workers is not None
         }
         assert in_use == set(WORKER_ROLE_PRESETS.keys())

@@ -24,7 +24,7 @@ from orbit.scenarios.coding.swe_bench.attacks.codebase_injection import (
     _insert_at_top,
     _insert_at_bottom,
 )
-from orbit.scenarios.coding.swe_bench.presets import (
+from orbit.scenarios.coding.swe_bench.security_presets import (
     codebase_injection_behavioral_preset,
     codebase_injection_preset,
     codebase_injection_targeted_preset,

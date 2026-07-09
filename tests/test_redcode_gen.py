@@ -43,7 +43,7 @@ from orbit.scenarios.coding.redcode_gen.scorer import (
     extract_generated_code,
     parse_judge_score,
 )
-from orbit.scenarios.coding.redcode_gen.presets import (
+from orbit.scenarios.coding.redcode_gen.security_presets import (
     get_attack_preset,
     get_defense_preset,
 )
@@ -329,13 +329,13 @@ class TestStageClassification:
         assert isinstance(judge, MASJudgeScorer)
 
 
-class TestConditionPresets:
-    """Test condition presets and tool decomposition."""
+class TestPresetPresets:
+    """Test presets and tool decomposition."""
 
     def test_mesh_round_robin_uses_scheduled_executor(self):
         """mesh_round_robin should produce agent_groups for scheduled execution."""
-        from orbit.scenarios.coding.redcode_gen.condition_presets import get_condition_setup
-        setup = get_condition_setup("mesh_round_robin")
+        from orbit.scenarios.coding.redcode_gen.preset_registry import get_preset_setup
+        setup = get_preset_setup("mesh_round_robin")
         task = RedCodeGenTask(
             task_id="test_rr", category="ddos",
             function_signature="def f(): pass",
@@ -349,9 +349,9 @@ class TestConditionPresets:
 
     def test_mesh_round_robin_scales_turns(self):
         """Round-robin max_turns should be scaled by agent count."""
-        from orbit.scenarios.coding.redcode_gen.condition_presets import get_condition_setup
+        from orbit.scenarios.coding.redcode_gen.preset_registry import get_preset_setup
         from orbit.scenarios.coding.redcode_gen.configs import RedCodeGenScenarioConfig
-        setup = get_condition_setup("mesh_round_robin")
+        setup = get_preset_setup("mesh_round_robin")
         sc = RedCodeGenScenarioConfig(max_turns=5)
         task = RedCodeGenTask(
             task_id="test_rr", category="ddos",
@@ -363,8 +363,8 @@ class TestConditionPresets:
 
     def test_non_mesh_does_not_use_scheduled_executor(self):
         """star_specialist should NOT populate agent_groups (topology path)."""
-        from orbit.scenarios.coding.redcode_gen.condition_presets import get_condition_setup
-        setup = get_condition_setup("star_specialist")
+        from orbit.scenarios.coding.redcode_gen.preset_registry import get_preset_setup
+        setup = get_preset_setup("star_specialist")
         task = RedCodeGenTask(
             task_id="test_star", category="ddos",
             function_signature="def f(): pass",
@@ -375,8 +375,8 @@ class TestConditionPresets:
 
     def test_specialist_tool_decomposition(self):
         """Each specialist should get different tools."""
-        from orbit.scenarios.coding.redcode_gen.condition_presets import get_condition_setup
-        setup = get_condition_setup("star_specialist")
+        from orbit.scenarios.coding.redcode_gen.preset_registry import get_preset_setup
+        setup = get_preset_setup("star_specialist")
         tools_by_name = {a.name: a.tools for a in setup.agents if a.role == "specialist"}
         # design gets think only (no python)
         assert "think" in tools_by_name["design_specialist"]
@@ -393,9 +393,9 @@ class TestConditionPresets:
 
     def test_mesh_specialist_tools_match_star(self):
         """Mesh specialists should have the same tool decomposition."""
-        from orbit.scenarios.coding.redcode_gen.condition_presets import get_condition_setup
-        star = get_condition_setup("star_specialist")
-        mesh = get_condition_setup("mesh_delegation")
+        from orbit.scenarios.coding.redcode_gen.preset_registry import get_preset_setup
+        star = get_preset_setup("star_specialist")
+        mesh = get_preset_setup("mesh_delegation")
         star_tools = {a.name: sorted(a.tools) for a in star.agents if a.role == "specialist"}
         mesh_tools = {a.name: sorted(a.tools) for a in mesh.agents if a.role == "peer"}
         for name in star_tools:

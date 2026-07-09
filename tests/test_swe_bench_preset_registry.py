@@ -1,7 +1,7 @@
-"""Tests for SWE-Bench coding agent condition presets.
+"""Tests for SWE-Bench coding agent presets.
 
-Unit tests for the condition registry, resolver, and preset factories,
-plus integration tests that verify each condition works end-to-end through
+Unit tests for the preset registry, resolver, and preset factories,
+plus integration tests that verify each preset works end-to-end through
 the config builder pipeline with different issue counts.
 """
 
@@ -13,11 +13,11 @@ import pytest
 
 from orbit.configs.experiment import ExperimentConfig
 from orbit.configs.setup import SetupConfig
-from orbit.scenarios.coding.swe_bench.condition_presets import (
-    CONDITION_REGISTRY,
-    get_condition_setup,
-    list_conditions,
-    resolve_condition,
+from orbit.scenarios.coding.swe_bench.preset_registry import (
+    PRESET_REGISTRY,
+    get_preset_setup,
+    list_presets,
+    resolve_preset,
 )
 from orbit.scenarios.coding.swe_bench.configs import (
     IssueSpec,
@@ -78,8 +78,8 @@ def _make_group(
     )
 
 
-# Expected agent counts per condition (template, before replication)
-_CONDITION_TEMPLATE_AGENTS: dict[str, int] = {
+# Expected agent counts per preset (template, before replication)
+_PRESET_TEMPLATE_AGENTS: dict[str, int] = {
     "single_agent": 1,
     "star_batch": 2,
     "star_batch_relaxed": 2,
@@ -95,8 +95,8 @@ _CONDITION_TEMPLATE_AGENTS: dict[str, int] = {
     "memory_full": 5,
 }
 
-# Expected edge counts per condition (template, before replication)
-_CONDITION_TEMPLATE_EDGES: dict[str, int] = {
+# Expected edge counts per preset (template, before replication)
+_PRESET_TEMPLATE_EDGES: dict[str, int] = {
     "single_agent": 0,
     "star_batch": 1,
     "star_batch_relaxed": 1,
@@ -113,8 +113,8 @@ _CONDITION_TEMPLATE_EDGES: dict[str, int] = {
 }
 
 
-class TestConditionRegistry:
-    def test_all_conditions_present(self):
+class TestPresetRegistry:
+    def test_all_presets_present(self):
         expected = {
             "single_agent", "star_batch", "star_batch_relaxed",
             "star_specialist", "star_specialist_relaxed", "star_step",
@@ -122,54 +122,54 @@ class TestConditionRegistry:
             "memory_none", "memory_own_actions", "memory_own_reasoning",
             "memory_shared_actions", "memory_full",
         }
-        assert expected == set(CONDITION_REGISTRY.keys())
+        assert expected == set(PRESET_REGISTRY.keys())
 
-    def test_list_conditions(self):
-        conditions = list_conditions()
-        assert len(conditions) == 13
-        assert conditions == sorted(conditions)
+    def test_list_presets(self):
+        presets = list_presets()
+        assert len(presets) == 13
+        assert presets == sorted(presets)
 
-    def test_unknown_condition_raises(self):
-        with pytest.raises(ValueError, match="Unknown condition"):
-            get_condition_setup("nonexistent")
+    def test_unknown_preset_raises(self):
+        with pytest.raises(ValueError, match="Unknown preset"):
+            get_preset_setup("nonexistent")
 
 
-class TestAllConditionsProduceValidSetup:
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_produces_valid_setup(self, condition):
-        setup = get_condition_setup(condition)
+class TestAllPresetsProduceValidSetup:
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_produces_valid_setup(self, preset):
+        setup = get_preset_setup(preset)
         assert len(setup.agents) >= 1
         assert "topology_type" in setup.properties
 
 
-class TestSingleAgentConditions:
+class TestSingleAgentPresets:
     def test_single_agent(self):
-        setup = get_condition_setup("single_agent")
+        setup = get_preset_setup("single_agent")
         assert len(setup.agents) == 1
         assert len(setup.edges) == 0
         assert setup.properties["topology_type"] == "single"
         assert setup.agents[0].name == "coding_agent"
 
 
-class TestStarConditions:
-    @pytest.mark.parametrize("condition", ["star_batch", "star_batch_relaxed"])
-    def test_batch_conditions(self, condition):
-        setup = get_condition_setup(condition)
+class TestStarPresets:
+    @pytest.mark.parametrize("preset", ["star_batch", "star_batch_relaxed"])
+    def test_batch_presets(self, preset):
+        setup = get_preset_setup(preset)
         assert setup.properties["topology_type"] == "star"
         assert setup.properties["execution_style"] == "batch"
         assert len(setup.agents) == 2  # orchestrator + 1 executor
         assert len(setup.edges) == 1
 
-    @pytest.mark.parametrize("condition", ["star_specialist", "star_specialist_relaxed"])
-    def test_specialist_conditions(self, condition):
-        setup = get_condition_setup(condition)
+    @pytest.mark.parametrize("preset", ["star_specialist", "star_specialist_relaxed"])
+    def test_specialist_presets(self, preset):
+        setup = get_preset_setup(preset)
         assert setup.properties["topology_type"] == "star"
         assert setup.properties["execution_style"] == "specialist_dispatch"
         assert len(setup.agents) == 5  # orchestrator + 4 specialists
         assert len(setup.edges) == 4
 
-    def test_step_condition(self):
-        setup = get_condition_setup("star_step")
+    def test_step_preset(self):
+        setup = get_preset_setup("star_step")
         assert setup.properties["topology_type"] == "star"
         assert setup.properties["execution_style"] == "step"
         assert len(setup.agents) == 2
@@ -177,7 +177,7 @@ class TestStarConditions:
 
     def test_specialist_names(self):
         """Specialists should be coding-domain specific."""
-        setup = get_condition_setup("star_specialist")
+        setup = get_preset_setup("star_specialist")
         names = {a.name for a in setup.agents if a.role != "orchestrator"}
         assert names == {
             "implementation_specialist",
@@ -187,9 +187,9 @@ class TestStarConditions:
         }
 
 
-class TestMeshConditions:
+class TestMeshPresets:
     def test_round_robin(self):
-        setup = get_condition_setup("mesh_round_robin")
+        setup = get_preset_setup("mesh_round_robin")
         assert setup.properties["topology_type"] == "mesh_round_robin"
         assert setup.properties["execution_style"] == "round_robin"
         assert len(setup.agents) == 4
@@ -197,16 +197,16 @@ class TestMeshConditions:
         assert "turn_order" in setup.properties
 
     def test_delegation(self):
-        setup = get_condition_setup("mesh_delegation")
+        setup = get_preset_setup("mesh_delegation")
         assert setup.properties["topology_type"] == "mesh_delegation"
         assert setup.properties["execution_style"] == "delegation"
         assert len(setup.agents) == 4
         assert len(setup.edges) == 12
 
 
-class TestMemoryConditions:
+class TestMemoryPresets:
     def test_memory_none_minimal(self):
-        setup = get_condition_setup("memory_none")
+        setup = get_preset_setup("memory_none")
         assert setup.properties["memory_level"] == "memory_none"
         assert setup.memory.shared is True
         # memory_none: all flags False (goal_visible is True by default)
@@ -223,8 +223,8 @@ class TestMemoryConditions:
             "memory_shared_actions", "memory_full",
         ]
 
-        def _count_true_flags(condition: str) -> int:
-            setup = get_condition_setup(condition)
+        def _count_true_flags(preset: str) -> int:
+            setup = get_preset_setup(preset)
             access = setup.memory.agent_memory_access[0]
             count = 0
             for field in [
@@ -244,7 +244,7 @@ class TestMemoryConditions:
             )
 
     def test_memory_full_access(self):
-        setup = get_condition_setup("memory_full")
+        setup = get_preset_setup("memory_full")
         for access in setup.memory.agent_memory_access:
             assert access.own_action_history is True
             assert access.own_cot is True
@@ -252,20 +252,20 @@ class TestMemoryConditions:
             assert access.shared_cot is True
             assert access.nl_instructions_accumulated is True
 
-    @pytest.mark.parametrize("condition", [
+    @pytest.mark.parametrize("preset", [
         "memory_none", "memory_own_actions", "memory_own_reasoning",
         "memory_shared_actions", "memory_full",
     ])
-    def test_memory_star_topology(self, condition):
-        setup = get_condition_setup(condition)
+    def test_memory_star_topology(self, preset):
+        setup = get_preset_setup(preset)
         assert setup.properties["topology_type"] == "star"
         assert len(setup.agents) == 5
         assert len(setup.edges) == 4
 
 
-class TestConditionProperties:
+class TestPresetProperties:
     @pytest.mark.parametrize(
-        "condition,expected_type",
+        "preset,expected_type",
         [
             ("single_agent", "single"),
             ("star_batch", "star"),
@@ -276,108 +276,108 @@ class TestConditionProperties:
             ("memory_none", "star"),
         ],
     )
-    def test_topology_types(self, condition, expected_type):
-        setup = get_condition_setup(condition)
+    def test_topology_types(self, preset, expected_type):
+        setup = get_preset_setup(preset)
         assert setup.properties["topology_type"] == expected_type
 
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_agents_have_coding_tools(self, condition):
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_agents_have_coding_tools(self, preset):
         """Non-orchestrator agents should have coding tools."""
-        setup = get_condition_setup(condition)
+        setup = get_preset_setup(preset)
         expected_tools = {"bash", "python", "text_editor"}
         for agent in setup.agents:
             if agent.role != "orchestrator":
                 assert set(agent.tools) == expected_tools, (
-                    f"Agent {agent.name} in condition {condition} "
+                    f"Agent {agent.name} in preset {preset} "
                     f"has tools {agent.tools}, expected {expected_tools}"
                 )
 
 
-class TestResolveCondition:
+class TestResolvePreset:
     def test_single_agent(self):
-        assert resolve_condition(agents="single") == "single_agent"
+        assert resolve_preset(agents="single") == "single_agent"
 
     def test_star_batch(self):
-        assert resolve_condition(agents="batch") == "star_batch"
+        assert resolve_preset(agents="batch") == "star_batch"
 
     def test_star_batch_relaxed(self):
-        assert resolve_condition(agents="batch", instructions="relaxed") == "star_batch_relaxed"
+        assert resolve_preset(agents="batch", instructions="relaxed") == "star_batch_relaxed"
 
     def test_star_specialist(self):
-        assert resolve_condition(agents="specialist") == "star_specialist"
+        assert resolve_preset(agents="specialist") == "star_specialist"
 
     def test_mesh_round_robin(self):
-        assert resolve_condition(agents="specialist", topology="round_robin") == "mesh_round_robin"
+        assert resolve_preset(agents="specialist", topology="round_robin") == "mesh_round_robin"
 
     def test_mesh_delegation(self):
-        assert resolve_condition(agents="specialist", topology="delegation") == "mesh_delegation"
+        assert resolve_preset(agents="specialist", topology="delegation") == "mesh_delegation"
 
     def test_memory_full(self):
-        assert resolve_condition(agents="specialist", memory="full") == "memory_full"
+        assert resolve_preset(agents="specialist", memory="full") == "memory_full"
 
     def test_invalid_agents_raises(self):
         with pytest.raises(ValueError, match="Invalid --agents"):
-            resolve_condition(agents="unknown")
+            resolve_preset(agents="unknown")
 
     def test_invalid_topology_raises(self):
         with pytest.raises(ValueError, match="Invalid --topology"):
-            resolve_condition(topology="invalid")
+            resolve_preset(topology="invalid")
 
     def test_invalid_memory_raises(self):
         with pytest.raises(ValueError, match="Invalid --memory"):
-            resolve_condition(memory="invalid")
+            resolve_preset(memory="invalid")
 
     def test_unsupported_combination_raises(self):
         with pytest.raises(ValueError, match="Unsupported"):
-            resolve_condition(agents="batch", topology="round_robin")
+            resolve_preset(agents="batch", topology="round_robin")
 
 
 # ===========================================================================
-# Integration tests — conditions through the config builder pipeline
+# Integration tests — presets through the config builder pipeline
 # ===========================================================================
 
 
-class TestConditionReplication:
-    """Verify each condition replicates correctly per issue."""
+class TestPresetReplication:
+    """Verify each preset replicates correctly per issue."""
 
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
     @pytest.mark.parametrize("n_issues", [1, 2, 3])
-    def test_agent_count_scales_with_issues(self, condition: str, n_issues: int):
-        """Each issue gets a full replica of the condition's topology."""
+    def test_agent_count_scales_with_issues(self, preset: str, n_issues: int):
+        """Each issue gets a full replica of the preset's topology."""
         from orbit.scenarios.coding.swe_bench.config_builder import (
             build_experiment_config,
         )
 
-        setup = get_condition_setup(condition)
+        setup = get_preset_setup(preset)
         group = _make_group(n_issues)
         config = build_experiment_config(group, topology_template=setup)
 
-        template_agents = _CONDITION_TEMPLATE_AGENTS[condition]
+        template_agents = _PRESET_TEMPLATE_AGENTS[preset]
         assert len(config.setup.agents) == template_agents * n_issues
 
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
     @pytest.mark.parametrize("n_issues", [1, 2, 3])
-    def test_edge_count_scales_with_issues(self, condition: str, n_issues: int):
-        """Each issue gets a full replica of the condition's edges."""
+    def test_edge_count_scales_with_issues(self, preset: str, n_issues: int):
+        """Each issue gets a full replica of the preset's edges."""
         from orbit.scenarios.coding.swe_bench.config_builder import (
             build_experiment_config,
         )
 
-        setup = get_condition_setup(condition)
+        setup = get_preset_setup(preset)
         group = _make_group(n_issues)
         config = build_experiment_config(group, topology_template=setup)
 
-        template_edges = _CONDITION_TEMPLATE_EDGES[condition]
+        template_edges = _PRESET_TEMPLATE_EDGES[preset]
         assert len(config.setup.edges) == template_edges * n_issues
 
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_agent_names_suffixed(self, condition: str):
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_agent_names_suffixed(self, preset: str):
         """All replicated agents should have _{idx} suffixes."""
         from orbit.scenarios.coding.swe_bench.config_builder import (
             build_experiment_config,
         )
 
-        setup = get_condition_setup(condition)
+        setup = get_preset_setup(preset)
         group = _make_group(2)
         config = build_experiment_config(group, topology_template=setup)
 
@@ -386,16 +386,16 @@ class TestConditionReplication:
                 f"Agent {agent.name} missing issue index suffix"
             )
 
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_edges_reference_suffixed_agents(self, condition: str):
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_edges_reference_suffixed_agents(self, preset: str):
         """All edges should reference agent names with _{idx} suffixes."""
         from orbit.scenarios.coding.swe_bench.config_builder import (
             build_experiment_config,
         )
 
-        setup = get_condition_setup(condition)
+        setup = get_preset_setup(preset)
         if len(setup.edges) == 0:
-            pytest.skip("No edges in this condition")
+            pytest.skip("No edges in this preset")
 
         group = _make_group(2)
         config = build_experiment_config(group, topology_template=setup)
@@ -409,16 +409,16 @@ class TestConditionReplication:
                 f"Edge to_agent {edge.to_agent} not in agents"
             )
 
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_no_cross_issue_edges(self, condition: str):
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_no_cross_issue_edges(self, preset: str):
         """Edges should only connect agents within the same issue replica."""
         from orbit.scenarios.coding.swe_bench.config_builder import (
             build_experiment_config,
         )
 
-        setup = get_condition_setup(condition)
+        setup = get_preset_setup(preset)
         if len(setup.edges) == 0:
-            pytest.skip("No edges in this condition")
+            pytest.skip("No edges in this preset")
 
         group = _make_group(3)
         config = build_experiment_config(group, topology_template=setup)
@@ -431,47 +431,47 @@ class TestConditionReplication:
             )
 
 
-class TestConditionAgentGroups:
-    """Verify agent groups are correctly created for multi-issue conditions."""
+class TestPresetAgentGroups:
+    """Verify agent groups are correctly created for multi-issue presets."""
 
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_multi_issue_creates_groups(self, condition: str):
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_multi_issue_creates_groups(self, preset: str):
         """Multi-issue groups should have one AgentGroup per issue."""
         from orbit.scenarios.coding.swe_bench.config_builder import (
             build_experiment_config,
         )
 
-        setup = get_condition_setup(condition)
+        setup = get_preset_setup(preset)
         group = _make_group(3)
         config = build_experiment_config(group, topology_template=setup)
 
         assert len(config.execution.agent_groups) == 3
         for i, ag in enumerate(config.execution.agent_groups):
             assert ag.name == f"issue_{i}"
-            template_agents = _CONDITION_TEMPLATE_AGENTS[condition]
+            template_agents = _PRESET_TEMPLATE_AGENTS[preset]
             assert len(ag.agents) == template_agents
 
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_single_issue_no_groups(self, condition: str):
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_single_issue_no_groups(self, preset: str):
         """Single-issue groups should have no AgentGroups (topology path)."""
         from orbit.scenarios.coding.swe_bench.config_builder import (
             build_experiment_config,
         )
 
-        setup = get_condition_setup(condition)
+        setup = get_preset_setup(preset)
         group = _make_group(1)
         config = build_experiment_config(group, topology_template=setup)
 
         assert len(config.execution.agent_groups) == 0
 
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_group_agents_match_setup_agents(self, condition: str):
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_group_agents_match_setup_agents(self, preset: str):
         """Every agent in an AgentGroup should exist in setup.agents."""
         from orbit.scenarios.coding.swe_bench.config_builder import (
             build_experiment_config,
         )
 
-        setup = get_condition_setup(condition)
+        setup = get_preset_setup(preset)
         group = _make_group(2)
         config = build_experiment_config(group, topology_template=setup)
 
@@ -483,21 +483,21 @@ class TestConditionAgentGroups:
                 )
 
 
-class TestConditionIssuePromptInjection:
+class TestPresetIssuePromptInjection:
     """Verify the lead agent in each replica gets the issue prompt."""
 
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_lead_agent_gets_issue_prompt(self, condition: str):
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_lead_agent_gets_issue_prompt(self, preset: str):
         """The first agent in each replica should have the issue text."""
         from orbit.scenarios.coding.swe_bench.config_builder import (
             build_experiment_config,
         )
 
-        setup = get_condition_setup(condition)
+        setup = get_preset_setup(preset)
         group = _make_group(2)
         config = build_experiment_config(group, topology_template=setup)
 
-        template_agents = _CONDITION_TEMPLATE_AGENTS[condition]
+        template_agents = _PRESET_TEMPLATE_AGENTS[preset]
         # First agent in each replica (idx 0 and idx template_agents)
         for issue_idx in range(2):
             lead = config.setup.agents[issue_idx * template_agents]
@@ -506,12 +506,12 @@ class TestConditionIssuePromptInjection:
                 f"Lead agent {lead.name} missing issue prompt for {issue_id}"
             )
 
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_non_lead_agents_no_issue_prompt(self, condition: str):
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_non_lead_agents_no_issue_prompt(self, preset: str):
         """Non-lead agents should NOT have issue text injected."""
-        setup = get_condition_setup(condition)
+        setup = get_preset_setup(preset)
         if len(setup.agents) <= 1:
-            pytest.skip("Single-agent condition, no non-lead agents")
+            pytest.skip("Single-agent preset, no non-lead agents")
 
         from orbit.scenarios.coding.swe_bench.config_builder import (
             build_experiment_config,
@@ -520,7 +520,7 @@ class TestConditionIssuePromptInjection:
         group = _make_group(2)
         config = build_experiment_config(group, topology_template=setup)
 
-        template_agents = _CONDITION_TEMPLATE_AGENTS[condition]
+        template_agents = _PRESET_TEMPLATE_AGENTS[preset]
         for issue_idx in range(2):
             start = issue_idx * template_agents
             issue_id = group.issues[issue_idx].instance_id
@@ -531,16 +531,16 @@ class TestConditionIssuePromptInjection:
                 )
 
 
-class TestConditionConfigRoundtrip:
-    """Verify configs built from conditions survive JSON serialization."""
+class TestPresetConfigRoundtrip:
+    """Verify configs built from presets survive JSON serialization."""
 
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_config_json_roundtrip(self, condition: str):
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_config_json_roundtrip(self, preset: str):
         from orbit.scenarios.coding.swe_bench.config_builder import (
             build_experiment_config,
         )
 
-        setup = get_condition_setup(condition)
+        setup = get_preset_setup(preset)
         group = _make_group(2)
         config = build_experiment_config(group, topology_template=setup)
 
@@ -554,10 +554,10 @@ class TestConditionConfigRoundtrip:
             config.execution.agent_groups
         )
 
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_setup_json_roundtrip(self, condition: str):
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_setup_json_roundtrip(self, preset: str):
         """The SetupConfig itself should survive JSON roundtrip."""
-        setup = get_condition_setup(condition)
+        setup = get_preset_setup(preset)
         data = json.loads(setup.model_dump_json())
         restored = SetupConfig(**data)
 
@@ -570,18 +570,18 @@ class TestConditionConfigRoundtrip:
             assert orig.tools == rest.tools
 
 
-class TestConditionEndToEnd:
-    """Full pipeline: condition → config → sample."""
+class TestPresetEndToEnd:
+    """Full pipeline: preset → config → sample."""
 
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_condition_to_sample(self, condition: str):
-        """Full pipeline from condition through config builder to Sample."""
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_preset_to_sample(self, preset: str):
+        """Full pipeline from preset through config builder to Sample."""
         from orbit.dataset.sample_factory import build_sample
         from orbit.scenarios.coding.swe_bench.config_builder import (
             build_experiment_config,
         )
 
-        setup = get_condition_setup(condition)
+        setup = get_preset_setup(preset)
         group = _make_group(2)
         config = build_experiment_config(group, topology_template=setup)
         sample = build_sample(config, sample_id=config.name)
@@ -590,10 +590,10 @@ class TestConditionEndToEnd:
         assert sample.sandbox is not None
         meta = sample.metadata["experiment"]
         assert "swe_bench_issues" in meta["metadata"]
-        assert len(meta["setup"]["agents"]) == _CONDITION_TEMPLATE_AGENTS[condition] * 2
+        assert len(meta["setup"]["agents"]) == _PRESET_TEMPLATE_AGENTS[preset] * 2
 
     @pytest.mark.parametrize(
-        "condition,n_issues",
+        "preset,n_issues",
         [
             ("single_agent", 1),
             ("star_specialist", 2),
@@ -602,34 +602,34 @@ class TestConditionEndToEnd:
             ("memory_full", 4),
         ],
     )
-    def test_condition_with_varying_issue_counts(self, condition: str, n_issues: int):
-        """Verify representative conditions work with various issue counts."""
+    def test_preset_with_varying_issue_counts(self, preset: str, n_issues: int):
+        """Verify representative presets work with various issue counts."""
         from orbit.dataset.sample_factory import build_sample
         from orbit.scenarios.coding.swe_bench.config_builder import (
             build_experiment_config,
         )
 
-        setup = get_condition_setup(condition)
+        setup = get_preset_setup(preset)
         group = _make_group(n_issues)
         config = build_experiment_config(group, topology_template=setup)
         sample = build_sample(config, sample_id=config.name)
 
-        expected_agents = _CONDITION_TEMPLATE_AGENTS[condition] * n_issues
+        expected_agents = _PRESET_TEMPLATE_AGENTS[preset] * n_issues
         assert len(config.setup.agents) == expected_agents
         assert sample.id == config.name
 
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_condition_with_attack_defense_presets(self, condition: str):
-        """Condition presets work alongside attack/defense presets."""
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_preset_with_attack_defense_presets(self, preset: str):
+        """Presets work alongside attack/defense presets."""
         from orbit.scenarios.coding.swe_bench.config_builder import (
             build_experiment_config,
         )
-        from orbit.scenarios.coding.swe_bench.presets import (
+        from orbit.scenarios.coding.swe_bench.security_presets import (
             full_defense_preset,
             self_replication_attack_preset,
         )
 
-        setup = get_condition_setup(condition)
+        setup = get_preset_setup(preset)
         group = _make_group(2)
         attacks = self_replication_attack_preset()
         defenses = full_defense_preset()
@@ -640,15 +640,15 @@ class TestConditionEndToEnd:
 
         assert len(config.attacks) == 1
         assert len(config.defenses) == 3
-        assert len(config.setup.agents) == _CONDITION_TEMPLATE_AGENTS[condition] * 2
+        assert len(config.setup.agents) == _PRESET_TEMPLATE_AGENTS[preset] * 2
 
-    def test_condition_metadata_in_agent_issue_map(self):
+    def test_preset_metadata_in_agent_issue_map(self):
         """Agent-to-issue map should contain all replicated agents."""
         from orbit.scenarios.coding.swe_bench.config_builder import (
             build_experiment_config,
         )
 
-        setup = get_condition_setup("star_specialist")
+        setup = get_preset_setup("star_specialist")
         group = _make_group(2)
         config = build_experiment_config(group, topology_template=setup)
 
@@ -660,18 +660,18 @@ class TestConditionEndToEnd:
             assert agent.name in agent_map
 
 
-class TestConditionSchedulerTurns:
-    """Verify max_turns is computed correctly for different conditions."""
+class TestPresetSchedulerTurns:
+    """Verify max_turns is computed correctly for different presets."""
 
-    @pytest.mark.parametrize("condition", ["single_agent", "star_specialist", "mesh_round_robin"])
-    def test_round_robin_turns_scale_with_issues(self, condition: str):
+    @pytest.mark.parametrize("preset", ["single_agent", "star_specialist", "mesh_round_robin"])
+    def test_round_robin_turns_scale_with_issues(self, preset: str):
         """Round-robin mode: max_turns = per_agent * n_issues."""
         from orbit.scenarios.coding.swe_bench.config_builder import (
             build_experiment_config,
         )
         from orbit.scenarios.coding.swe_bench.configs import SWEBenchScenarioConfig
 
-        setup = get_condition_setup(condition)
+        setup = get_preset_setup(preset)
         group = _make_group(3)
         sc = SWEBenchScenarioConfig(max_turns_per_agent=10)
         config = build_experiment_config(group, topology_template=setup, scenario_config=sc)
@@ -679,15 +679,15 @@ class TestConditionSchedulerTurns:
         # 3 issues × 10 turns = 30
         assert config.scheduler.max_turns == 30
 
-    @pytest.mark.parametrize("condition", ["single_agent", "star_specialist", "mesh_round_robin"])
-    def test_superstep_turns_no_scaling(self, condition: str):
+    @pytest.mark.parametrize("preset", ["single_agent", "star_specialist", "mesh_round_robin"])
+    def test_superstep_turns_no_scaling(self, preset: str):
         """Superstep mode: max_turns = per_agent (all run each turn)."""
         from orbit.scenarios.coding.swe_bench.config_builder import (
             build_experiment_config,
         )
         from orbit.scenarios.coding.swe_bench.configs import SWEBenchScenarioConfig
 
-        setup = get_condition_setup(condition)
+        setup = get_preset_setup(preset)
         group = _make_group(3)
         sc = SWEBenchScenarioConfig(max_turns_per_agent=10, execution_mode="superstep")
         config = build_experiment_config(group, topology_template=setup, scenario_config=sc)
@@ -701,7 +701,7 @@ class TestConditionSchedulerTurns:
         )
         from orbit.scenarios.coding.swe_bench.configs import SWEBenchScenarioConfig
 
-        setup = get_condition_setup("star_specialist")
+        setup = get_preset_setup("star_specialist")
         group = _make_group(1)
         sc = SWEBenchScenarioConfig(max_turns_per_agent=15)
         config = build_experiment_config(group, topology_template=setup, scenario_config=sc)
@@ -724,15 +724,15 @@ class TestNoTextDelegationInOrchestratorPrompts:
     is silently ignored by react(). See notes/fix_plan_group_a_detailed.md.
     """
 
-    @pytest.mark.parametrize("condition", sorted(CONDITION_REGISTRY.keys()))
-    def test_no_text_delegation(self, condition: str) -> None:
-        setup = get_condition_setup(condition)
+    @pytest.mark.parametrize("preset", sorted(PRESET_REGISTRY.keys()))
+    def test_no_text_delegation(self, preset: str) -> None:
+        setup = get_preset_setup(preset)
         for spec in setup.agents:
             if spec.role != "orchestrator":
                 continue
             for pattern in _TEXT_DELEGATION_PATTERNS:
                 assert pattern not in (spec.system_prompt or ""), (
                     f"Found '{pattern}' in orchestrator prompt for "
-                    f"SWE-Bench condition '{condition}', agent '{spec.name}'. "
+                    f"SWE-Bench preset '{preset}', agent '{spec.name}'. "
                     f"Orchestrator prompts must instruct tool-call delegation."
                 )

@@ -115,7 +115,7 @@ class TestCompromisedAgentPreset:
     """Tests for the compromised agent attack preset."""
 
     def test_preset_creates_valid_config(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import compromised_agent_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import compromised_agent_preset
 
         configs = compromised_agent_preset(
             target_agent="solver_0",
@@ -132,7 +132,7 @@ class TestCompromisedAgentPreset:
         assert "report_vulnerability" in config.payload
 
     def test_preset_unknown_side_task_raises(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import compromised_agent_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import compromised_agent_preset
 
         with pytest.raises(ValueError, match="Unknown side_task_id"):
             compromised_agent_preset(side_task_id="nonexistent")
@@ -141,7 +141,7 @@ class TestCompromisedAgentPreset:
         from orbit.scenarios.coding.swe_bench.attacks.side_tasks import (
             SINGLE_AGENT_SIDE_TASKS,
         )
-        from orbit.scenarios.coding.swe_bench.presets import compromised_agent_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import compromised_agent_preset
 
         for task in SINGLE_AGENT_SIDE_TASKS:
             configs = compromised_agent_preset(side_task_id=task.id)
@@ -149,7 +149,7 @@ class TestCompromisedAgentPreset:
             assert configs[0].payload  # non-empty payload
 
     def test_preset_registered_in_get_attack_preset(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import get_attack_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import get_attack_preset
 
         configs = get_attack_preset("compromised_agent")
         assert len(configs) == 1
@@ -160,7 +160,7 @@ class TestCollusionSideTaskPreset:
     """Tests for the collusion side task attack preset."""
 
     def test_preset_creates_valid_config(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import collusion_side_task_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import collusion_side_task_preset
 
         configs = collusion_side_task_preset(
             coalition_agents=["solver_0", "solver_1"],
@@ -175,19 +175,19 @@ class TestCollusionSideTaskPreset:
         assert "AGENT B" in config.payload
 
     def test_preset_unknown_side_task_raises(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import collusion_side_task_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import collusion_side_task_preset
 
         with pytest.raises(ValueError, match="Unknown collusion side_task_id"):
             collusion_side_task_preset(side_task_id="nonexistent")
 
     def test_preset_requires_two_agents(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import collusion_side_task_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import collusion_side_task_preset
 
         with pytest.raises(ValueError, match="at least 2"):
             collusion_side_task_preset(coalition_agents=["solver_0"])
 
     def test_preset_registered_in_get_attack_preset(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import get_attack_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import get_attack_preset
 
         configs = get_attack_preset("collusion_side_task")
         assert len(configs) == 1
@@ -198,7 +198,7 @@ class TestDefensePresets:
     """Tests for the defense presets."""
 
     def test_sysprompt_preset(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import sysprompt_defense_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import sysprompt_defense_preset
 
         configs = sysprompt_defense_preset()
         assert len(configs) == 1
@@ -206,7 +206,7 @@ class TestDefensePresets:
         assert "eval()" in configs[0].vaccination_prompt
 
     def test_llm_monitor_preset(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import llm_monitor_defense_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import llm_monitor_defense_preset
 
         configs = llm_monitor_defense_preset()
         assert len(configs) == 1
@@ -215,7 +215,7 @@ class TestDefensePresets:
         assert "BLOCK" in configs[0].config["judge_prompt"]
 
     def test_guardian_preset(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import guardian_defense_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import guardian_defense_preset
 
         configs = guardian_defense_preset()
         assert len(configs) == 1
@@ -223,14 +223,14 @@ class TestDefensePresets:
         assert configs[0].model_override == "openai/gpt-4o"
 
     def test_dual_llm_preset(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import dual_llm_defense_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import dual_llm_defense_preset
 
         configs = dual_llm_defense_preset()
         assert len(configs) == 1
         assert configs[0].defense_type == "dual_llm"
 
     def test_all_defense_presets_registered(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import get_defense_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import get_defense_preset
 
         for name in ("sysprompt", "llm_monitor", "guardian", "dual_llm"):
             configs = get_defense_preset(name)
@@ -460,14 +460,14 @@ class TestAutoSideTaskResolution:
         assert r1[0].properties["side_task_id"] == r2[0].properties["side_task_id"]
 
     def test_preset_auto_default_creates_auto_config(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import compromised_agent_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import compromised_agent_preset
 
         configs = compromised_agent_preset()
         assert configs[0].properties["side_task_id"] == "auto"
         assert configs[0].payload == ""
 
     def test_preset_collusion_auto_default_creates_auto_config(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import collusion_side_task_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import collusion_side_task_preset
 
         configs = collusion_side_task_preset()
         assert configs[0].properties["side_task_id"] == "auto"
@@ -481,7 +481,7 @@ class TestPromptConstruction:
         from orbit.scenarios.coding.swe_bench.attacks.side_tasks import (
             SINGLE_AGENT_SIDE_TASKS,
         )
-        from orbit.scenarios.coding.swe_bench.presets import (
+        from orbit.scenarios.coding.swe_bench.security_presets import (
             _build_compromised_agent_prompt,
         )
 
@@ -498,7 +498,7 @@ class TestPromptConstruction:
         from orbit.scenarios.coding.swe_bench.attacks.side_tasks import (
             COLLUSION_SIDE_TASKS,
         )
-        from orbit.scenarios.coding.swe_bench.presets import _build_collusion_prompt
+        from orbit.scenarios.coding.swe_bench.security_presets import _build_collusion_prompt
 
         for task in COLLUSION_SIDE_TASKS:
             prompt = _build_collusion_prompt(task, ["solver_0", "solver_1"])

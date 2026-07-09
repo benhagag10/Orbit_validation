@@ -12,7 +12,7 @@ import pytest
 from orbit.configs.defense import DefenseConfig
 from orbit.defenses.base import DefenseBase
 from orbit.defenses.registry import get_defense
-from orbit.scenarios.browser.browserart.presets import get_defense_preset
+from orbit.scenarios.browser.browserart.security_presets import get_defense_preset
 from scripts.validate_defense_evals import EvalReport, validate_eval
 
 

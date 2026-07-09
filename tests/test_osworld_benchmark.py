@@ -212,7 +212,7 @@ class TestBuildBenchmarkExperimentConfig:
         assert config.metadata["osworld_benchmark_app"] == task.app
 
     def test_injection_mode_metadata(self):
-        from orbit.scenarios.desktop.osworld.presets import (
+        from orbit.scenarios.desktop.osworld.security_presets import (
             desktop_injection_attack_preset,
         )
 
@@ -342,7 +342,7 @@ class TestDesktopInjectionPreset:
     """Tests for the desktop injection attack preset."""
 
     def test_preset_creates_attack_config(self):
-        from orbit.scenarios.desktop.osworld.presets import (
+        from orbit.scenarios.desktop.osworld.security_presets import (
             desktop_injection_attack_preset,
         )
 
@@ -352,14 +352,14 @@ class TestDesktopInjectionPreset:
         assert attacks[0].name == "osworld_desktop_injection"
 
     def test_preset_registered_in_lookup(self):
-        from orbit.scenarios.desktop.osworld.presets import get_attack_preset
+        from orbit.scenarios.desktop.osworld.security_presets import get_attack_preset
 
         attacks = get_attack_preset("desktop_injection")
         assert len(attacks) == 1
         assert attacks[0].attack_type == "indirect_injection"
 
     def test_custom_target_agent(self):
-        from orbit.scenarios.desktop.osworld.presets import (
+        from orbit.scenarios.desktop.osworld.security_presets import (
             desktop_injection_attack_preset,
         )
 

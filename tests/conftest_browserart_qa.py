@@ -13,9 +13,9 @@ from typing import Any
 
 import pytest
 
-from orbit.scenarios.browser.browserart.condition_presets import (
-    CONDITION_REGISTRY,
-    get_condition_setup,
+from orbit.scenarios.browser.browserart.preset_registry import (
+    PRESET_REGISTRY,
+    get_preset_setup,
 )
 from orbit.scenarios.browser.browserart.config_builder import build_experiment_config
 from orbit.scenarios.browser.browserart.configs import (
@@ -25,7 +25,7 @@ from orbit.scenarios.browser.browserart.configs import (
 from orbit.scenarios.browser.browserart.dataset_builder import (
     load_browserart_behaviors,
 )
-from orbit.scenarios.browser.browserart.presets import (
+from orbit.scenarios.browser.browserart.security_presets import (
     caution_defense_preset,
     compromised_executor_attack_preset,
     full_guard_defense_preset,
@@ -43,10 +43,10 @@ SELECTED_HBB_IDS = [0, 8, 21, 28, 43, 51, 57, 62, 86, 97]
 EXTENSION_IDS = list(range(227, 237))
 
 # ---------------------------------------------------------------------------
-# 13 canonical condition presets
+# 13 canonical presets
 # ---------------------------------------------------------------------------
 
-CANONICAL_CONDITIONS = [
+CANONICAL_PRESETS = [
     "single_agent",
     "star_batch", "star_batch_relaxed",
     "star_specialist", "star_specialist_relaxed",
@@ -72,14 +72,14 @@ PRESET_COMBOS: list[tuple[str | None, str | None]] = [
 ]
 
 # ---------------------------------------------------------------------------
-# Condition → expected properties mapping
+# Preset → expected properties mapping
 # ---------------------------------------------------------------------------
 
-# Which conditions map to single-agent solver
-SINGLE_AGENT_CONDITIONS = {"single_agent"}
+# Which presets map to single-agent solver
+SINGLE_AGENT_PRESETS = {"single_agent"}
 
-# Condition → topology_type
-CONDITION_TOPOLOGY_TYPE = {
+# Preset → topology_type
+PRESET_TOPOLOGY_TYPE = {
     "single_agent": "single",
     "star_batch": "star",
     "star_batch_relaxed": "star",
@@ -95,8 +95,8 @@ CONDITION_TOPOLOGY_TYPE = {
     "memory_full": "star",
 }
 
-# Condition → execution_style (empty string for single)
-CONDITION_EXECUTION_STYLE = {
+# Preset → execution_style (empty string for single)
+PRESET_EXECUTION_STYLE = {
     "single_agent": "",
     "star_batch": "batch",
     "star_batch_relaxed": "batch",
@@ -112,8 +112,8 @@ CONDITION_EXECUTION_STYLE = {
     "memory_full": "specialist_dispatch",
 }
 
-# Condition → expected agent count
-CONDITION_AGENT_COUNT = {
+# Preset → expected agent count
+PRESET_AGENT_COUNT = {
     "single_agent": 1,
     "star_batch": 2,  # orchestrator + executor
     "star_batch_relaxed": 2,
@@ -129,14 +129,14 @@ CONDITION_AGENT_COUNT = {
     "memory_full": 5,
 }
 
-# Conditions that have an agent named "executor"
-CONDITIONS_WITH_EXECUTOR = {"star_batch", "star_batch_relaxed", "star_step"}
+# Presets that have an agent named "executor"
+PRESETS_WITH_EXECUTOR = {"star_batch", "star_batch_relaxed", "star_step"}
 
 # ---------------------------------------------------------------------------
 # Memory levels (cumulative)
 # ---------------------------------------------------------------------------
 
-MEMORY_CONDITIONS = [
+MEMORY_PRESETS = [
     "memory_none", "memory_own_actions", "memory_own_reasoning",
     "memory_shared_actions", "memory_full",
 ]
@@ -182,12 +182,12 @@ def get_defense_configs(defense_name: str | None):
 
 def build_config_for_test(
     behavior: BrowserARTBehavior,
-    condition: str,
+    preset: str,
     attack_name: str | None = None,
     defense_name: str | None = None,
 ) -> Any:
-    """Build an ExperimentConfig for a given behavior+condition+attack/defense."""
-    setup = get_condition_setup(condition)
+    """Build an ExperimentConfig for a given behavior+preset+attack/defense."""
+    setup = get_preset_setup(preset)
     attacks = get_attack_configs(attack_name)
     defenses = get_defense_configs(defense_name)
     return build_experiment_config(
