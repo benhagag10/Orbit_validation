@@ -7,7 +7,7 @@ Only the user-facing code-completion instruction is BigCodeBench-specific.
 
 from __future__ import annotations
 
-# Re-export generic topology prompts so condition_presets can import from
+# Re-export generic topology prompts so preset_registry can import from
 # either scenario interchangeably.
 from orbit.scenarios.coding.redcode_gen.prompts import (  # noqa: F401
     DEFAULT_CODER_SYSTEM_PROMPT,

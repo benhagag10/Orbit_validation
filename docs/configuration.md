@@ -4,7 +4,7 @@ Orbit has three ways to run experiments. This page covers all of them.
 
 ## `orbit browserart` (Recommended)
 
-The simplest way to run BrowserART experiments. Use `--agents`, `--topology`, and `--memory` to select a multi-agent condition.
+The simplest way to run BrowserART experiments. Use `--agents`, `--topology`, and `--memory` to select a multi-agent preset.
 
 ```bash
 uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin
@@ -19,7 +19,7 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_ro
 | `--topology` | choice | `star` | Network structure: `star`, `round_robin`, `delegation` |
 | `--memory` | choice | `none` | Memory sharing: `none`, `own_actions`, `own_reasoning`, `shared_actions`, `full` |
 | `--instructions` | choice | `detailed` | Instruction detail: `detailed`, `relaxed` |
-| `--condition` | string | — | Condition preset name (cannot be used with `--agents`) |
+| `--preset` | string | — | Preset name (cannot be used with `--agents`) |
 | `--max-turns` | int | 15 | Max turns per behavior |
 | `--max-time-seconds` | float | 300 | Max seconds per behavior |
 | `--categories` | string | — | Filter by behavior category (e.g. `"content/phishing"`) |
@@ -68,7 +68,7 @@ uv run inspect eval orbit/browserart_safety \
 | `topology` | string | `star` | Network structure: `star`, `round_robin`, `delegation` |
 | `memory` | string | `none` | Memory sharing level |
 | `instructions` | string | `detailed` | Instruction detail: `detailed`, `relaxed` |
-| `condition` | string | — | Condition preset name (cannot be used with `agents`) |
+| `preset` | string | — | Preset name (cannot be used with `agents`) |
 | `max_turns` | int | 15 | Max turns per behavior |
 | `max_time_seconds` | float | 300 | Max seconds per behavior |
 | `categories` | string | — | Filter by behavior category (e.g. `"content/phishing"`) |
@@ -111,17 +111,17 @@ scheduler:
 metadata: {}
 ```
 
-### Multi-Agent Config (with Condition)
+### Multi-Agent Config (with a Preset)
 
-When using `browserart_condition`, the condition preset supplies the agents and
+When using `browserart_preset`, the preset supplies the agents and
 topology automatically — **omit the `setup` block entirely**. If you declare
-both an inline `setup` and a condition, the **condition wins**: a `setup.agents`
-roster that *differs* from the condition's raises a `ShorthandConflictError`
+both an inline `setup` and a preset, the **preset wins**: a `setup.agents`
+roster that *differs* from the preset's raises a `ShorthandConflictError`
 (set `ORBIT_LENIENT=1` to downgrade it to a warning), while a roster that
-*matches* the condition is treated as redundant documentation and silently
-dropped in favour of the condition. Declaring exactly one topology source keeps
+*matches* the preset is treated as redundant documentation and silently
+dropped in favour of the preset. Declaring exactly one topology source keeps
 the config unambiguous. (This precedence reversed with the scenario authoring
-kit — inline setup no longer overrides a condition.)
+kit — inline setup no longer overrides a preset.)
 
 ```yaml
 name: "browserart_multi_agent"
@@ -135,7 +135,7 @@ scheduler:
   max_time_seconds: 120.0
 
 metadata:
-  browserart_condition: "star_specialist"
+  browserart_preset: "star_specialist"
 ```
 
 ### Config with Attack and Defense
@@ -219,7 +219,7 @@ setup:
       mechanism: "tool"             # "handoff", "tool", or "direct_run"
   memory:
     shared: false
-    agent_memory_access:            # Per-agent memory visibility (for memory conditions)
+    agent_memory_access:            # Per-agent memory visibility (for memory presets)
       - agent_name: "worker"
         goal_visible: true
         own_action_history: true
@@ -252,7 +252,7 @@ setup:
 
 #### Memory Access Flags
 
-Used by memory conditions to control what each agent sees from previous turns.
+Used by memory presets to control what each agent sees from previous turns.
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -361,7 +361,7 @@ by the scenario name:
 
 | Key | Selects |
 |-----|---------|
-| `<prefix>_condition` | a named topology/memory condition preset |
+| `<prefix>_preset` | a named topology/memory preset |
 | `<prefix>_attack_preset` | a named attack bundle |
 | `<prefix>_defense_preset` | a named defense bundle |
 
@@ -369,7 +369,7 @@ They are resolved identically on every entry point (the `orbit run` builder,
 `orbit validate`, and `--dry-run`) by the shared resolver in
 `orbit/scenarios/shorthand.py`. Which scenarios support which keys:
 
-| Scenario (prefix) | `_condition` | `_attack_preset` | `_defense_preset` |
+| Scenario (prefix) | `_preset` | `_attack_preset` | `_defense_preset` |
 |-------------------|:-:|:-:|:-:|
 | `browserart` | ✅ | ✅ | ✅ |
 | `swe_bench` | ✅ | ✅ | ✅ |
@@ -380,15 +380,15 @@ They are resolved identically on every entry point (the `orbit run` builder,
 | `converse` | ✅ | — | ✅ |
 | `tau2` (`tau2_airline`, …) | native† | — | ✅ |
 
-† τ²-Bench derives its roster natively from the condition (it is a
-`topology_source=SCENARIO` scenario): `tau2_condition` selects the scenario's
+† τ²-Bench derives its roster natively from the preset (it is a
+`topology_source=SCENARIO` scenario): `tau2_preset` selects the scenario's
 own per-task roster rather than materialising a topology preset. It ships no
 attack presets; `tau2_defense_preset` resolves like the other scenarios'
 defense presets.
 
 **Conflict rules** (uniform across scenarios):
 
-- **`<prefix>_condition` vs an inline `setup`** — the **condition wins**. A
+- **`<prefix>_preset` vs an inline `setup`** — the **preset wins**. A
   differing inline roster raises `ShorthandConflictError`; a matching roster is
   dropped as redundant documentation. Set `ORBIT_LENIENT=1` to downgrade the
   conflict to a warning.
@@ -408,7 +408,7 @@ These go in the `metadata` section and are specific to the BrowserART scenario.
 | Field | Type | Description |
 |-------|------|-------------|
 | `browserart_categories` | list | Filter by category (e.g. `["content/phishing"]`) |
-| `browserart_condition` | string | Condition preset name. See [Conditions](conditions.md). Declare either this or an inline `setup:`; if both are given the **condition wins** — a differing inline roster raises `ShorthandConflictError` (`ORBIT_LENIENT=1` downgrades to a warning), a matching one is dropped as redundant. |
+| `browserart_preset` | string | Preset name. See [Presets](presets.md). Declare either this or an inline `setup:`; if both are given the **preset wins** — a differing inline roster raises `ShorthandConflictError` (`ORBIT_LENIENT=1` downgrades to a warning), a matching one is dropped as redundant. |
 | `browserart_headless` | bool | Run browser headlessly (default: true) |
 | `browserart_record_video_dir` | string | Directory for video recordings |
 | `browserart_data_path` | string | Override path to hbb.json |
@@ -423,7 +423,7 @@ These go in the `metadata` section and are specific to the SWE-Bench scenario.
 | `swe_bench_repos` | list | Repository filter (e.g. `["django/django"]`) |
 | `swe_bench_seed` | int | Random seed for group sampling |
 | `swe_bench_scheduling_mode` | string | Execution mode: `"round_robin"` or `"superstep"` |
-| `swe_bench_condition` | string | Named topology/memory condition (e.g. `"star_specialist"`, `"memory_full"`) — the same presets as `-T condition=...`. |
+| `swe_bench_preset` | string | Named topology/memory preset (e.g. `"star_specialist"`, `"memory_full"`) — the same presets as `-T preset=...`. |
 | `swe_bench_attack_preset` | string | Attack preset: `"self_replication"`, `"sabotage"`, `"codebase_injection"`, `"codebase_injection_targeted"`, `"codebase_injection_behavioral"`, `"aishellcheck"`, `"aishellcheck_category_sweep"`, `"compromised_agent"`, `"collusion_side_task"` |
 | `swe_bench_defense_preset` | string | Defense preset: `"file_monitor"`, `"diff_monitor"`, `"full"`, `"sysprompt"`, `"llm_monitor"`, `"guardian"`, `"dual_llm"` |
 
@@ -446,7 +446,7 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_ro
 | `--topology CHOICE` | Network structure: `star`, `round_robin`, `delegation` (default: `star`) |
 | `--memory CHOICE` | Memory level: `none`, `own_actions`, `own_reasoning`, `shared_actions`, `full` |
 | `--instructions CHOICE` | Instruction detail: `detailed`, `relaxed` |
-| `--condition TEXT` | Condition preset name (cannot be used with `--agents`) |
+| `--preset TEXT` | Preset name (cannot be used with `--agents`) |
 | `--max-turns INT` | Max agent turns (default: 15) |
 | `--max-time-seconds FLOAT` | Max time in seconds (default: 300) |
 | `--categories TEXT` | Filter by category (comma-separated) |

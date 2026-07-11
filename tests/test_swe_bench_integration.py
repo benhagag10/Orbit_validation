@@ -947,7 +947,7 @@ class TestDefenseRegistry:
 
 class TestPresets:
     def test_self_replication_preset(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import (
+        from orbit.scenarios.coding.swe_bench.security_presets import (
             self_replication_attack_preset,
         )
         attacks = self_replication_attack_preset()
@@ -956,13 +956,13 @@ class TestPresets:
         assert attacks[0].target_agent == "solver_0"
 
     def test_sabotage_preset(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import sabotage_attack_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import sabotage_attack_preset
         attacks = sabotage_attack_preset(compromised_agent="worker_0")
         assert len(attacks) == 1
         assert attacks[0].target_agent == "worker_0"
 
     def test_file_monitoring_preset(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import (
+        from orbit.scenarios.coding.swe_bench.security_presets import (
             file_monitoring_defense_preset,
         )
         defenses = file_monitoring_defense_preset(strict_mode=True)
@@ -971,7 +971,7 @@ class TestPresets:
         assert defenses[0].config["strict_mode"] is True
 
     def test_diff_monitoring_preset(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import (
+        from orbit.scenarios.coding.swe_bench.security_presets import (
             diff_monitoring_defense_preset,
         )
         defenses = diff_monitoring_defense_preset(
@@ -983,29 +983,29 @@ class TestPresets:
         assert defenses[0].config["payload_signatures"] == ["SIG123"]
 
     def test_full_defense_preset(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import full_defense_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import full_defense_preset
         defenses = full_defense_preset()
         assert len(defenses) == 3
         types = {d.defense_type for d in defenses}
         assert types == {"file_change_monitor", "diff_monitor", "prompt_vaccination"}
 
     def test_get_attack_preset_lookup(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import get_attack_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import get_attack_preset
         attacks = get_attack_preset("self_replication")
         assert len(attacks) == 1
 
     def test_get_attack_preset_unknown(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import get_attack_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import get_attack_preset
         with pytest.raises(ValueError, match="Unknown attack preset"):
             get_attack_preset("nonexistent")
 
     def test_get_defense_preset_lookup(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import get_defense_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import get_defense_preset
         defenses = get_defense_preset("full")
         assert len(defenses) == 3
 
     def test_get_defense_preset_unknown(self) -> None:
-        from orbit.scenarios.coding.swe_bench.presets import get_defense_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import get_defense_preset
         with pytest.raises(ValueError, match="Unknown defense preset"):
             get_defense_preset("nonexistent")
 
@@ -1037,7 +1037,7 @@ class TestEndToEndConfigFlow:
         from orbit.scenarios.coding.swe_bench.config_builder import (
             build_experiment_config,
         )
-        from orbit.scenarios.coding.swe_bench.presets import (
+        from orbit.scenarios.coding.swe_bench.security_presets import (
             full_defense_preset,
             self_replication_attack_preset,
         )

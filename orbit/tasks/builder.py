@@ -149,7 +149,7 @@ def _resolve_config(
        config's OWN ``baseline_mode``, so a YAML that declares a control run
        is stripped consistently no matter which entry point built it.
        Idempotent (``apply_baseline`` re-applies the same mode).
-    2. Resolve the plugin's declarative :class:`ShorthandSpec` (condition /
+    2. Resolve the plugin's declarative :class:`ShorthandSpec` (topology /
        attack / defense preset metadata keys) via the shared resolver, with
        uniform conflict + baseline gating.
     3. Run the plugin's custom ``resolve`` escape hatch, if any.
@@ -188,12 +188,12 @@ def _resolve_config(
 def resolve_scenario_shorthand(config: ExperimentConfig) -> ExperimentConfig:
     """Resolve ``config``'s scenario shorthand exactly as the builder will.
 
-    Materialises scenario *shorthand* (a ``*_condition`` topology preset, an
+    Materialises scenario *shorthand* (a ``*_preset`` topology preset, an
     ``*_attack_preset`` name) into the canonical config and normalises the
     declared baseline — the same pipeline ``build_scenario_task`` runs before
     dataset expansion. Callers that inspect or validate a config *before* it
     reaches the builder — ``orbit validate`` and ``orbit run --dry-run`` — use
-    this so a condition-only YAML reports and validates against its resolved
+    this so a preset-only YAML reports and validates against its resolved
     topology rather than an empty one. Idempotent (the resolver strips the
     shorthand keys it consumes)."""
     plugin = get_scenario(config.scenario.name if config.scenario else None)
@@ -305,7 +305,7 @@ def build_scenario_task(
             )
             plugin = DEFAULT_PLUGIN
 
-    # 0. Resolve scenario shorthand (preset/condition metadata keys) into the
+    # 0. Resolve scenario shorthand (preset metadata keys) into the
     # canonical config and normalise the baseline — the single pipeline shared
     # with `orbit validate` / `--dry-run`, guarded so resolution may only ADD
     # (materialise shorthand), never strip a declared type. Idempotent.
@@ -324,7 +324,7 @@ def build_scenario_task(
     # 1b. Topology floor: a topology_source=CONFIG plugin (the default) may not
     # collapse the agent count or drop shared memory during expansion. Scenarios
     # that derive topology from a native selector (SCENARIO: tau2) are
-    # exempt — their inline-setup-vs-condition arbitration happened in the
+    # exempt — their inline-setup-vs-preset arbitration happened in the
     # shared resolver (spec-declared, issue #32); plugins without a spec still
     # get the legacy ignored-setup warning here.
     from orbit.scenarios.registry import TopologySource
@@ -333,9 +333,9 @@ def build_scenario_task(
         _assert_topology_preserved(config, configs, plugin.name)
     elif plugin.shorthand is None and config.setup.agents:
         logger.warning(
-            "Scenario %r derives its topology from its own condition selector; "
+            "Scenario %r derives its topology from its own preset selector; "
             "the inline setup.agents (%s) is IGNORED. Remove it, or select the "
-            "topology via the scenario's condition.",
+            "topology via the scenario's preset.",
             plugin.name,
             [a.name for a in config.setup.agents],
         )
@@ -345,7 +345,7 @@ def build_scenario_task(
     # `mas_environment_setup`, where ConfigValidator was previously the only
     # gate — an attack whose target_agent doesn't exist would then silently fail
     # to bind (a benign run) with no error. Validated on a representative
-    # EXPANDED config (so condition-built rosters are seen, not tau2's
+    # EXPANDED config (so preset-built rosters are seen, not tau2's
     # empty pre-expand setup) with the default identity names — expansion
     # already renamed any template agents (swe_bench's solver -> solver_0), so
     # `expand_templates=True` here would double-expand. LOGGED not raised: the

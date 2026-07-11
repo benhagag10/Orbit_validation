@@ -51,7 +51,7 @@ def meeting_scheduling(
     persuasion_tactic: str | None = None,
     misalignment_strategy: str | None = None,
     compromised_agent: str | None = None,
-    condition: str = "flat",
+    preset: str = "flat",
     defense_preset: str | None = None,
     max_turns: int = 10,
     max_time_seconds: float = 300.0,
@@ -101,7 +101,7 @@ def meeting_scheduling(
     observation = ObservationConfig()
     agent_names = [s.name for s in agent_specs]
 
-    if condition == "star":
+    if preset == "star":
         supervisor = agent_names[0]
         agent_specs[0] = agent_specs[0].model_copy(
             update={
@@ -117,7 +117,7 @@ def meeting_scheduling(
             edges.append(TopologyEdge(
                 from_agent=supervisor, to_agent=worker, mechanism="tool",
             ))
-    elif condition == "mesh_shared":
+    elif preset == "mesh_shared":
         for a in agent_names:
             for b in agent_names:
                 if a != b:

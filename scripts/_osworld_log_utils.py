@@ -207,10 +207,10 @@ class LogReport:
         return "?"
 
     @property
-    def condition(self) -> str:
+    def preset(self) -> str:
         if self.header:
             return (
-                self.header.get("eval", {}).get("task_args", {}).get("condition", "?")
+                self.header.get("eval", {}).get("task_args", {}).get("preset", "?")
             )
         return "?"
 
@@ -528,7 +528,7 @@ def format_report_text(
             lines.append(
                 dim(
                     f"  dataset={report.dataset}  topology={report.topology}  "
-                    f"condition={report.condition}  model={report.model}  "
+                    f"preset={report.preset}  model={report.model}  "
                     f"samples={len(report.samples)}"
                 )
             )
@@ -615,7 +615,7 @@ def format_report_json(reports: list[LogReport]) -> str:
                 "file": r.eval_file,
                 "status": r.worst_severity,
                 "dataset": r.dataset,
-                "condition": r.condition,
+                "preset": r.preset,
                 "model": r.model,
                 "log_issues": [_issue_dict(i) for i in r.issues],
                 "samples": [

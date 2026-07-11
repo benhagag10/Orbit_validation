@@ -2,7 +2,7 @@
 
 The Orbit wrapper provides two ways to run experiments:
 
-1. **`inspect eval`** -- run tasks directly with `-T` parameters (best for conditions)
+1. **`inspect eval`** -- run tasks directly with `-T` parameters (best for presets)
 2. **`orbit` CLI** -- run experiments from YAML config files
 
 Both produce the same Inspect eval logs viewable with `inspect view`.
@@ -15,7 +15,7 @@ uv sync --extra dev
 
 ## Quick Start
 
-### Option A: Inspect CLI (recommended for condition presets)
+### Option A: Inspect CLI (recommended for presets)
 
 ```bash
 # Single-agent BrowserART (1 behavior, BrowserGym mode, no Docker)
@@ -23,14 +23,14 @@ uv run inspect eval orbit/browserart_safety \
   -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
-# Multi-agent with condition preset (star + specialists)
+# Multi-agent with a preset (star + specialists)
 uv run inspect eval orbit/browserart_safety \
-  -T condition=star_specialist -T max_turns=5 --limit 1 \
+  -T preset=star_specialist -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # Mesh delegation topology
 uv run inspect eval orbit/browserart_safety \
-  -T condition=mesh_delegation -T max_turns=5 --limit 1 \
+  -T preset=mesh_delegation -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # View results in browser
@@ -79,13 +79,15 @@ scheduler:
 metadata: {}
 ```
 
-### Multi-agent config (with condition preset)
+### Multi-agent config (with a preset)
 
-When using `browserart_condition` in metadata, the condition preset supplies the
+When using `browserart_preset` in metadata, the preset supplies the
 agents and topology at task-build time — **omit the `setup` block entirely**. Do
-not add a placeholder `setup.agents`: if both an inline `setup` and a condition
-are declared, the inline setup wins and the condition is silently ignored (with a
-warning), collapsing the run to that placeholder agent.
+not add a placeholder `setup.agents`: if both an inline `setup` and a preset are
+declared, the **preset wins** — a differing inline roster raises a
+`ShorthandConflictError` (set `ORBIT_LENIENT=1` to downgrade it to a warning), and
+a matching one is dropped as redundant. Declaring exactly one topology source
+keeps the config unambiguous.
 
 ```yaml
 name: "browserart_multi_agent"
@@ -99,7 +101,7 @@ scheduler:
   max_time_seconds: 120.0
 
 metadata:
-  browserart_condition: "star_specialist"
+  browserart_preset: "star_specialist"
 ```
 
 Run it:
@@ -113,7 +115,7 @@ uv run orbit run my_config.yaml --model openai/gpt-4o
 | Field | Type | Description |
 |-------|------|-------------|
 | `browserart_categories` | list[str] | Filter by category (e.g. `["content/phishing"]`) |
-| `browserart_condition` | str | Multi-agent condition preset (see below). Declare either this or an inline `setup:`; if both are given, the inline `setup:` wins and the condition is ignored (with a warning) |
+| `browserart_preset` | str | Multi-agent preset (see below). Declare either this or an inline `setup:`; if both are given, the **preset wins** — a differing inline roster raises `ShorthandConflictError` (`ORBIT_LENIENT=1` downgrades to a warning), a matching one is dropped as redundant |
 | `browserart_headless` | bool | Run browser headlessly (default `true`) |
 | `browserart_record_video_dir` | str | Directory for video recordings |
 | `browserart_data_path` | str | Override path to hbb.json dataset |
@@ -157,12 +159,13 @@ metadata:
   swe_bench_scheduling_mode: "round_robin"
 ```
 
-## Multi-Agent Condition Presets
+## Multi-Agent Presets
 
-Use `condition` to select a multi-agent setup. Presets configure agent topology,
-prompts, and execution style automatically.
+Use `preset` to select a multi-agent setup. Presets configure agent topology,
+prompts, and execution style automatically. These are BrowserART's presets; each
+scenario ships its own set (see [Presets](presets.md)).
 
-| Condition | Description |
+| Preset | Description |
 |-----------|-------------|
 | `single_agent` | Single agent (baseline) |
 | `star_batch` | Star: orchestrator + 1 batch executor (detailed prompts) |
@@ -181,17 +184,17 @@ prompts, and execution style automatically.
 ```bash
 # Single agent baseline
 uv run inspect eval orbit/browserart_safety \
-  -T condition=single_agent -T max_turns=5 --limit 1 \
+  -T preset=single_agent -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # Specialist star topology
 uv run inspect eval orbit/browserart_safety \
-  -T condition=star_specialist -T max_turns=5 --limit 1 \
+  -T preset=star_specialist -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # Mesh delegation
 uv run inspect eval orbit/browserart_safety \
-  -T condition=mesh_delegation -T max_turns=5 --limit 1 \
+  -T preset=mesh_delegation -T max_turns=5 --limit 1 \
   --model openai/gpt-4o
 
 # View all results

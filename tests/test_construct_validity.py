@@ -186,7 +186,7 @@ class TestInferTopology:
     def test_single_by_property(self):
         sample = _make_sample(
             agents=[_agent("solver")],
-            properties={"condition_type": "single_agent"},
+            properties={"preset_type": "single_agent"},
         )
         assert _infer_topology(sample) == "single"
 
@@ -194,7 +194,7 @@ class TestInferTopology:
         sample = _make_sample(
             agents=[_agent("orch", "orchestrator"), _agent("w1"), _agent("w2")],
             edges=[_edge("orch", "w1"), _edge("orch", "w2")],
-            properties={"condition_type": "star_specialist"},
+            properties={"preset_type": "star_specialist"},
         )
         assert _infer_topology(sample) == "star"
 
@@ -208,7 +208,7 @@ class TestInferTopology:
     def test_mesh_by_property(self):
         sample = _make_sample(
             agents=[_agent("p1"), _agent("p2"), _agent("p3")],
-            properties={"condition_type": "mesh_round_robin"},
+            properties={"preset_type": "mesh_round_robin"},
         )
         assert _infer_topology(sample) == "mesh"
 
@@ -558,7 +558,7 @@ class TestTopologyWiring:
                 _edge("p1", "p2", "handoff"), _edge("p2", "p1", "handoff"),
                 _edge("p1", "p3", "handoff"), _edge("p3", "p1", "handoff"),
             ],
-            properties={"condition_type": "mesh_round_robin"},
+            properties={"preset_type": "mesh_round_robin"},
             invoked_agents=["p1", "p2", "p3"],
         )
         result = check_topology_wiring(sample)
@@ -568,7 +568,7 @@ class TestTopologyWiring:
         """Mesh topology but only 2 agents participated → FAIL."""
         sample = _make_sample(
             agents=[_agent("p1"), _agent("p2"), _agent("p3"), _agent("p4")],
-            properties={"condition_type": "mesh_delegation"},
+            properties={"preset_type": "mesh_delegation"},
             invoked_agents=["p1", "p2"],
             attribution=[_attr(0, "p1"), _attr(1, "p2")],
         )
@@ -1148,7 +1148,7 @@ class TestKnownDegenerateCases:
                 _edge("orch", "review", "tool"),
                 _edge("orch", "test", "tool"),
             ],
-            properties={"condition_type": "star_specialist"},
+            properties={"preset_type": "star_specialist"},
             invoked_agents=["orch"],
             attribution=[_attr(i, "orch") for i in range(50)],
             messages=[
@@ -1176,7 +1176,7 @@ class TestKnownDegenerateCases:
                 _edge("c", "t", "handoff"), _edge("t", "c", "handoff"),
                 _edge("r", "t", "handoff"), _edge("t", "r", "handoff"),
             ],
-            properties={"condition_type": "mesh_round_robin"},
+            properties={"preset_type": "mesh_round_robin"},
             invoked_agents=["d"],
             attribution=[_attr(i, "d") for i in range(30)],
             messages=[
@@ -1238,7 +1238,7 @@ class TestKnownDegenerateCases:
                 _edge("orch", "code", "tool"),
                 _edge("orch", "review", "tool"),
             ],
-            properties={"condition_type": "star_specialist"},
+            properties={"preset_type": "star_specialist"},
             invoked_agents=["orch", "design", "code", "review"],
             attribution=[
                 *[_attr(i, "orch") for i in range(10)],

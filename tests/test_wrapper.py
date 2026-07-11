@@ -401,7 +401,7 @@ class TestCLI:
         mock_eval = MagicMock()
         mock_eval.task = "browserart_safety"
         mock_eval.model = "openai/gpt-4o"
-        mock_eval.task_args = {"condition": "star_specialist"}
+        mock_eval.task_args = {"preset": "star_specialist"}
 
         mock_sample = MagicMock()
         mock_sample.metadata = {
@@ -415,7 +415,7 @@ class TestCLI:
                     "properties": {
                         "topology_type": "star",
                         "execution_style": "specialist_dispatch",
-                        "condition_type": "star_specialist",
+                        "preset_type": "star_specialist",
                     },
                 }
             }
@@ -663,17 +663,17 @@ class TestCLI:
 
 
 # ===========================================================================
-# Wrapper → BrowserART condition passthrough
+# Wrapper → BrowserART preset passthrough
 # ===========================================================================
 
 
 class TestMultiAgentMetadataRoundtrip:
     """Verify that setup properties and memory access survive serialization."""
 
-    def test_condition_setup_properties_in_sample_metadata(self):
+    def test_preset_setup_properties_in_sample_metadata(self):
         """SetupConfig.properties round-trip through MASMetadata.model_dump()."""
-        from orbit.scenarios.browser.browserart.condition_presets import (
-            get_condition_setup,
+        from orbit.scenarios.browser.browserart.preset_registry import (
+            get_preset_setup,
         )
         from orbit.scenarios.browser.browserart.configs import BrowserARTBehavior
         from orbit.scenarios.browser.browserart.config_builder import (
@@ -681,7 +681,7 @@ class TestMultiAgentMetadataRoundtrip:
         )
         from orbit.dataset.sample_factory import build_sample
 
-        setup = get_condition_setup("star_specialist")
+        setup = get_preset_setup("star_specialist")
         behavior = BrowserARTBehavior(
             behavior_id=1,
             behavior="Test behavior",
@@ -703,12 +703,12 @@ class TestMultiAgentMetadataRoundtrip:
 
         assert props["topology_type"] == "star"
         assert props["execution_style"] == "specialist_dispatch"
-        assert props["condition_type"] == "star_specialist"
+        assert props["preset_type"] == "star_specialist"
 
     def test_m3_memory_access_in_sample_metadata(self):
-        """M3 condition's agent_memory_access round-trips through metadata."""
-        from orbit.scenarios.browser.browserart.condition_presets import (
-            get_condition_setup,
+        """M3 preset's agent_memory_access round-trips through metadata."""
+        from orbit.scenarios.browser.browserart.preset_registry import (
+            get_preset_setup,
         )
         from orbit.scenarios.browser.browserart.configs import BrowserARTBehavior
         from orbit.scenarios.browser.browserart.config_builder import (
@@ -716,7 +716,7 @@ class TestMultiAgentMetadataRoundtrip:
         )
         from orbit.dataset.sample_factory import build_sample
 
-        setup = get_condition_setup("memory_full")
+        setup = get_preset_setup("memory_full")
         behavior = BrowserARTBehavior(
             behavior_id=1,
             behavior="Test",
@@ -745,8 +745,8 @@ class TestMultiAgentMetadataRoundtrip:
 
     def test_delegation_agent_list_in_metadata(self):
         """mesh_delegation agent_list property survives serialization."""
-        from orbit.scenarios.browser.browserart.condition_presets import (
-            get_condition_setup,
+        from orbit.scenarios.browser.browserart.preset_registry import (
+            get_preset_setup,
         )
         from orbit.scenarios.browser.browserart.configs import BrowserARTBehavior
         from orbit.scenarios.browser.browserart.config_builder import (
@@ -754,7 +754,7 @@ class TestMultiAgentMetadataRoundtrip:
         )
         from orbit.dataset.sample_factory import build_sample
 
-        setup = get_condition_setup("mesh_delegation")
+        setup = get_preset_setup("mesh_delegation")
         behavior = BrowserARTBehavior(
             behavior_id=1,
             behavior="Test",
@@ -775,12 +775,12 @@ class TestMultiAgentMetadataRoundtrip:
         assert len(props["agent_list"]) == 4
 
 
-class TestBrowserARTConditionPassthrough:
+class TestBrowserARTPresetPassthrough:
     """Verify browserart config sections reach the config-complete builder.
 
     ``orbit run`` now routes browserart through
     ``security_benchmark(config)`` -> ``build_scenario_task``; the browserart
-    plugin's ``expand`` hook reads ``browserart_condition`` /
+    plugin's ``expand`` hook reads ``browserart_preset`` /
     ``browserart_record_video_dir`` from ``config.metadata``. These tests
     assert the whole config (with that metadata) reaches the builder rather
     than being flattened to a lossy kwarg subset.
@@ -788,23 +788,23 @@ class TestBrowserARTConditionPassthrough:
 
     @patch("orbit.wrapper.runner.eval")
     @patch("orbit.tasks.security_benchmark.build_scenario_task")
-    def test_condition_passed_from_metadata(
+    def test_preset_passed_from_metadata(
         self, mock_build, mock_eval, tmp_path: Path
     ):
-        """browserart_condition rides in config.metadata to the builder."""
+        """browserart_preset rides in config.metadata to the builder."""
         import textwrap
 
         config_content = textwrap.dedent("""\
-            name: browserart-condition-test
+            name: browserart-preset-test
             scenario:
               name: browserart
             scheduler:
               max_turns: 5
               max_time_seconds: 60.0
             metadata:
-              browserart_condition: "star_specialist"
+              browserart_preset: "star_specialist"
         """)
-        config_file = tmp_path / "condition_test.yaml"
+        config_file = tmp_path / "preset_test.yaml"
         config_file.write_text(config_content)
 
         mock_build.return_value = MagicMock()
@@ -817,25 +817,25 @@ class TestBrowserARTConditionPassthrough:
         mock_build.assert_called_once()
         cfg = mock_build.call_args[0][0]
         assert cfg.scenario.name == "browserart"
-        assert cfg.metadata["browserart_condition"] == "star_specialist"
+        assert cfg.metadata["browserart_preset"] == "star_specialist"
 
     @patch("orbit.wrapper.runner.eval")
     @patch("orbit.tasks.security_benchmark.build_scenario_task")
-    def test_condition_absent_when_not_in_metadata(
+    def test_preset_absent_when_not_in_metadata(
         self, mock_build, mock_eval, tmp_path: Path
     ):
-        """No browserart_condition key means the plugin falls back to default."""
+        """No browserart_preset key means the plugin falls back to default."""
         import textwrap
 
         config_content = textwrap.dedent("""\
-            name: browserart-no-condition
+            name: browserart-no-preset
             scenario:
               name: browserart
             scheduler:
               max_turns: 5
               max_time_seconds: 60.0
         """)
-        config_file = tmp_path / "no_condition.yaml"
+        config_file = tmp_path / "no_preset.yaml"
         config_file.write_text(config_content)
 
         mock_build.return_value = MagicMock()
@@ -847,7 +847,7 @@ class TestBrowserARTConditionPassthrough:
 
         mock_build.assert_called_once()
         cfg = mock_build.call_args[0][0]
-        assert "browserart_condition" not in cfg.metadata
+        assert "browserart_preset" not in cfg.metadata
 
     @patch("orbit.wrapper.runner.eval")
     @patch("orbit.tasks.security_benchmark.build_scenario_task")

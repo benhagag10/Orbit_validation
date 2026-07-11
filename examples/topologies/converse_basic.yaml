@@ -7,13 +7,13 @@
 # Usage:
 #   # Benign utility baseline
 #   uv run inspect eval orbit/converse_safety \
-#       -T condition=paper_star \
+#       -T preset=paper_star \
 #       -T attack_modes=benign \
 #       --limit 4 --model openai/gpt-4o
 #
 #   # Full paper reproduction (privacy + security attacks, gpt-4.1 judge):
 #   uv run inspect eval orbit/converse_safety \
-#       -T condition=paper_star \
+#       -T preset=paper_star \
 #       -T attack_modes=benign,privacy,security \
 #       -T judge_model=openai/gpt-4.1 \
 #       --model openai/gpt-4o
@@ -54,5 +54,5 @@ edges:
   - {from_agent: planner, to_agent: external_service, mechanism: tool}
 
 properties:
-  condition: paper_star
+  preset: paper_star
   topology_type: star

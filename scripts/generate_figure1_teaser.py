@@ -1,7 +1,7 @@
 """
 Figure 1 teaser — "Architecture Matters for Multi-Agent Security"
 
-A gallery of the 13 evaluation conditions from §B.1 (Tables 7–9).
+A gallery of the 13 evaluation presets from §B.1 (Tables 7–9).
 Each cell is a node-edge mini-diagram on a color-tinted background;
 the tint encodes the measured Harmful-Task completion rate on
 BrowserART / GPT-4o (Tables 1–3).
@@ -285,7 +285,7 @@ ax.text(FIG_W / 2, LEG_Y - 0.04,
 
 # Footer
 ax.text(FIG_W / 2, 0.08,
-        "Twelve of the thirteen architectural conditions we evaluate "
+        "Twelve of the thirteen architectural presets we evaluate "
         "(Star+Batch omitted for layout; see Tables 7–9). Patterns hold "
         "across five additional base models and two further scenarios.",
         ha="center", va="bottom", fontsize=6.7, color=MUTED, style="italic")

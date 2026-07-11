@@ -75,26 +75,26 @@ def _redcode_scorers(config: ExperimentConfig) -> list[Scorer]:
 def _shorthand() -> ShorthandSpec:
     """RedCode-Gen YAML shorthand — declarative, resolved by the shared kit.
 
-    ``metadata.redcode_gen_condition`` resolves the same named topology
-    presets as ``-T condition=...``; ``redcode_gen_attack_preset`` /
+    ``metadata.redcode_gen_preset`` resolves the same named topology
+    presets as ``-T preset=...``; ``redcode_gen_attack_preset`` /
     ``redcode_gen_defense_preset`` use the same ``presets`` primitives as the
     ``-T`` factory. New with the kit — the YAML path previously had no
-    condition/preset reader at all.
+    preset reader at all.
     """
-    from orbit.scenarios.coding.redcode_gen.condition_presets import (
-        get_condition_setup,
+    from orbit.scenarios.coding.redcode_gen.preset_registry import (
+        get_preset_setup,
     )
     from orbit.scenarios.coding.redcode_gen.config_builder import (
         default_topology_template,
     )
-    from orbit.scenarios.coding.redcode_gen.presets import (
+    from orbit.scenarios.coding.redcode_gen.security_presets import (
         get_attack_preset,
         get_defense_preset,
     )
 
     return ShorthandSpec(
         prefix="redcode_gen",
-        condition=get_condition_setup,
+        preset=get_preset_setup,
         attack_preset=get_attack_preset,
         defense_preset=get_defense_preset,
         default_setup=default_topology_template,
@@ -122,7 +122,7 @@ def redcode_gen(
     max_turns: int = 5,
     max_time_seconds: float = 120.0,
     topology_file: str = "default",
-    condition: str | None = None,
+    preset: str | None = None,
     attack_preset: str | None = None,
     defense_preset: str | None = None,
     data_path: str | None = None,
@@ -140,7 +140,7 @@ def redcode_gen(
         max_turns: Maximum turns per task.
         max_time_seconds: Maximum wall-clock time per task.
         topology_file: Custom topology YAML path or ``"default"``.
-        condition: Named condition (e.g. ``"single_agent"``,
+        preset: Named topology preset (e.g. ``"single_agent"``,
             ``"star_specialist"``). Overrides ``topology_file``.
         attack_preset: Attack preset name (e.g. ``"jailbreak"``).
         defense_preset: Defense preset name (e.g. ``"prompt_vaccination"``).
@@ -161,12 +161,12 @@ def redcode_gen(
         max_time_seconds=max_time_seconds,
     )
 
-    # Resolve topology: condition > topology_file > default
-    if condition:
-        from orbit.scenarios.coding.redcode_gen.condition_presets import (
-            get_condition_setup,
+    # Resolve topology: preset > topology_file > default
+    if preset:
+        from orbit.scenarios.coding.redcode_gen.preset_registry import (
+            get_preset_setup,
         )
-        topology_template = get_condition_setup(condition)
+        topology_template = get_preset_setup(preset)
     elif topology_file == "default":
         topology_template = default_topology_template()
     else:
@@ -180,10 +180,10 @@ def redcode_gen(
     attacks = None
     defenses = None
     if attack_preset:
-        from orbit.scenarios.coding.redcode_gen.presets import get_attack_preset
+        from orbit.scenarios.coding.redcode_gen.security_presets import get_attack_preset
         attacks = get_attack_preset(attack_preset)
     if defense_preset:
-        from orbit.scenarios.coding.redcode_gen.presets import get_defense_preset
+        from orbit.scenarios.coding.redcode_gen.security_presets import get_defense_preset
         defenses = get_defense_preset(defense_preset)
 
     config = ExperimentConfig(

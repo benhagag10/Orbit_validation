@@ -9,7 +9,7 @@
 #   uv run inspect eval orbit/tau2 \
 #     --model openai/gpt-4o \
 #     -T domain=airline \
-#     -T condition=tiered_escalation \
+#     -T preset=tiered_escalation \
 #     --limit 5
 #
 # Reference-only YAML — the topology roster is constructed by
@@ -85,4 +85,4 @@ scheduler:
 
 metadata:
   tau2_domain: airline
-  tau2_condition: tiered_escalation
+  tau2_preset: tiered_escalation

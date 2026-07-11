@@ -423,7 +423,7 @@ def _rebuild_compromised_attack(
     from orbit.scenarios.coding.swe_bench.attacks.side_tasks import (
         SINGLE_AGENT_SIDE_TASKS,
     )
-    from orbit.scenarios.coding.swe_bench.presets import (
+    from orbit.scenarios.coding.swe_bench.security_presets import (
         _build_compromised_agent_prompt,
     )
 
@@ -448,7 +448,7 @@ def _rebuild_collusion_attack(
     from orbit.scenarios.coding.swe_bench.attacks.side_tasks import (
         COLLUSION_SIDE_TASKS,
     )
-    from orbit.scenarios.coding.swe_bench.presets import _build_collusion_prompt
+    from orbit.scenarios.coding.swe_bench.security_presets import _build_collusion_prompt
 
     task = next(t for t in COLLUSION_SIDE_TASKS if t.id == side_task_id)
     coalition = attack.properties.get("coalition_agents", [])

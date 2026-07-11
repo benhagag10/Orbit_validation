@@ -105,7 +105,7 @@ mono_sm = get_font(18)
 
 lines = [
     ("$ inspect eval inspect_mas/browserart_safety \\", BLUE),
-    ("    -T condition=single_agent \\", GREEN),
+    ("    -T preset=single_agent \\", GREEN),
     ("    -T dataset=hbb \\", PURPLE),
     ("    -T task_ids=3 \\", PURPLE),
     ("    -T record_video_dir=logs/demo_video_single \\", PURPLE),
@@ -119,13 +119,13 @@ for text, color in lines:
 d.text((60, 460), "One command. Any topology. Any model.", fill=GRAY, font=get_text_font(20))
 img.save(f"{BUILD}/act2a_cli.png")
 
-# --- Act 2b: Conditions Table ---
+# --- Act 2b: Presets Table ---
 img = Image.new('RGB', (W, H), BG)
 d = ImageDraw.Draw(img)
 
-d.text((60, 80), "Experimental Conditions", fill=WHITE, font=get_text_font(30))
+d.text((60, 80), "Experimental Presets", fill=WHITE, font=get_text_font(30))
 
-header = "Condition               Topology   Agents"
+header = "Preset               Topology   Agents"
 d.text((60, 160), header, fill=GRAY, font=mono_sm)
 d.text((60, 185), "─" * 52, fill=(48, 54, 61), font=mono_sm)
 
@@ -142,7 +142,7 @@ for text, color in rows:
     y += 38
 
 d.text((60, 480), "Same harmful prompt. Same model. Different team structures.", fill=BLUE, font=get_text_font(20))
-img.save(f"{BUILD}/act2b_conditions.png")
+img.save(f"{BUILD}/act2b_presets.png")
 
 # --- Act 2c: Task Description ---
 img = Image.new('RGB', (W, H), BG)
@@ -234,7 +234,7 @@ d = ImageDraw.Draw(img)
 d.text((W//2, 100), "InspectMAS", fill=WHITE, font=get_text_font(52), anchor="mm")
 
 features = [
-    "10+ topology conditions out of the box",
+    "10+ topology presets out of the box",
     "Attack & defense injection framework",
     "Browser video recordings with agent overlays",
     "Built on Inspect AI (pip install inspect-mas)",
@@ -269,8 +269,8 @@ ffmpeg -y -loop 1 -i "$BUILD/act2a_cli.png" -t 10 \
     "$BUILD/act2a.mp4" 2>/dev/null
 info "  act2a (10s)"
 
-# Act 2b: Conditions (8s)
-ffmpeg -y -loop 1 -i "$BUILD/act2b_conditions.png" -t 8 \
+# Act 2b: Presets (8s)
+ffmpeg -y -loop 1 -i "$BUILD/act2b_presets.png" -t 8 \
     -c:v libx264 -pix_fmt yuv420p -r $FPS -vf "format=yuv420p" \
     "$BUILD/act2b.mp4" 2>/dev/null
 info "  act2b (8s)"

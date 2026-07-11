@@ -32,7 +32,7 @@ from orbit.scenarios.browser.browserart.scorer import (
     _compute_propagation_depth,
     _detect_refusal,
 )
-from orbit.scenarios.browser.browserart.presets import (
+from orbit.scenarios.browser.browserart.security_presets import (
     get_attack_preset,
     get_defense_preset,
 )

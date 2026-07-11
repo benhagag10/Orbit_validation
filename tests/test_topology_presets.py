@@ -66,11 +66,11 @@ class TestStarOrchestratorWorkers:
 
     def test_properties_merged(self):
         setup = star_orchestrator_workers(
-            properties={"execution_style": "batch", "condition_type": "star_batch"}
+            properties={"execution_style": "batch", "preset_type": "star_batch"}
         )
         assert setup.properties["topology_type"] == "star"
         assert setup.properties["execution_style"] == "batch"
-        assert setup.properties["condition_type"] == "star_batch"
+        assert setup.properties["preset_type"] == "star_batch"
 
     def test_memory_config_passed(self):
         mem = MemoryConfig(shared=True)
@@ -128,9 +128,9 @@ class TestMeshRoundRobin:
 
     def test_properties_merged(self):
         specs = [{"name": "a", "role": "r"}, {"name": "b", "role": "r"}]
-        setup = mesh_round_robin(specs, properties={"condition_type": "mesh_round_robin"})
+        setup = mesh_round_robin(specs, properties={"preset_type": "mesh_round_robin"})
         assert setup.properties["topology_type"] == "mesh_round_robin"
-        assert setup.properties["condition_type"] == "mesh_round_robin"
+        assert setup.properties["preset_type"] == "mesh_round_robin"
 
 
 class TestMeshDelegation:

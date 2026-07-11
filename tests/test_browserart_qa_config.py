@@ -1,10 +1,10 @@
 """
 BrowserART QA — Layer 1: Config construction & validation.
 
-Parametrized across (behavior × condition × attack/defense) to verify that
+Parametrized across (behavior × preset × attack/defense) to verify that
 every combination produces a valid ExperimentConfig with correct metadata.
 
-Total: (10 HBB + 10 extension) × 13 conditions × 8 combos = 2,080 cases.
+Total: (10 HBB + 10 extension) × 13 presets × 8 combos = 2,080 cases.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ pytestmark = pytest.mark.skipif(
     ),
 )
 
-from orbit.scenarios.browser.browserart.condition_presets import get_condition_setup
+from orbit.scenarios.browser.browserart.preset_registry import get_preset_setup
 from orbit.scenarios.browser.browserart.config_builder import build_experiment_config
 from orbit.scenarios.browser.browserart.configs import (
     BrowserARTBehavior,
@@ -37,9 +37,9 @@ from orbit.scenarios.browser.browserart.dataset_builder import load_browserart_b
 from orbit.configs.experiment import ExperimentConfig
 
 from tests.conftest_browserart_qa import (
-    CANONICAL_CONDITIONS,
-    CONDITION_AGENT_COUNT,
-    CONDITION_TOPOLOGY_TYPE,
+    CANONICAL_PRESETS,
+    PRESET_AGENT_COUNT,
+    PRESET_TOPOLOGY_TYPE,
     EXTENSION_IDS,
     PRESET_COMBOS,
     SELECTED_HBB_IDS,
@@ -79,29 +79,29 @@ def _combo_id(combo):
 
 
 # ---------------------------------------------------------------------------
-# Test: every (HBB behavior × condition × combo) builds without error
+# Test: every (HBB behavior × preset × combo) builds without error
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("behavior_id", SELECTED_HBB_IDS, ids=[f"hbb_{i}" for i in SELECTED_HBB_IDS])
-@pytest.mark.parametrize("condition", CANONICAL_CONDITIONS)
+@pytest.mark.parametrize("preset", CANONICAL_PRESETS)
 @pytest.mark.parametrize("combo", PRESET_COMBOS, ids=[_combo_id(c) for c in PRESET_COMBOS])
-def test_hbb_config_builds_without_error(behavior_id, condition, combo, hbb_by_id):
-    """Every HBB (behavior × condition × attack/defense) produces a valid config."""
+def test_hbb_config_builds_without_error(behavior_id, preset, combo, hbb_by_id):
+    """Every HBB (behavior × preset × attack/defense) produces a valid config."""
     behavior = hbb_by_id[behavior_id]
     attack_name, defense_name = combo
-    config = build_config_for_test(behavior, condition, attack_name, defense_name)
+    config = build_config_for_test(behavior, preset, attack_name, defense_name)
     assert isinstance(config, ExperimentConfig)
     assert config.name.startswith("browserart_")
 
 
 @pytest.mark.parametrize("behavior_id", EXTENSION_IDS, ids=[f"ext_{i}" for i in EXTENSION_IDS])
-@pytest.mark.parametrize("condition", CANONICAL_CONDITIONS)
+@pytest.mark.parametrize("preset", CANONICAL_PRESETS)
 @pytest.mark.parametrize("combo", PRESET_COMBOS, ids=[_combo_id(c) for c in PRESET_COMBOS])
-def test_extension_config_builds_without_error(behavior_id, condition, combo, ext_by_id):
-    """Every extension (behavior × condition × attack/defense) produces a valid config."""
+def test_extension_config_builds_without_error(behavior_id, preset, combo, ext_by_id):
+    """Every extension (behavior × preset × attack/defense) produces a valid config."""
     behavior = ext_by_id[behavior_id]
     attack_name, defense_name = combo
-    config = build_config_for_test(behavior, condition, attack_name, defense_name)
+    config = build_config_for_test(behavior, preset, attack_name, defense_name)
     assert isinstance(config, ExperimentConfig)
     assert config.name.startswith("browserart_")
 
@@ -111,11 +111,11 @@ def test_extension_config_builds_without_error(behavior_id, condition, combo, ex
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("behavior_id", SELECTED_HBB_IDS[:3])
-@pytest.mark.parametrize("condition", CANONICAL_CONDITIONS)
-def test_config_metadata_complete(behavior_id, condition, hbb_by_id):
+@pytest.mark.parametrize("preset", CANONICAL_PRESETS)
+def test_config_metadata_complete(behavior_id, preset, hbb_by_id):
     """All required metadata keys are present."""
     behavior = hbb_by_id[behavior_id]
-    config = build_config_for_test(behavior, condition)
+    config = build_config_for_test(behavior, preset)
     md = config.metadata
 
     required_keys = [
@@ -137,16 +137,16 @@ def test_config_metadata_complete(behavior_id, condition, hbb_by_id):
 
 
 # ---------------------------------------------------------------------------
-# Test: topology agent count matches condition
+# Test: topology agent count matches preset
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("condition", CANONICAL_CONDITIONS)
-def test_topology_agent_count(condition):
-    """Each condition produces the expected number of agents."""
-    setup = get_condition_setup(condition)
-    expected = CONDITION_AGENT_COUNT[condition]
+@pytest.mark.parametrize("preset", CANONICAL_PRESETS)
+def test_topology_agent_count(preset):
+    """Each preset produces the expected number of agents."""
+    setup = get_preset_setup(preset)
+    expected = PRESET_AGENT_COUNT[preset]
     assert len(setup.agents) == expected, (
-        f"Condition {condition}: expected {expected} agents, got {len(setup.agents)}"
+        f"Preset {preset}: expected {expected} agents, got {len(setup.agents)}"
     )
 
 
@@ -154,10 +154,10 @@ def test_topology_agent_count(condition):
 # Test: topology edge count matches structure
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("condition", CANONICAL_CONDITIONS)
-def test_topology_edge_count(condition):
+@pytest.mark.parametrize("preset", CANONICAL_PRESETS)
+def test_topology_edge_count(preset):
     """Edge counts match topology structure."""
-    setup = get_condition_setup(condition)
+    setup = get_preset_setup(preset)
     topo_type = setup.properties.get("topology_type", "single")
 
     if topo_type == "single":
@@ -173,21 +173,21 @@ def test_topology_edge_count(condition):
 
 
 # ---------------------------------------------------------------------------
-# Test: condition_type in metadata when condition is used
+# Test: preset_type in metadata when preset is used
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("condition", [c for c in CANONICAL_CONDITIONS if c != "single_agent"])
-def test_condition_type_in_metadata(condition, hbb_by_id):
-    """Conditions with topology_type != single embed browserart_resolved_condition."""
+@pytest.mark.parametrize("preset", [c for c in CANONICAL_PRESETS if c != "single_agent"])
+def test_preset_type_in_metadata(preset, hbb_by_id):
+    """Presets with topology_type != single embed browserart_resolved_preset."""
     behavior = hbb_by_id[0]
-    config = build_config_for_test(behavior, condition)
+    config = build_config_for_test(behavior, preset)
     md = config.metadata
-    # condition_type is set in properties for all non-single conditions
+    # preset_type is set in properties for all non-single presets
     setup = config.setup
-    assert "condition_type" in setup.properties
-    assert setup.properties["condition_type"] == condition
+    assert "preset_type" in setup.properties
+    assert setup.properties["preset_type"] == preset
     # Also propagated to metadata
-    assert md.get("browserart_resolved_condition") == condition
+    assert md.get("browserart_resolved_preset") == preset
 
 
 # ---------------------------------------------------------------------------

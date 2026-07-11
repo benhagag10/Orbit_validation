@@ -181,7 +181,7 @@ def validate_sample_metadata(sample: dict, report: SampleReport, verbose: bool):
 
 def validate_sample_messages(
     sample: dict, report: SampleReport, verbose: bool,
-    condition: str | None = None,
+    preset: str | None = None,
 ):
     """Validate that messages look like real browser agent execution."""
     messages = sample.get("messages", [])
@@ -191,10 +191,10 @@ def validate_sample_messages(
         report.error("No messages in sample")
         return
 
-    # Check first message is user input (skip for multi-agent conditions where
+    # Check first message is user input (skip for multi-agent presets where
     # a system prompt is injected before the user message)
     if messages[0].get("role") != "user":
-        if condition is not None and condition != "single_agent":
+        if preset is not None and preset != "single_agent":
             pass  # Expected for multi-agent topologies
         else:
             report.warn(f"First message role is '{messages[0].get('role')}', expected 'user'")
@@ -435,12 +435,12 @@ def review_log(
         task_args = header.get("eval", {}).get("task_args", {})
         report.issues.append(
             f"INFO: topology={task_args.get('topology')}, "
-            f"condition={task_args.get('condition')}, "
+            f"preset={task_args.get('preset')}, "
             f"model={header.get('eval', {}).get('model')}, "
             f"samples={len(sample_files)}"
         )
 
-        condition = task_args.get("condition")
+        preset = task_args.get("preset")
 
         for sf in sample_files:
             try:
@@ -457,7 +457,7 @@ def review_log(
             sr = SampleReport(sample_id=sid, eval_file=eval_path.name)
 
             validate_sample_metadata(sample, sr, verbose)
-            validate_sample_messages(sample, sr, verbose, condition=condition)
+            validate_sample_messages(sample, sr, verbose, preset=preset)
             validate_sample_scores(sample, sr, strict, verbose)
             validate_sample_store(sample, sr, verbose)
 

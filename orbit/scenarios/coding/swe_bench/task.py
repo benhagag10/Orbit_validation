@@ -204,20 +204,20 @@ def _shorthand() -> ShorthandSpec:
     """swe_bench YAML shorthand — declarative, resolved by the shared kit.
 
     ``metadata.swe_bench_attack_preset`` / ``swe_bench_defense_preset`` use the
-    same ``presets`` primitives as the ``-T`` factory (the convention the
-    deleted runner dispatch used to resolve); ``metadata.swe_bench_condition``
-    resolves the same named topology presets as ``-T condition=...`` — new with
-    the kit, the YAML path previously had no condition reader at all.
+    same ``security_presets`` primitives as the ``-T`` factory (the convention the
+    deleted runner dispatch used to resolve); ``metadata.swe_bench_preset``
+    resolves the same named topology presets as ``-T preset=...`` — new with
+    the kit, the YAML path previously had no preset reader at all.
     """
-    from orbit.scenarios.coding.swe_bench.condition_presets import get_condition_setup
-    from orbit.scenarios.coding.swe_bench.presets import (
+    from orbit.scenarios.coding.swe_bench.preset_registry import get_preset_setup
+    from orbit.scenarios.coding.swe_bench.security_presets import (
         get_attack_preset,
         get_defense_preset,
     )
 
     return ShorthandSpec(
         prefix="swe_bench",
-        condition=get_condition_setup,
+        preset=get_preset_setup,
         attack_preset=get_attack_preset,
         defense_preset=get_defense_preset,
         default_setup=default_topology_template,
@@ -260,7 +260,7 @@ def swe_bench_multi_issue(
     max_turns: int = 30,
     max_time_seconds: float = 900.0,
     force_arch: str = "",
-    condition: str | None = None,
+    preset: str | None = None,
     agents: str | None = None,
     memory: str = "none",
     instructions: str = "detailed",
@@ -272,11 +272,11 @@ def swe_bench_multi_issue(
         topology_file: Custom topology YAML path or ``"default"``.
         scheduling_mode: How agents are scheduled relative to each other
             (``"round_robin"`` or ``"superstep"``).
-        condition: Condition preset name (e.g. ``"star_specialist"``,
+        preset: Topology preset name (e.g. ``"star_specialist"``,
             ``"memory_full"``). When set, overrides topology with the
-            condition's setup.
+            preset's setup.
         agents: Human-readable agent type (single, batch, specialist, step).
-            Cannot be combined with ``condition``.
+            Cannot be combined with ``preset``.
         memory: Memory sharing level (none, own_actions, own_reasoning,
             shared_actions, full). Only used with ``agents``.
         instructions: Instruction detail level (detailed, relaxed).
@@ -288,15 +288,15 @@ def swe_bench_multi_issue(
     from orbit.configs.scheduler import SchedulerConfig
     from orbit.configs.setup import SetupConfig
 
-    # ---- Resolve human-readable params to a condition name ----
-    if agents is not None and condition is not None:
+    # ---- Resolve human-readable params to a preset name ----
+    if agents is not None and preset is not None:
         raise ValueError(
-            "Cannot specify both --condition and --agents. Use one or the other."
+            "Cannot specify both --preset and --agents. Use one or the other."
         )
     if agents is not None:
-        from orbit.scenarios.coding.swe_bench.condition_presets import resolve_condition
+        from orbit.scenarios.coding.swe_bench.preset_registry import resolve_preset
 
-        condition = resolve_condition(
+        preset = resolve_preset(
             agents=agents, topology=topology,
             memory=memory, instructions=instructions,
         )
@@ -336,12 +336,12 @@ def swe_bench_multi_issue(
         )
 
     # ---- Resolve the topology template ----
-    if condition is not None:
-        from orbit.scenarios.coding.swe_bench.condition_presets import (
-            get_condition_setup,
+    if preset is not None:
+        from orbit.scenarios.coding.swe_bench.preset_registry import (
+            get_preset_setup,
         )
 
-        topology_template = get_condition_setup(condition)
+        topology_template = get_preset_setup(preset)
     elif isinstance(topology, SetupConfig):
         topology_template = topology
     elif topology_file == "default":
@@ -357,11 +357,11 @@ def swe_bench_multi_issue(
     attacks = None
     defenses = None
     if attack_preset:
-        from orbit.scenarios.coding.swe_bench.presets import get_attack_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import get_attack_preset
 
         attacks = get_attack_preset(attack_preset)
     if defense_preset:
-        from orbit.scenarios.coding.swe_bench.presets import get_defense_preset
+        from orbit.scenarios.coding.swe_bench.security_presets import get_defense_preset
 
         defenses = get_defense_preset(defense_preset)
 

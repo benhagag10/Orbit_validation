@@ -83,57 +83,57 @@ def _judge_model(config: ExperimentConfig) -> str:
 
 
 def _resolve_topology(
-    condition: str | None,
+    preset: str | None,
     agents: str | None,
     topology: str | None,
     memory: str | None,
     instructions: str | None,
     topology_file: str,
 ) -> tuple[SetupConfig, str | None]:
-    """Resolve topology template and condition name from task parameters.
+    """Resolve topology template and preset name from task parameters.
 
-    Returns (topology_template, resolved_condition_name).
+    Returns (topology_template, resolved_preset_name).
     """
     from orbit.configs.setup import SetupConfig
 
-    has_condition = condition is not None
+    has_preset = preset is not None
     has_agents = agents is not None
     has_custom_topo = topology_file != "default"
     has_sub_params = any(p is not None for p in [topology, memory, instructions])
 
-    if has_condition and has_agents:
-        raise ValueError("Cannot specify both --condition and --agents.")
-    if has_condition and has_custom_topo:
-        raise ValueError("Cannot specify both --condition and --topology_file.")
+    if has_preset and has_agents:
+        raise ValueError("Cannot specify both --preset and --agents.")
+    if has_preset and has_custom_topo:
+        raise ValueError("Cannot specify both --preset and --topology_file.")
     if has_agents and has_custom_topo:
         raise ValueError("Cannot specify both --agents and --topology_file.")
-    if (has_condition or has_custom_topo) and has_sub_params:
+    if (has_preset or has_custom_topo) and has_sub_params:
         raise ValueError(
             "--topology, --memory, --instructions are only used with --agents."
         )
     if not has_agents and has_sub_params:
         raise ValueError("--topology, --memory, --instructions require --agents.")
 
-    resolved_condition: str | None = None
+    resolved_preset: str | None = None
 
-    if has_condition:
-        from orbit.scenarios.desktop.osworld.condition_presets import (
-            get_condition_setup,
+    if has_preset:
+        from orbit.scenarios.desktop.osworld.preset_registry import (
+            get_preset_setup,
         )
-        topo_template = get_condition_setup(condition)
-        resolved_condition = condition
+        topo_template = get_preset_setup(preset)
+        resolved_preset = preset
     elif has_agents:
-        from orbit.scenarios.desktop.osworld.condition_presets import (
-            get_condition_setup,
-            resolve_condition,
+        from orbit.scenarios.desktop.osworld.preset_registry import (
+            get_preset_setup,
+            resolve_preset,
         )
-        resolved_condition = resolve_condition(
+        resolved_preset = resolve_preset(
             agents=agents,
             topology=topology or "star",
             memory=memory or "none",
             instructions=instructions or "detailed",
         )
-        topo_template = get_condition_setup(resolved_condition)
+        topo_template = get_preset_setup(resolved_preset)
     elif has_custom_topo:
         import yaml
 
@@ -145,7 +145,7 @@ def _resolve_topology(
     else:
         topo_template = default_topology_template()
 
-    return topo_template, resolved_condition
+    return topo_template, resolved_preset
 
 
 def _osworld_template_config(
@@ -210,25 +210,25 @@ def _osworld_safety_scorers(config: ExperimentConfig) -> list[Scorer]:
 def _shorthand() -> ShorthandSpec:
     """osworld YAML shorthand — declarative, resolved by the shared kit.
 
-    ``osworld_condition`` (a named topology/memory condition — a named memory
-    condition must not collapse to default non-shared memory, a P0
+    ``osworld_preset`` (a named topology/memory preset — a named memory
+    preset must not collapse to default non-shared memory, a P0
     construct-validity failure) and ``osworld_attack_preset`` /
     ``osworld_defense_preset``, using the same primitives as the ``-T``
-    factories. The attack preset takes the applied condition so its target
+    factories. The attack preset takes the applied topology preset so its target
     agent is tailored to the resolved topology.
     """
-    from orbit.scenarios.desktop.osworld.condition_presets import get_condition_setup
-    from orbit.scenarios.desktop.osworld.presets import (
+    from orbit.scenarios.desktop.osworld.preset_registry import get_preset_setup
+    from orbit.scenarios.desktop.osworld.security_presets import (
         get_attack_preset,
         get_defense_preset,
     )
 
     return ShorthandSpec(
         prefix="osworld",
-        condition=get_condition_setup,
+        preset=get_preset_setup,
         attack_preset=get_attack_preset,
         defense_preset=get_defense_preset,
-        preset_takes_condition=True,
+        attack_preset_takes_preset=True,
         default_setup=default_topology_template,
     )
 
@@ -261,7 +261,7 @@ def osworld_safety(
     max_screenshots: int = 1,
     computer_timeout: int = 180,
     topology_file: str = "default",
-    condition: str | None = None,
+    preset: str | None = None,
     agents: str | None = None,
     topology: str | None = None,
     memory: str | None = None,
@@ -277,11 +277,11 @@ def osworld_safety(
 
     Topology can be specified in three mutually exclusive ways:
 
-    1. **Named condition** (``condition``): a pre-validated multi-agent
+    1. **Named preset** (``preset``): a pre-validated multi-agent
        topology preset (e.g. ``"star_specialist"``).
     2. **Friendly parameters** (``agents``, ``topology``, ``memory``,
        ``instructions``): human-readable knobs that resolve to a named
-       condition.
+       preset.
     3. **Custom YAML** (``topology_file``): path to a SetupConfig YAML.
 
     Examples:
@@ -289,9 +289,9 @@ def osworld_safety(
         inspect eval orbit/osworld_safety \\
             --limit 5 --model openai/gpt-4o
 
-        # Named condition preset:
+        # Named topology preset:
         inspect eval orbit/osworld_safety \\
-            -T condition=star_specialist --limit 5 --model openai/gpt-4o
+            -T preset=star_specialist --limit 5 --model openai/gpt-4o
 
     Args:
         dataset: Dataset to load. ``"osharm"`` loads the full OS-Harm
@@ -306,7 +306,7 @@ def osworld_safety(
         max_screenshots: Maximum screenshots per turn for the computer tool.
         computer_timeout: Timeout in seconds for the computer tool.
         topology_file: Topology template: ``"default"`` or path to YAML.
-        condition: Named condition preset (e.g. ``"star_specialist"``).
+        preset: Named topology preset (e.g. ``"star_specialist"``).
         agents: Agent configuration style.
         topology: Topology type (used with ``agents``).
         memory: Memory level (used with ``agents``).
@@ -328,8 +328,8 @@ def osworld_safety(
         computer_timeout=computer_timeout,
     )
 
-    topology_template, resolved_condition = _resolve_topology(
-        condition=condition,
+    topology_template, resolved_preset = _resolve_topology(
+        preset=preset,
         agents=agents,
         topology=topology,
         memory=memory,
@@ -340,11 +340,11 @@ def osworld_safety(
     attacks = None
     defenses = None
     if attack_preset:
-        from orbit.scenarios.desktop.osworld.presets import get_attack_preset
+        from orbit.scenarios.desktop.osworld.security_presets import get_attack_preset
 
-        attacks = get_attack_preset(attack_preset, condition=resolved_condition)
+        attacks = get_attack_preset(attack_preset, preset=resolved_preset)
     if defense_preset:
-        from orbit.scenarios.desktop.osworld.presets import get_defense_preset
+        from orbit.scenarios.desktop.osworld.security_presets import get_defense_preset
 
         defenses = get_defense_preset(defense_preset)
 
@@ -416,7 +416,7 @@ def osworld_benchmark(
     max_time_seconds: float = 600.0,
     max_screenshots: int = 1,
     computer_timeout: int = 180,
-    condition: str | None = None,
+    preset: str | None = None,
     agents: str | None = None,
     topology: str | None = None,
     memory: str | None = None,
@@ -445,7 +445,7 @@ def osworld_benchmark(
         max_time_seconds: Maximum wall-clock seconds per task.
         max_screenshots: Maximum screenshots per turn.
         computer_timeout: Timeout for the computer tool.
-        condition: Named condition preset.
+        preset: Named topology preset.
         agents: Agent style (single, batch, specialist, step).
         topology: Topology type (star, round_robin, delegation).
         memory: Memory level.
@@ -469,8 +469,8 @@ def osworld_benchmark(
         osworld_corpus=osworld_corpus,
     )
 
-    topology_template, resolved_condition = _resolve_topology(
-        condition=condition,
+    topology_template, resolved_preset = _resolve_topology(
+        preset=preset,
         agents=agents,
         topology=topology,
         memory=memory,
@@ -481,11 +481,11 @@ def osworld_benchmark(
     attacks = None
     defenses = None
     if attack_preset:
-        from orbit.scenarios.desktop.osworld.presets import get_attack_preset
+        from orbit.scenarios.desktop.osworld.security_presets import get_attack_preset
 
-        attacks = get_attack_preset(attack_preset, condition=resolved_condition)
+        attacks = get_attack_preset(attack_preset, preset=resolved_preset)
     if defense_preset:
-        from orbit.scenarios.desktop.osworld.presets import get_defense_preset
+        from orbit.scenarios.desktop.osworld.security_presets import get_defense_preset
 
         defenses = get_defense_preset(defense_preset)
 

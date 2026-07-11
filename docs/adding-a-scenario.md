@@ -62,15 +62,26 @@ skeleton below is modelled on it.
 | `configs.py` | Frozen Pydantic models: the per-scenario config (`RedCodeGenScenarioConfig`) and, usually, a per-task record (`RedCodeGenTask`). |
 | `config_builder.py` | `default_topology_template()` and `build_experiment_configs()` — turns dataset tasks + topology template into `ExperimentConfig`s. Called by your `expand` hook. |
 | `dataset_builder.py` | Loads and filters the raw dataset into task records. |
-| `condition_presets.py` | Named topology/memory presets and `get_condition_setup(name)`. Powers `--condition` / `<name>_condition`. |
-| `presets.py` | `get_attack_preset(name)` / `get_defense_preset(name)` — named attack/defense bundles. |
+| `presets/` | This scenario's own topology/memory presets — one runnable YAML per preset (`<name>.yaml`). A new scenario ships its own here; **no presets are inherited**. |
+| `preset_registry.py` | Binds the shared preset loader (`orbit/scenarios/presets.py`) to this scenario's `presets/` directory, exposing `get_preset_setup(name)` / `list_presets()`. Powers `--preset` / `<name>_preset`. |
+| `security_presets.py` | `get_attack_preset(name)` / `get_defense_preset(name)` — named attack/defense bundles. |
 | `scorer.py` | The scenario's `@scorer`. |
 | `prompts.py` | System/user prompt text. |
 | `data/` or `sandbox/` | Vendored data and/or a Docker `compose.yaml`. |
 
 You do not have to use all of these — a scenario with no attacks needs no
-`presets.py`, one with no dataset needs no `dataset_builder.py`. The kit only
-cares about `task.py`.
+`security_presets.py`, one with no dataset needs no `dataset_builder.py`, and one
+with no shipped presets needs neither `presets/` nor `preset_registry.py`. The
+kit only cares about `task.py`.
+
+**Presets are per-scenario.** A new scenario does not inherit any presets — it
+ships its own. There are two ways to do that. Most scenarios drop one runnable
+YAML per preset under `presets/` and bind the shared loader
+(`orbit/scenarios/presets.py`) from `preset_registry.py`, the way `redcode_gen`
+and `swe_bench` do. A scenario that builds its roster per sample resolves preset
+*names* natively instead (τ²-Bench — see [`topology_source=SCENARIO`](#topology_sourcescenario)).
+Either way the shared [Presets](presets.md) reference documents the friendly-flag
+mapping and conflict rules once, over whatever preset set each scenario ships.
 
 ## Step-by-step checklist
 
@@ -91,8 +102,8 @@ A complete, faithful `task.py` for a fictional `myscenario`. It is modelled
 directly on `redcode_gen/task.py` (single-agent coding-style scenario, LLM-judge
 scorer, Docker sandbox) with a declarative `ShorthandSpec` added the way
 `swe_bench` wires it. Copy it, then fill in the sibling modules it imports
-(`configs.py`, `config_builder.py`, `condition_presets.py`, `presets.py`,
-`scorer.py`).
+(`configs.py`, `config_builder.py`, `preset_registry.py` + a `presets/` YAML
+dir, `security_presets.py`, `scorer.py`).
 
 ```python
 """
@@ -204,24 +215,24 @@ def _myscenario_scorers(config: ExperimentConfig) -> list[Scorer]:
 
 
 def _shorthand() -> ShorthandSpec:
-    """Declarative YAML shorthand: ``metadata.myscenario_condition`` /
+    """Declarative YAML shorthand: ``metadata.myscenario_preset`` /
     ``myscenario_attack_preset`` / ``myscenario_defense_preset``. The shared
     resolver reads these uniformly on every entry point (builder, ``orbit
     validate``, ``--dry-run``), so nothing can be silently dropped."""
-    from orbit.scenarios.coding.myscenario.condition_presets import (
-        get_condition_setup,
+    from orbit.scenarios.coding.myscenario.preset_registry import (
+        get_preset_setup,
     )
     from orbit.scenarios.coding.myscenario.config_builder import (
         default_topology_template,
     )
-    from orbit.scenarios.coding.myscenario.presets import (
+    from orbit.scenarios.coding.myscenario.security_presets import (
         get_attack_preset,
         get_defense_preset,
     )
 
     return ShorthandSpec(
         prefix="myscenario",
-        condition=get_condition_setup,
+        preset=get_preset_setup,
         attack_preset=get_attack_preset,
         defense_preset=get_defense_preset,
         default_setup=default_topology_template,
@@ -256,7 +267,7 @@ def myscenario(
     judge_model: str = "openai/gpt-4.1",
     max_turns: int = 5,
     max_time_seconds: float = 120.0,
-    condition: str | None = None,
+    preset: str | None = None,
     attack_preset: str | None = None,
     defense_preset: str | None = None,
     data_path: str | None = None,
@@ -266,13 +277,13 @@ def myscenario(
     from orbit.configs.metrics import MetricsConfig
     from orbit.configs.scenario import ScenarioConfig
     from orbit.configs.scheduler import SchedulerConfig
-    from orbit.scenarios.coding.myscenario.condition_presets import (
-        get_condition_setup,
+    from orbit.scenarios.coding.myscenario.preset_registry import (
+        get_preset_setup,
     )
     from orbit.scenarios.coding.myscenario.config_builder import (
         default_topology_template,
     )
-    from orbit.scenarios.coding.myscenario.presets import (
+    from orbit.scenarios.coding.myscenario.security_presets import (
         get_attack_preset,
         get_defense_preset,
     )
@@ -286,7 +297,7 @@ def myscenario(
         max_time_seconds=max_time_seconds,
     )
 
-    setup = get_condition_setup(condition) if condition else default_topology_template()
+    setup = get_preset_setup(preset) if preset else default_topology_template()
     attacks = get_attack_preset(attack_preset) if attack_preset else None
     defenses = get_defense_preset(defense_preset) if defense_preset else None
 
@@ -310,11 +321,11 @@ def myscenario(
 
 Two parallel surfaces are visible here, and they are deliberate:
 
-- The **`@task` factory** resolves flat `-T` params (`-T condition=...`,
+- The **`@task` factory** resolves flat `-T` params (`-T preset=...`,
   `-T attack_preset=...`) into inline `setup`/`attacks`/`defenses` on the
   `ExperimentConfig`. It is the Inspect-CLI face of the scenario.
 - The **`ShorthandSpec`** resolves the *YAML-metadata* equivalents
-  (`metadata.myscenario_condition`, etc.) inside `build_scenario_task`, so an
+  (`metadata.myscenario_preset`, etc.) inside `build_scenario_task`, so an
   `orbit run` YAML gets the same resolution without going through the factory.
 
 Both hand a config to `build_scenario_task`, which enforces the same contracts
@@ -359,8 +370,8 @@ what the skeleton's `_myscenario_expand` does.
 Raised (unless `ORBIT_LENIENT=1`) when declared shorthand is contradictory or
 unsatisfiable:
 
-- a `<prefix>_condition` and an inline `setup` declare **materially different
-  rosters** (the condition wins, so the inline `setup` mislabels the run);
+- a `<prefix>_preset` and an inline `setup` declare **materially different
+  rosters** (the preset wins, so the inline `setup` mislabels the run);
 - a resolver-materialised attack **targets an agent absent from the runtime
   roster** (it would silently fail to bind — a run labelled "attacked" that runs
   benign).
@@ -388,14 +399,14 @@ breadcrumb — so it is identical on the builder, `orbit validate`, and
 
 | Key | Resolves to |
 |-----|-------------|
-| `<prefix>_condition` | a named topology/memory condition → `SetupConfig` |
+| `<prefix>_preset` | a named topology/memory preset → `SetupConfig` |
 | `<prefix>_attack_preset` | a named attack bundle → `list[AttackConfig]` |
 | `<prefix>_defense_preset` | a named defense bundle → `list[DefenseConfig]` |
 
 The conflict policy is uniform across every scenario:
 
-- **Condition vs inline setup — the explicit condition WINS.** If the inline
-  `setup.agents` roster **equals** the condition's roster, the inline block is
+- **Preset vs inline setup — the explicit preset WINS.** If the inline
+  `setup.agents` roster **equals** the preset's roster, the inline block is
   treated as redundant documentation and resolution is **silent**. A
   **materially differing** roster is a `ShorthandConflictError` by default
   (downgradable to a warning with `ORBIT_LENIENT=1`). *This precedence is the
@@ -417,7 +428,7 @@ self-describing:
 
 | Breadcrumb | Meaning |
 |------------|---------|
-| `<prefix>_resolved_condition` | the condition that supplied the topology |
+| `<prefix>_resolved_preset` | the preset that supplied the topology |
 | `<prefix>_resolved_<kind>_preset` | the attack/defense preset that was materialised |
 | `<prefix>_ignored_<kind>_preset` | a preset overridden by an inline section |
 | `<prefix>_baseline_stripped_<kind>_preset` | a preset dropped by the baseline gate |
@@ -465,43 +476,46 @@ as the real `expand` so the two cannot drift. Most scenarios leave it `None`
 ## `topology_source=SCENARIO`
 
 Set `topology_source=TopologySource.SCENARIO` when your scenario **derives its
-roster from its own condition selector and deliberately ignores `config.setup`**
-— the τ²-Bench pattern, where each task builds a native per-domain roster. Consequences:
+roster from its own preset selector and deliberately ignores `config.setup`**
+— the τ²-Bench pattern, where each task builds a native per-domain roster. This
+is the other way a scenario ships presets: instead of binding the shared YAML
+loader, it resolves preset **names** natively (no shipped `presets/` YAML to
+open). Consequences:
 
 - The topology floor is **skipped** (there is no `config.setup` roster to hold
   the line at).
-- The `<prefix>_condition` key is **not consumed** by the shared resolver — your
+- The `<prefix>_preset` key is **not consumed** by the shared resolver — your
   `expand` reads it and builds the roster natively.
 - Instead of materialising a topology, the resolver only **arbitrates** a
-  declared inline `setup` against what the condition will build.
+  declared inline `setup` against what the preset will build.
 
 To make that arbitration precise, give the `ShorthandSpec` two extra fields and
-leave `condition` as `None` (τ²-Bench, `orbit/scenarios/customer_service/tau2/task.py`):
+leave `preset` as `None` (τ²-Bench, `orbit/scenarios/customer_service/tau2/task.py`):
 
 ```python
 ScenarioPlugin(
     name="tau2",
     shorthand=ShorthandSpec(
         prefix="tau2",
-        expected_roster=_expected_roster,     # names the condition will build
-        default_condition="dual_control",     # assumed when no *_condition key
+        expected_roster=_expected_roster,     # names the preset will build
+        default_preset="dual_control",        # assumed when no *_preset key
     ),
-    expand=_tau2_expand,                      # reads tau2_condition itself
+    expand=_tau2_expand,                      # reads tau2_preset itself
     ...
     topology_source=TopologySource.SCENARIO,
 )
 ```
 
-- `expected_roster(config, condition) -> set[str] | None` returns the agent
-  names the condition will build (τ²'s specialists are domain-dependent, so it
+- `expected_roster(config, preset) -> set[str] | None` returns the agent
+  names the preset will build (τ²'s specialists are domain-dependent, so it
   takes the config too). Return `None` for "unknown" — the resolver then falls
   back to a warning instead of raising.
-- `default_condition` is the condition `expand` assumes when no
-  `<prefix>_condition` key is present, so an inline setup is arbitrated against
+- `default_preset` is the preset `expand` assumes when no
+  `<prefix>_preset` key is present, so an inline setup is arbitrated against
   what actually runs.
 
 With these set, a matching inline roster passes silently, a materially different
-one raises `ShorthandConflictError`, and an unknown condition degrades to a
+one raises `ShorthandConflictError`, and an unknown preset degrades to a
 warning — instead of the blanket "inline setup is IGNORED" warning a
 spec-less `SCENARIO` plugin still emits.
 
@@ -614,6 +628,6 @@ makes sense.
 - [architecture.md](architecture.md) — data flow, orchestrator, execution paths.
 - [configuration.md](configuration.md) — the YAML schema and per-scenario
   metadata/shorthand keys.
-- [conditions.md](conditions.md) — how conditions map to topologies.
+- [presets.md](presets.md) — how presets map to topologies.
 - `orbit/scenarios/registry.py`, `orbit/scenarios/shorthand.py`,
   `orbit/tasks/builder.py` — the kit, with contract docstrings.

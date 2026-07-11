@@ -23,7 +23,7 @@ The `@task → Task` step is scenario-agnostic. Both entry points — `orbit run
 
 Each scenario contributes only its unique pieces through a `ScenarioPlugin` (`orbit/scenarios/registry.py`), registered lazily via the `_LOADERS` table so optional scenario dependencies stay optional. A plugin declares up to six hooks — `expand` (dataset expansion), `build_setup`, `build_solver`, `build_scorers`, `build_sandbox`, `build_task_kwargs` — plus its declarative YAML `ShorthandSpec`; anything left `None` uses the shared default. Because every scenario funnels through the one builder, it can *enforce* that `expand` never silently drops a declared attack/defense (`ScenarioExpansionError`) or collapses the topology, and that shorthand conflicts fail loud (`ShorthandConflictError`).
 
-Where a scenario builds its roster from a native selector instead of `config.setup` (τ²-Bench), it sets `topology_source=TopologySource.SCENARIO`; the topology floor is skipped and the shared resolver arbitrates any inline setup against the roster the condition will build.
+Where a scenario builds its roster from a native selector instead of `config.setup` (τ²-Bench), it sets `topology_source=TopologySource.SCENARIO`; the topology floor is skipped and the shared resolver arbitrates any inline setup against the roster the preset will build.
 
 To add a scenario, see **[Adding a New Scenario](adding-a-scenario.md)**.
 
@@ -94,7 +94,7 @@ Mutable per-sample state shared via Inspect's `store_as()`:
 | Configs | `orbit/configs/` | Frozen Pydantic models for all configuration |
 | Topology presets | `orbit/configs/topology_presets.py` | General topology factories (single, star, mesh) |
 | Memory tracker | `orbit/memory/tracker.py` | Per-agent memory visibility tracking |
-| BrowserART | `orbit/scenarios/browser/browserart/` | Web agent safety scenario (task, solver, scorer, conditions) |
+| BrowserART | `orbit/scenarios/browser/browserart/` | Web agent safety scenario (task, solver, scorer, presets) |
 | SWE-Bench | `orbit/scenarios/coding/swe_bench/` | Coding agent security scenario (task, scorer, presets) |
 | Orchestrator | `orbit/solvers/` | Unified `mas_orchestrator` solver, setup solver, runtime state |
 | Attacks | `orbit/attacks/` | Attack implementations and registry |

@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """
-Batch runner for OS-Harm experiments (paper-matching conditions).
+Batch runner for OS-Harm experiments (paper-matching presets).
 
-Runs 13 conditions x 1 dataset (osharm_misuse) = 13 eval runs.
+Runs 13 presets x 1 dataset (osharm_misuse) = 13 eval runs.
 Supports parallel execution, skip-existing, and multi-seed runs.
 
 Paper: "Architecture Matters for Multi-Agent Security"
-  - Table 1: Role Distribution (7 conditions)
-  - Table 2: Communication Topology (4 conditions, 2 shared with T1)
-  - Table 3: Memory & State Visibility (6 conditions, 2 shared with T2)
-  - 13 unique conditions total
+  - Table 1: Role Distribution (7 presets)
+  - Table 2: Communication Topology (4 presets, 2 shared with T1)
+  - Table 3: Memory & State Visibility (6 presets, 2 shared with T2)
+  - 13 unique presets total
 
 Usage:
     python scripts/run_osharm_experiments.py --dry-run
     python scripts/run_osharm_experiments.py --smoke --model openai/gpt-4o
     python scripts/run_osharm_experiments.py --model openai/gpt-4o
-    python scripts/run_osharm_experiments.py --condition single_agent
+    python scripts/run_osharm_experiments.py --preset single_agent
     python scripts/run_osharm_experiments.py --model openai/gpt-4o --parallel 3 --max-samples 10
 """
 
@@ -31,11 +31,11 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
-# ── Experiment matrix (13 conditions) ─────────────────────────────────────────
+# ── Experiment matrix (13 presets) ─────────────────────────────────────────
 
 EXPERIMENTS = [
-    # (dir_name, condition_code, paper_name, tables)
-    # All specialist conditions use tool-action specialists (click, type, key,
+    # (dir_name, preset_code, paper_name, tables)
+    # All specialist presets use tool-action specialists (click, type, key,
     # scroll) to match BrowserART's action-type decomposition.
     #
     # Table 1: Role Distribution
@@ -78,7 +78,7 @@ SMOKE_LIMIT = 3
 SMOKE_MAX_TURNS = 15
 SMOKE_MAX_TIME = 120
 
-# Per-condition subprocess timeout.  44 samples × 1800s max_time = 22h
+# Per-preset subprocess timeout.  44 samples × 1800s max_time = 22h
 # theoretical max, but most samples finish well under the limit; 4h is generous.
 RUN_TIMEOUT_SECONDS = 14400
 
@@ -86,7 +86,7 @@ RUN_TIMEOUT_SECONDS = 14400
 @dataclass
 class RunResult:
     experiment: str
-    condition: str
+    preset: str
     dataset: str
     dataset_label: str
     status: str  # success, failed, skipped, dry-run
@@ -152,7 +152,7 @@ def validate_eval(eval_path: Path, dataset: str, expected_samples: int) -> tuple
 
 
 def run_experiment(
-    condition: str,
+    preset: str,
     dataset: str,
     log_dir: Path,
     model: str,
@@ -173,7 +173,7 @@ def run_experiment(
         "uv", "run", "orbit", "osworld",
         "--model", model,
         "--dataset", dataset,
-        "--condition", condition,
+        "--preset", preset,
         "--max-turns", str(max_turns),
         "--max-time-seconds", str(max_time),
         "--judge-model", judge_model,
@@ -205,7 +205,7 @@ def run_experiment(
 def _run_single(run_spec: dict) -> RunResult:
     """Execute a single run (used by both sequential and parallel modes)."""
     exp_name = run_spec["exp_name"]
-    condition = run_spec["condition"]
+    preset = run_spec["preset"]
     dataset = run_spec["dataset"]
     label = run_spec["label"]
     expected_count = run_spec["expected_count"]
@@ -224,7 +224,7 @@ def _run_single(run_spec: dict) -> RunResult:
     t0 = time.time()
 
     success, output = run_experiment(
-        condition=condition,
+        preset=preset,
         dataset=dataset,
         log_dir=log_dir,
         model=model,
@@ -251,7 +251,7 @@ def _run_single(run_spec: dict) -> RunResult:
         msg = output[:200]
 
     return RunResult(
-        experiment=exp_name, condition=condition,
+        experiment=exp_name, preset=preset,
         dataset=dataset, dataset_label=label,
         status=status, sample_count=effective_expected,
         duration_seconds=duration,
@@ -262,21 +262,21 @@ def _run_single(run_spec: dict) -> RunResult:
 
 
 def print_progress(idx: int, total: int, exp_name: str, dataset_label: str,
-                   condition: str, expected: int, action: str):
+                   preset: str, expected: int, action: str):
     """Print progress line."""
     print(
         f"[{idx}/{total}] {exp_name}/{dataset_label}: "
-        f"{condition} ({expected} samples) — {action}"
+        f"{preset} ({expected} samples) — {action}"
     )
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run OS-Harm experiments (13 conditions, paper-matching)"
+        description="Run OS-Harm experiments (13 presets, paper-matching)"
     )
     parser.add_argument(
         "--smoke", action="store_true",
-        help=f"Smoke test: {SMOKE_LIMIT} samples per condition, "
+        help=f"Smoke test: {SMOKE_LIMIT} samples per preset, "
              f"max-turns={SMOKE_MAX_TURNS}, max-time={SMOKE_MAX_TIME}s",
     )
     parser.add_argument(
@@ -292,8 +292,8 @@ def main():
         help="Re-run even if completed eval exists",
     )
     parser.add_argument(
-        "--condition", type=str, default=None,
-        help="Run only this condition (e.g., single_agent)",
+        "--preset", type=str, default=None,
+        help="Run only this preset (e.g., single_agent)",
     )
     parser.add_argument(
         "--dataset", type=str, default=None,
@@ -330,14 +330,14 @@ def main():
     )
     parser.add_argument(
         "--parallel", type=int, default=1,
-        help="Max parallel condition workers (default: 1 = sequential). "
-             "Use with --max-samples to control per-condition parallelism, "
-             "e.g. --parallel 3 --max-samples 10 runs 3 conditions at once "
+        help="Max parallel preset workers (default: 1 = sequential). "
+             "Use with --max-samples to control per-preset parallelism, "
+             "e.g. --parallel 3 --max-samples 10 runs 3 presets at once "
              "with 10 Docker containers each.",
     )
     parser.add_argument(
         "--max-samples", type=int, default=DEFAULT_MAX_SAMPLES,
-        help="Max parallel samples per condition (passed to Inspect's "
+        help="Max parallel samples per preset (passed to Inspect's "
              "--max-samples). Controls Docker container concurrency within "
              "each eval run. Default: None (Inspect default).",
     )
@@ -354,8 +354,8 @@ def main():
 
     # Build run list
     runs: list[dict] = []
-    for dir_name, condition, paper_name, tables in EXPERIMENTS:
-        if args.condition and condition != args.condition:
+    for dir_name, preset, paper_name, tables in EXPERIMENTS:
+        if args.preset and preset != args.preset:
             continue
         for dataset, label, count in DATASETS:
             if args.dataset and dataset != args.dataset:
@@ -363,7 +363,7 @@ def main():
             for seed in seeds:
                 runs.append({
                     "exp_name": dir_name,
-                    "condition": condition,
+                    "preset": preset,
                     "paper_name": paper_name,
                     "dataset": dataset,
                     "label": label,
@@ -408,7 +408,7 @@ def main():
     print(f"  Judge: {args.judge_model}")
     print(f"  Max turns: {max_turns}, max time: {max_time}s/task")
     if args.max_samples:
-        print(f"  Max parallel samples per condition: {args.max_samples}")
+        print(f"  Max parallel samples per preset: {args.max_samples}")
     print(f"  Parallel workers: {args.parallel}")
     if args.smoke:
         print(f"  Smoke: {SMOKE_LIMIT} samples/run, "
@@ -428,10 +428,10 @@ def main():
                 ok, msg = validate_eval(existing, run["dataset"], effective_expected)
                 if ok:
                     print_progress(idx, total, run["exp_name"], run["label"],
-                                   run["condition"], effective_expected,
+                                   run["preset"], effective_expected,
                                    f"SKIPPED (exists: {existing.name})")
                     results.append(RunResult(
-                        experiment=run["exp_name"], condition=run["condition"],
+                        experiment=run["exp_name"], preset=run["preset"],
                         dataset=run["dataset"], dataset_label=run["label"],
                         status="skipped", sample_count=effective_expected,
                         duration_seconds=0, log_path=str(existing),
@@ -441,10 +441,10 @@ def main():
 
         if args.dry_run:
             print_progress(idx, total, run["exp_name"], run["label"],
-                           run["condition"], effective_expected,
+                           run["preset"], effective_expected,
                            "DRY RUN (would execute)")
             results.append(RunResult(
-                experiment=run["exp_name"], condition=run["condition"],
+                experiment=run["exp_name"], preset=run["preset"],
                 dataset=run["dataset"], dataset_label=run["label"],
                 status="dry-run", sample_count=effective_expected,
                 duration_seconds=0, log_path=str(log_dir),
@@ -468,7 +468,7 @@ def main():
                         result = future.result()
                     except Exception as e:
                         result = RunResult(
-                            experiment=run["exp_name"], condition=run["condition"],
+                            experiment=run["exp_name"], preset=run["preset"],
                             dataset=run["dataset"], dataset_label=run["label"],
                             status="failed", sample_count=run["expected_count"],
                             duration_seconds=0, log_path=run["log_dir"],

@@ -5,9 +5,9 @@ from __future__ import annotations
 import pytest
 
 from orbit.dataset.sample_factory import build_sample
-from orbit.scenarios.coding.bigcodebench.condition_presets import (
-    get_condition_setup,
-    list_conditions,
+from orbit.scenarios.coding.bigcodebench.preset_registry import (
+    get_preset_setup,
+    list_presets,
 )
 from orbit.scenarios.coding.bigcodebench.config_builder import (
     build_experiment_config,
@@ -18,7 +18,7 @@ from orbit.scenarios.coding.bigcodebench.configs import (
     BigCodeBenchTask,
 )
 from orbit.scenarios.coding.bigcodebench.dataset_builder import filter_tasks
-from orbit.scenarios.coding.bigcodebench.presets import (
+from orbit.scenarios.coding.bigcodebench.security_presets import (
     get_attack_preset,
     get_defense_preset,
 )
@@ -80,14 +80,14 @@ class TestConfigBuilder:
 
 
 class TestPresetReexports:
-    def test_conditions_mirror_redcode(self):
-        conds = list_conditions()
+    def test_presets_mirror_redcode(self):
+        conds = list_presets()
         assert "single_agent" in conds
         assert "star_specialist" in conds
         assert "mesh_round_robin" in conds
 
     def test_star_specialist_has_four_specialists(self):
-        setup = get_condition_setup("star_specialist")
+        setup = get_preset_setup("star_specialist")
         names = {a.name for a in setup.agents}
         assert {
             "orchestrator",

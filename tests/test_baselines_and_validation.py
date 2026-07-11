@@ -73,9 +73,9 @@ class TestValidateSetup:
 
     def test_empty_setup_valid_for_scenario_topology_source(self):
         """A topology_source=SCENARIO scenario (tau2) derives its
-        roster from its condition; an EMPTY setup.agents is the recommended
+        roster from its preset; an EMPTY setup.agents is the recommended
         single-source YAML form and must validate (issue #32 — requiring a
-        roster here is what forced every tau2 example to mirror its condition's
+        roster here is what forced every tau2 example to mirror its preset's
         roster inline). CONFIG-source scenarios keep the strict rule."""
         from orbit.configs.scenario import ScenarioConfig
         from orbit.configs.experiment import ExperimentConfig

@@ -76,25 +76,25 @@ def _code_ipi_scorers(config: ExperimentConfig) -> list[Scorer]:
 def _shorthand() -> ShorthandSpec:
     """CodeIPI YAML shorthand — declarative, resolved by the shared kit.
 
-    ``metadata.code_ipi_condition`` resolves the same named topology presets as
-    ``-T condition=...``; ``code_ipi_attack_preset`` / ``code_ipi_defense_preset``
-    use the same ``presets`` primitives as the ``-T`` factory. The default
+    ``metadata.code_ipi_preset`` resolves the same named topology presets as
+    ``-T preset=...``; ``code_ipi_attack_preset`` / ``code_ipi_defense_preset``
+    use the same ``security_presets`` primitives as the ``-T`` factory. The default
     topology template takes an ``inline_defense_warning`` flag, so ``default_setup``
     (used only to validate materialised attack targets) wraps it with the
     factory default. New with the kit — the YAML path previously had no
-    condition/preset reader at all.
+    preset reader at all.
     """
-    from orbit.scenarios.coding.code_ipi.condition_presets import (
-        get_condition_setup,
+    from orbit.scenarios.coding.code_ipi.preset_registry import (
+        get_preset_setup,
     )
-    from orbit.scenarios.coding.code_ipi.presets import (
+    from orbit.scenarios.coding.code_ipi.security_presets import (
         get_attack_preset,
         get_defense_preset,
     )
 
     return ShorthandSpec(
         prefix="code_ipi",
-        condition=get_condition_setup,
+        preset=get_preset_setup,
         attack_preset=get_attack_preset,
         defense_preset=get_defense_preset,
         default_setup=lambda: default_topology_template(),
@@ -120,7 +120,7 @@ def code_ipi(
     severities: str | None = None,
     inline_defense_warning: bool = True,
     include_benign: bool = True,
-    condition: str = "single_agent",
+    preset: str = "single_agent",
     topology: str | None = None,
     attack_preset: str | None = None,
     defense_preset: str | None = None,
@@ -141,8 +141,8 @@ def code_ipi(
             in the agent system prompt. ``True`` (default) adds explicit
             instruction; ``False`` uses a neutral prompt.
         include_benign: Whether to include benign control samples.
-        condition: Named topology condition.
-        topology: Path to a YAML topology file (overrides condition).
+        preset: Named topology preset.
+        topology: Path to a YAML topology file (overrides preset).
         attack_preset: Named attack preset to layer on top of sample injection.
         defense_preset: Named defense preset.
         max_turns: Maximum turns per agent.
@@ -171,12 +171,12 @@ def code_ipi(
         with open(topology) as f:
             topo_data = yaml.safe_load(f)
         topology_template = SetupConfig(**topo_data)
-    elif condition != "single_agent":
-        from orbit.scenarios.coding.code_ipi.condition_presets import (
-            get_condition_setup,
+    elif preset != "single_agent":
+        from orbit.scenarios.coding.code_ipi.preset_registry import (
+            get_preset_setup,
         )
 
-        topology_template = get_condition_setup(condition)
+        topology_template = get_preset_setup(preset)
     else:
         topology_template = default_topology_template(
             inline_defense_warning=inline_defense_warning
@@ -185,11 +185,11 @@ def code_ipi(
     attacks = None
     defenses = None
     if attack_preset:
-        from orbit.scenarios.coding.code_ipi.presets import get_attack_preset
+        from orbit.scenarios.coding.code_ipi.security_presets import get_attack_preset
 
         attacks = get_attack_preset(attack_preset)
     if defense_preset:
-        from orbit.scenarios.coding.code_ipi.presets import get_defense_preset
+        from orbit.scenarios.coding.code_ipi.security_presets import get_defense_preset
 
         defenses = get_defense_preset(defense_preset)
 

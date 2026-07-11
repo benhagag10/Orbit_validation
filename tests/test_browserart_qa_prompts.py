@@ -26,8 +26,8 @@ pytestmark = pytest.mark.skipif(
     ),
 )
 
-from orbit.scenarios.browser.browserart.condition_presets import (
-    get_condition_setup,
+from orbit.scenarios.browser.browserart.preset_registry import (
+    get_preset_setup,
 )
 from orbit.scenarios.browser.browserart.configs import (
     BrowserARTBehavior,
@@ -76,11 +76,11 @@ def ext_by_id(extension_behaviors) -> dict[int, BrowserARTBehavior]:
 def test_detailed_vs_relaxed_orchestrator_prompts_differ(detailed, relaxed):
     """Detailed vs relaxed must yield different orchestrator system prompts.
 
-    The ``instructions`` dimension is the only thing these conditions
+    The ``instructions`` dimension is the only thing these presets
     should vary, so the orchestrator prompt must differ textually.
     """
-    setup_d = get_condition_setup(detailed)
-    setup_r = get_condition_setup(relaxed)
+    setup_d = get_preset_setup(detailed)
+    setup_r = get_preset_setup(relaxed)
 
     assert len(setup_d.agents) == len(setup_r.agents)
     assert len(setup_d.edges) == len(setup_r.edges)

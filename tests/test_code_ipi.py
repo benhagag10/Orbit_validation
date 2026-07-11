@@ -8,10 +8,10 @@ from pathlib import Path
 import pytest
 
 from orbit.scenarios.coding.code_ipi.configs import CodeIPIScenarioConfig, CodeIPITask
-from orbit.scenarios.coding.code_ipi.condition_presets import (
-    CONDITION_REGISTRY,
-    get_condition_setup,
-    list_conditions,
+from orbit.scenarios.coding.code_ipi.preset_registry import (
+    PRESET_REGISTRY,
+    get_preset_setup,
+    list_presets,
 )
 from orbit.scenarios.coding.code_ipi.config_builder import (
     build_experiment_config,
@@ -29,7 +29,7 @@ from orbit.scenarios.coding.code_ipi.dataset_builder import (
     filter_tasks,
     load_code_ipi_tasks,
 )
-from orbit.scenarios.coding.code_ipi.presets import (
+from orbit.scenarios.coding.code_ipi.security_presets import (
     get_attack_preset,
     get_defense_preset,
 )
@@ -263,7 +263,7 @@ class TestConfigBuilder:
 
     def test_build_with_custom_topology(self):
         task = _make_task()
-        topo = get_condition_setup("star_specialists")
+        topo = get_preset_setup("star_specialists")
         config = build_experiment_config(task, topology_template=topo)
         assert len(config.setup.agents) == 4
 
@@ -304,28 +304,28 @@ class TestConfigBuilder:
 
 
 # ---------------------------------------------------------------------------
-# Condition preset tests
+# Preset tests
 # ---------------------------------------------------------------------------
 
 
-class TestConditionPresets:
-    def test_all_conditions_valid(self):
-        for name in list_conditions():
-            setup = get_condition_setup(name)
+class TestPresetPresets:
+    def test_all_presets_valid(self):
+        for name in list_presets():
+            setup = get_preset_setup(name)
             assert len(setup.agents) > 0
 
     def test_single_agent(self):
-        setup = get_condition_setup("single_agent")
+        setup = get_preset_setup("single_agent")
         assert len(setup.agents) == 1
         assert len(setup.edges) == 0
 
     def test_star_single_executor(self):
-        setup = get_condition_setup("star_single_executor")
+        setup = get_preset_setup("star_single_executor")
         assert len(setup.agents) == 2
         assert len(setup.edges) == 1
 
     def test_star_specialists(self):
-        setup = get_condition_setup("star_specialists")
+        setup = get_preset_setup("star_specialists")
         assert len(setup.agents) == 4
         assert len(setup.edges) == 3
         roles = {a.role for a in setup.agents}
@@ -333,22 +333,22 @@ class TestConditionPresets:
         assert "specialist" in roles
 
     def test_mesh_round_robin(self):
-        setup = get_condition_setup("mesh_round_robin")
+        setup = get_preset_setup("mesh_round_robin")
         assert len(setup.agents) == 3
         assert len(setup.edges) == 6  # fully connected 3 agents
 
     def test_mesh_delegation(self):
-        setup = get_condition_setup("mesh_delegation")
+        setup = get_preset_setup("mesh_delegation")
         assert len(setup.agents) == 3
         assert len(setup.edges) == 6
 
-    def test_unknown_condition_raises(self):
-        with pytest.raises(ValueError, match="Unknown condition"):
-            get_condition_setup("nonexistent")
+    def test_unknown_preset_raises(self):
+        with pytest.raises(ValueError, match="Unknown preset"):
+            get_preset_setup("nonexistent")
 
     def test_all_agents_have_tools(self):
-        for name in list_conditions():
-            setup = get_condition_setup(name)
+        for name in list_presets():
+            setup = get_preset_setup(name)
             for agent in setup.agents:
                 if agent.role != "orchestrator":
                     assert "bash" in agent.tools or "python" in agent.tools, (

@@ -76,7 +76,7 @@ def hospital_scheduling(
     persuasion_tactic: str | None = None,
     misalignment_strategy: str | None = None,
     compromised_agent: str | None = None,
-    condition: str = "flat",
+    preset: str = "flat",
     defense_preset: str | None = None,
     max_turns: int = 15,
     max_time_seconds: float = 600.0,
@@ -134,7 +134,7 @@ def hospital_scheduling(
     observation = ObservationConfig()
     all_agent_names = [s.name for s in agent_specs]
 
-    if condition == "star":
+    if preset == "star":
         supervisor = all_agent_names[0]
         agent_specs[0] = agent_specs[0].model_copy(
             update={
@@ -150,7 +150,7 @@ def hospital_scheduling(
             edges.append(TopologyEdge(
                 from_agent=supervisor, to_agent=worker, mechanism="tool",
             ))
-    elif condition == "mesh_shared":
+    elif preset == "mesh_shared":
         for a in all_agent_names:
             for b in all_agent_names:
                 if a != b:

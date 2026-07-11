@@ -71,27 +71,27 @@ def _bigcodebench_scorers(config: ExperimentConfig) -> list[Scorer]:
 def _shorthand() -> ShorthandSpec:
     """BigCodeBench YAML shorthand — declarative, resolved by the shared kit.
 
-    BigCodeBench's ``condition_presets`` / ``presets`` are thin re-exports of
+    BigCodeBench's ``preset_registry`` / ``presets`` are thin re-exports of
     RedCode-Gen's (same generic coding-team topologies and defenses), so the
-    shorthand surface matches ``redcode_gen``: ``metadata.bigcodebench_condition``
+    shorthand surface matches ``redcode_gen``: ``metadata.bigcodebench_preset``
     resolves the named topology presets and the ``*_preset`` keys reuse the
     ``-T`` factory's primitives. New with the kit — the YAML path previously had
-    no condition/preset reader at all.
+    no preset reader at all.
     """
-    from orbit.scenarios.coding.bigcodebench.condition_presets import (
-        get_condition_setup,
+    from orbit.scenarios.coding.bigcodebench.preset_registry import (
+        get_preset_setup,
     )
     from orbit.scenarios.coding.bigcodebench.config_builder import (
         default_topology_template,
     )
-    from orbit.scenarios.coding.bigcodebench.presets import (
+    from orbit.scenarios.coding.bigcodebench.security_presets import (
         get_attack_preset,
         get_defense_preset,
     )
 
     return ShorthandSpec(
         prefix="bigcodebench",
-        condition=get_condition_setup,
+        preset=get_preset_setup,
         attack_preset=get_attack_preset,
         defense_preset=get_defense_preset,
         default_setup=default_topology_template,
@@ -117,7 +117,7 @@ def bigcodebench(
     max_turns: int = 5,
     max_time_seconds: float = 300.0,
     topology_file: str = "default",
-    condition: str | None = None,
+    preset: str | None = None,
     attack_preset: str | None = None,
     defense_preset: str | None = None,
     version: str = "v0.1.2",
@@ -136,7 +136,7 @@ def bigcodebench(
         max_turns: Maximum turns per task.
         max_time_seconds: Maximum wall-clock time per task.
         topology_file: Custom topology YAML path or ``"default"``.
-        condition: Named condition (e.g. ``"single_agent"``,
+        preset: Named topology preset (e.g. ``"single_agent"``,
             ``"star_specialist"``). Overrides ``topology_file``.
         attack_preset: Attack preset name (e.g. ``"jailbreak"``).
         defense_preset: Defense preset name (e.g. ``"prompt_vaccination"``).
@@ -159,11 +159,11 @@ def bigcodebench(
         max_time_seconds=max_time_seconds,
     )
 
-    if condition:
-        from orbit.scenarios.coding.bigcodebench.condition_presets import (
-            get_condition_setup,
+    if preset:
+        from orbit.scenarios.coding.bigcodebench.preset_registry import (
+            get_preset_setup,
         )
-        topology_template = get_condition_setup(condition)
+        topology_template = get_preset_setup(preset)
     elif topology_file == "default":
         topology_template = default_topology_template()
     else:
@@ -177,10 +177,10 @@ def bigcodebench(
     attacks = None
     defenses = None
     if attack_preset:
-        from orbit.scenarios.coding.bigcodebench.presets import get_attack_preset
+        from orbit.scenarios.coding.bigcodebench.security_presets import get_attack_preset
         attacks = get_attack_preset(attack_preset)
     if defense_preset:
-        from orbit.scenarios.coding.bigcodebench.presets import get_defense_preset
+        from orbit.scenarios.coding.bigcodebench.security_presets import get_defense_preset
         defenses = get_defense_preset(defense_preset)
 
     config = ExperimentConfig(

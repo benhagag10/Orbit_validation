@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # run_full_sweep.sh — Orchestrate sequential sweeps across multiple models.
 #
-# Runs on the LOCAL machine. For each model, runs conditions one at a time
+# Runs on the LOCAL machine. For each model, runs presets one at a time
 # with Docker daemon restart between each to avoid state degradation.
 #
 # Usage:
@@ -33,8 +33,8 @@ MODELS=(
     "anthropic/claude-sonnet-4-5|sonnet45"
 )
 
-# All 13 conditions in order
-CONDITIONS=(
+# All 13 presets in order
+PRESETS=(
     single_agent
     star_batch_relaxed
     star_batch
@@ -81,7 +81,7 @@ log() {
 # leaks after many containers.
 docker_reset() {
     # NOTE: Do NOT use 'docker image prune -a' — it deletes the OSWorld base
-    # image (16GB, 14min rebuild) causing all subsequent conditions to timeout
+    # image (16GB, 14min rebuild) causing all subsequent presets to timeout
     # on compose up.  Only prune dangling (untagged) images.
     ssh_cmd "sudo systemctl restart docker && sleep 5 && \
         docker container prune -f > /dev/null 2>&1; \
@@ -91,15 +91,15 @@ docker_reset() {
         echo 'Docker restarted. Disk:' && df -h / | tail -1"
 }
 
-# Check whether a condition already has a successful 44-sample eval on the VM.
-condition_done() {
+# Check whether a preset already has a successful 44-sample eval on the VM.
+preset_done() {
     local remote_log_dir="$1"
-    local cond="$2"
+    local preset="$2"
     ssh_cmd "cd ~/orbit && export PATH=\$HOME/.local/bin:\$PATH && \
         python3 -c \"
 import zipfile, json
 from pathlib import Path
-d = Path('$remote_log_dir/$cond/misuse')
+d = Path('$remote_log_dir/$preset/misuse')
 if not d.exists(): exit(1)
 found = False
 for ep in sorted(d.glob('*.eval'), reverse=True):
@@ -117,10 +117,10 @@ exit(0 if found else 1)
     return $?
 }
 
-# Run a single condition for a model.
-run_condition() {
+# Run a single preset for a model.
+run_preset() {
     local model="$1"
-    local cond="$2"
+    local preset="$2"
     local remote_log_dir="$3"
     local log_suffix="$4"
 
@@ -131,7 +131,7 @@ run_condition() {
         sg docker -c 'uv run python -u scripts/run_osharm_experiments.py \
             --model \"$model\" --seed $SEED --parallel 1 --max-samples $MAX_SAMPLES \
             --log-root \"$remote_log_dir\" \
-            --condition \"$cond\"' \
+            --preset \"$preset\"' \
         2>&1 | tee -a logs/sweep_${log_suffix}.log"
 }
 
@@ -184,47 +184,47 @@ for i in "${!MODELS[@]}"; do
     fi
 
     MODEL_START=$(date +%s)
-    COND_OK=0
-    COND_FAIL=0
-    COND_SKIP=0
+    PRESET_OK=0
+    PRESET_FAIL=0
+    PRESET_SKIP=0
 
-    for cond in "${CONDITIONS[@]}"; do
-        COND_LABEL="[$MODEL_IDX/$TOTAL_MODELS] $MODEL | $cond"
+    for preset in "${PRESETS[@]}"; do
+        PRESET_LABEL="[$MODEL_IDX/$TOTAL_MODELS] $MODEL | $preset"
 
         # ── Check if already done on VM ──────────────────────────────────
-        if condition_done "$REMOTE_LOG_DIR" "$cond" > /dev/null 2>&1; then
-            echo "  [ OK ] $cond — already complete, skipping"
-            COND_SKIP=$((COND_SKIP + 1))
+        if preset_done "$REMOTE_LOG_DIR" "$preset" > /dev/null 2>&1; then
+            echo "  [ OK ] $preset — already complete, skipping"
+            PRESET_SKIP=$((PRESET_SKIP + 1))
             continue
         fi
 
         if $DRY_RUN; then
-            echo "  [DRY ] $cond — would execute"
+            echo "  [DRY ] $preset — would execute"
             continue
         fi
 
-        # ── Docker cleanup between conditions ────────────────────────────
+        # ── Docker cleanup between presets ────────────────────────────
         # Light cleanup: stop containers, prune stopped containers and
         # dangling networks.  Full daemon restart only between models.
         ssh_cmd "docker stop \$(docker ps -q) 2>/dev/null; \
             docker container prune -f > /dev/null 2>&1; \
             docker network prune -f > /dev/null 2>&1" > /dev/null 2>&1
 
-        echo "  [RUN ] $cond — starting..."
-        COND_START=$(date +%s)
+        echo "  [RUN ] $preset — starting..."
+        PRESET_START=$(date +%s)
 
-        run_condition "$MODEL" "$cond" "$REMOTE_LOG_DIR" "$LOG_SUFFIX" > /dev/null 2>&1
+        run_preset "$MODEL" "$preset" "$REMOTE_LOG_DIR" "$LOG_SUFFIX" > /dev/null 2>&1
 
-        COND_END=$(date +%s)
-        COND_DURATION=$(( (COND_END - COND_START) / 60 ))
+        PRESET_END=$(date +%s)
+        PRESET_DURATION=$(( (PRESET_END - PRESET_START) / 60 ))
 
-        # ── Verify this condition completed ──────────────────────────────
-        if condition_done "$REMOTE_LOG_DIR" "$cond" > /dev/null 2>&1; then
-            echo "  [ OK ] $cond — done (${COND_DURATION}m)"
-            COND_OK=$((COND_OK + 1))
+        # ── Verify this preset completed ──────────────────────────────
+        if preset_done "$REMOTE_LOG_DIR" "$preset" > /dev/null 2>&1; then
+            echo "  [ OK ] $preset — done (${PRESET_DURATION}m)"
+            PRESET_OK=$((PRESET_OK + 1))
         else
-            echo "  [FAIL] $cond — incomplete after ${COND_DURATION}m"
-            COND_FAIL=$((COND_FAIL + 1))
+            echo "  [FAIL] $preset — incomplete after ${PRESET_DURATION}m"
+            PRESET_FAIL=$((PRESET_FAIL + 1))
 
             # Restart Docker after a failure to recover
             log "  Restarting Docker after failure..."
@@ -235,7 +235,7 @@ for i in "${!MODELS[@]}"; do
     MODEL_END=$(date +%s)
     MODEL_DURATION=$(( (MODEL_END - MODEL_START) / 60 ))
 
-    log "  Model $MODEL: ${COND_OK} OK, ${COND_FAIL} failed, ${COND_SKIP} skipped (${MODEL_DURATION}m)"
+    log "  Model $MODEL: ${PRESET_OK} OK, ${PRESET_FAIL} failed, ${PRESET_SKIP} skipped (${MODEL_DURATION}m)"
 
     # ── Sync logs ────────────────────────────────────────────────────────
     if ! $DRY_RUN; then
@@ -253,7 +253,7 @@ for i in "${!MODELS[@]}"; do
             echo 'Pruned. Disk:' && df -h / | tail -1"
     fi
 
-    if [ "$COND_FAIL" -eq 0 ]; then
+    if [ "$PRESET_FAIL" -eq 0 ]; then
         MODELS_OK=$((MODELS_OK + 1))
     else
         MODELS_FAIL=$((MODELS_FAIL + 1))
@@ -273,6 +273,6 @@ log "  Skipped: $MODELS_SKIP"
 log "============================================"
 
 if [ "$MODELS_FAIL" -gt 0 ]; then
-    log "Some models had condition failures."
+    log "Some models had preset failures."
     log "Re-run with --resume to skip completed models and retry remaining."
 fi

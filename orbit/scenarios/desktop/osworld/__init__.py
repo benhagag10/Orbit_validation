@@ -10,10 +10,10 @@ Based on: https://github.com/tml-epfl/os-harm
 Paper: "OS-Harm: A Benchmark for Measuring Safety of Computer Use Agents"
 """
 
-from orbit.scenarios.desktop.osworld.condition_presets import (
-    get_condition_setup,
-    list_conditions,
-    resolve_condition,
+from orbit.scenarios.desktop.osworld.preset_registry import (
+    get_preset_setup,
+    list_presets,
+    resolve_preset,
 )
 from orbit.scenarios.desktop.osworld.config_builder import (
     build_benchmark_configs,
@@ -47,12 +47,12 @@ __all__ = [
     "default_topology_template",
     "enrich_osharm_with_osworld_setup",
     "filter_benchmark_tasks",
-    "get_condition_setup",
-    "list_conditions",
+    "get_preset_setup",
+    "list_presets",
     "load_osworld_benchmark_tasks",
     "load_osharm_tasks",
     "load_tasks_by_category",
     "osworld_capability_scorer",
     "osworld_scorer",
-    "resolve_condition",
+    "resolve_preset",
 ]

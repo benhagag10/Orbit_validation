@@ -215,7 +215,8 @@ def scenario_options(fn):  # noqa: ANN001, ANN201
                       default="none", help="Memory sharing level."),
         click.option("--instructions", type=click.Choice(["detailed", "relaxed"]),
                       default="detailed", help="Instruction detail level."),
-        click.option("--condition", default=None, help="Condition preset name."),
+        click.option("--preset", default=None,
+                      help="Preset name — a pre-baked agent/topology/memory setup."),
         click.option("--max-turns", type=int, default=None,
                       callback=_validate_positive_int, help="Max agent turns."),
         click.option("--max-time-seconds", type=float, default=None,
@@ -512,7 +513,7 @@ def browserart_cmd(
     topology_file: str,
     memory: str,
     instructions: str,
-    condition: str | None,
+    preset: str | None,
     max_turns: int | None,
     max_time_seconds: float | None,
     # Shared eval options
@@ -565,7 +566,7 @@ def browserart_cmd(
         topology_file=topology_file,
         headless=headless,
         record_video_dir=record_video_dir,
-        condition=condition,
+        preset=preset,
         agents=agents_param,
         topology=topology_param,
         memory=memory,
@@ -631,7 +632,7 @@ def swe_bench_cmd(
     topology_file: str,
     memory: str,
     instructions: str,
-    condition: str | None,
+    preset: str | None,
     seed: int | None,
     max_turns: int | None,
     max_time_seconds: float | None,
@@ -663,7 +664,7 @@ def swe_bench_cmd(
 
         orbit swe-bench --model openai/gpt-4o --repos django/django --attack-preset self_replication --defense-preset full
 
-        orbit swe-bench --model openai/gpt-4o --repos django/django --condition star_specialist
+        orbit swe-bench --model openai/gpt-4o --repos django/django --preset star_specialist
 
         orbit swe-bench --model openai/gpt-4o --repos django/django --agents specialist --memory full
 
@@ -691,7 +692,7 @@ def swe_bench_cmd(
         defense_preset=defense_preset,
         max_turns=max_turns,
         max_time_seconds=max_time_seconds,
-        condition=condition,
+        preset=preset,
         agents=agents_param,
         memory=memory,
         instructions=instructions,
@@ -746,11 +747,11 @@ def swe_bench_cmd(
               help="Timeout in seconds for the computer tool.")
 @click.option("--topology-file", default="default",
               help="Custom topology YAML path or 'default'.")
-@click.option("--condition", default=None,
-              help="Named condition preset (e.g. star_specialist, mesh_round_robin).")
+@click.option("--preset", default=None,
+              help="Named topology preset (e.g. star_specialist, mesh_round_robin).")
 @click.option("--agents", "agents_param", default=None,
               type=click.Choice(["single", "batch", "specialist", "step"]),
-              help="Agent type (alternative to --condition).")
+              help="Agent type (alternative to --preset).")
 @click.option("--topology", "topology_param",
               type=click.Choice(["star", "round_robin", "delegation"]),
               default=None, help="Network topology (used with --agents).")
@@ -782,7 +783,7 @@ def osworld_cmd(
     max_screenshots: int,
     computer_timeout: int,
     topology_file: str,
-    condition: str | None,
+    preset: str | None,
     agents_param: str | None,
     topology_param: str | None,
     memory: str | None,
@@ -823,7 +824,7 @@ def osworld_cmd(
 
         orbit osworld --model openai/gpt-4o --dataset osworld_small --limit 1
 
-        orbit osworld --model openai/gpt-4o --condition star_specialist --defense-preset full_guard
+        orbit osworld --model openai/gpt-4o --preset star_specialist --defense-preset full_guard
 
         orbit osworld --model openai/gpt-4o --agents specialist --memory full --attack-preset misuse
     """
@@ -844,7 +845,7 @@ def osworld_cmd(
             max_screenshots=max_screenshots,
             computer_timeout=computer_timeout,
             topology_file=topology_file,
-            condition=condition,
+            preset=preset,
             agents=agents_param,
             topology=topology_param,
             memory=memory,
@@ -867,7 +868,7 @@ def osworld_cmd(
             max_screenshots=max_screenshots,
             computer_timeout=computer_timeout,
             topology_file=topology_file,
-            condition=condition,
+            preset=preset,
             agents=agents_param,
             topology=topology_param,
             memory=memory,
@@ -910,8 +911,8 @@ def osworld_cmd(
               help="Max wall-clock seconds per task.")
 @click.option("--topology-file", default="default",
               help="Custom topology YAML path or 'default'.")
-@click.option("--condition", default=None,
-              help="Named condition preset (e.g. single_agent, star_specialist, mesh_delegation).")
+@click.option("--preset", default=None,
+              help="Named topology preset (e.g. single_agent, star_specialist, mesh_delegation).")
 @click.option("--attack-preset", default=None,
               help="Attack preset (jailbreak, social_engineering).")
 @click.option("--defense-preset", default=None,
@@ -930,7 +931,7 @@ def redcode_gen_cmd(
     max_turns: int,
     max_time_seconds: float,
     topology_file: str,
-    condition: str | None,
+    preset: str | None,
     attack_preset: str | None,
     defense_preset: str | None,
     judge_model: str,
@@ -963,9 +964,9 @@ def redcode_gen_cmd(
 
         orbit redcode-gen --model openai/gpt-4o --categories spyware,ransomware --limit 10
 
-        orbit redcode-gen --model openai/gpt-4o --condition star_specialist
+        orbit redcode-gen --model openai/gpt-4o --preset star_specialist
 
-        orbit redcode-gen --model openai/gpt-4o --condition mesh_delegation --judge-model openai/gpt-4.1
+        orbit redcode-gen --model openai/gpt-4o --preset mesh_delegation --judge-model openai/gpt-4.1
     """
     from inspect_ai import eval as inspect_eval
 
@@ -978,7 +979,7 @@ def redcode_gen_cmd(
         max_turns=max_turns,
         max_time_seconds=max_time_seconds,
         topology_file=topology_file,
-        condition=condition,
+        preset=preset,
         attack_preset=attack_preset,
         defense_preset=defense_preset,
         data_path=data_path,
@@ -1011,7 +1012,7 @@ def redcode_gen_cmd(
               default="airline",
               help="Tau2 domain: airline, retail, or telecom (small set).")
 @click.option(
-    "--condition",
+    "--preset",
     type=click.Choice([
         "solo",
         "dual_control",
@@ -1023,7 +1024,7 @@ def redcode_gen_cmd(
     ]),
     default="dual_control",
     help=(
-        "Named topology condition. 'solo'/'dual_control' reproduce upstream "
+        "Named topology preset. 'solo'/'dual_control' reproduce upstream "
         "baselines; the rest are Orbit-specific multi-agent shapes (PR 4, "
         "extension E1 of issue #116). 'solo' requires --domain airline."
     ),
@@ -1045,7 +1046,7 @@ def redcode_gen_cmd(
 def tau2_cmd(
     model: str,
     domain: str,
-    condition: str,
+    preset: str,
     task_ids: str | None,
     max_turns: int,
     max_time_seconds: float,
@@ -1077,7 +1078,7 @@ def tau2_cmd(
 
         orbit tau2 --model openai/gpt-4o
 
-        orbit tau2 --model openai/gpt-4o --domain airline --condition dual_control --limit 5
+        orbit tau2 --model openai/gpt-4o --domain airline --preset dual_control --limit 5
 
         orbit tau2 --model openai/gpt-4o --task-ids 1,3,7 --judge-model openai/gpt-4.1
     """
@@ -1088,7 +1089,7 @@ def tau2_cmd(
     task = tau2(
         domain=domain,
         task_ids=task_ids,
-        condition=condition,
+        preset=preset,
         judge_model=judge_model,
         max_turns=max_turns,
         max_time_seconds=max_time_seconds,
@@ -1206,10 +1207,10 @@ def validate_cmd(
             config = load_experiment_config(config_path)
             if config_overrides:
                 config = apply_config_overrides(config, config_overrides)
-            # Resolve scenario shorthand (e.g. a condition preset supplying the
-            # topology) so a condition-only config validates against its real
+            # Resolve scenario shorthand (e.g. a topology preset supplying the
+            # topology) so a preset-only config validates against its real
             # topology, not an empty one — the same resolution the builder does.
-            # A ShorthandConflictError here (condition vs inline setup, dangling
+            # A ShorthandConflictError here (preset vs inline setup, dangling
             # preset target — issues #31/#32) IS a validation failure.
             config = resolve_scenario_shorthand(config)
             # expand_templates: validate attack/defense targets against the
@@ -1340,9 +1341,9 @@ def _extract_agent_info(sample: Any) -> dict[str, Any] | None:
             f"{topology_type} ({execution_style})" if execution_style
             else topology_type
         )
-    condition = props.get("condition_type")
-    if condition:
-        info["condition"] = condition
+    preset = props.get("preset_type")
+    if preset:
+        info["preset"] = preset
     return info if info else None
 
 
@@ -1706,13 +1707,13 @@ def _format_run_summary(result: Any) -> str:
     task_name = getattr(eval_info, "task", None) or "unknown"
     model_name = getattr(eval_info, "model", None) or "unknown"
     task_args = getattr(eval_info, "task_args", None) or {}
-    condition = task_args.get("condition") if isinstance(task_args, dict) else None
+    preset = task_args.get("preset") if isinstance(task_args, dict) else None
     status = getattr(result, "status", "unknown")
 
     lines.append("=" * W)
     header = f"  {task_name} | {model_name}"
-    if condition:
-        header += f" | {condition}"
+    if preset:
+        header += f" | {preset}"
     lines.append(header)
     lines.append("=" * W)
 

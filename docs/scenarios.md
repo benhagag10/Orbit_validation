@@ -214,31 +214,24 @@ uv run orbit run examples/swe_bench_multi_issue.yaml --model openai/gpt-4o
 | `scheduling_mode` | string | round_robin | Execution mode (`round_robin` or `superstep`) |
 | `topology` | string | star | Topology style (`star`, `round_robin`, `delegation`) |
 | `topology_file` | string | default | Custom topology YAML path (`default` uses the built-in template) |
-| `condition` | string | — | Condition preset (see below) |
+| `preset` | string | — | Topology/memory preset (see below) |
 | `attack_preset` | string | — | Attack preset (`self_replication`, `sabotage`, `codebase_injection`, `codebase_injection_targeted`, `codebase_injection_behavioral`, `aishellcheck`, `aishellcheck_category_sweep`, `compromised_agent`, `collusion_side_task`) |
 | `defense_preset` | string | — | Defense preset (`file_monitor`, `diff_monitor`, `full`, `sysprompt`, `llm_monitor`, `guardian`, `dual_llm`) |
 | `max_turns` | int | 30 | Max turns per agent |
 | `max_time_seconds` | float | 900 | Max seconds per experiment |
 
-### Condition Presets
+### Presets
 
-Condition presets configure the agent topology and team structure. Use via `--condition <name>` with the CLI or `-T condition=<name>` with `inspect eval`.
-
-| Condition | Description |
-|-----------|-------------|
-| `single_agent` | Single coding agent |
-| `star_batch` | Star: orchestrator + 1 batch executor (detailed instructions) |
-| `star_batch_relaxed` | Star: orchestrator + 1 batch executor (relaxed instructions) |
-| `star_specialist` | Star: orchestrator + 4 specialists (implementation, debugging, testing, review) |
-| `star_specialist_relaxed` | Star: orchestrator + 4 specialists (relaxed instructions) |
-| `star_step` | Star: orchestrator + 1 step-by-step executor |
-| `mesh_round_robin` | Mesh: 4 peers, round-robin with message board |
-| `mesh_delegation` | Mesh: 4 peers, dynamic delegation |
-| `memory_none` | Star + 4 specialists, no shared memory |
-| `memory_own_actions` | Star + 4 specialists, agents see own actions only |
-| `memory_own_reasoning` | Star + 4 specialists, agents see own reasoning |
-| `memory_shared_actions` | Star + 4 specialists, shared action visibility |
-| `memory_full` | Star + 4 specialists, full shared memory |
+A preset is just a pre-baked config. The shared reference — the friendly-flag
+mapping, topology diagrams, and conflict rules — lives in [Presets](presets.md); each shipped
+scenario, SWE-Bench included, comes with its own preset set. Use via `--preset <name>`
+(CLI), `-T preset=<name>` (`inspect eval`), or run the shipped config directly with
+`orbit run orbit/scenarios/coding/swe_bench/presets/<name>.yaml`. SWE-Bench's specialists are
+implementation, debugging, testing, and review; the 13 presets are `single_agent`, `star_batch`,
+`star_batch_relaxed`, `star_specialist`, `star_specialist_relaxed`, `star_step`, `mesh_round_robin`,
+`mesh_delegation`, `memory_none`, `memory_own_actions`, `memory_own_reasoning`,
+`memory_shared_actions`, and `memory_full` — one YAML per preset in
+`orbit/scenarios/coding/swe_bench/presets/`.
 
 ## OSWorld / OS-Harm (Computer-Use Agent Safety)
 
@@ -310,7 +303,7 @@ uv run orbit osworld -m openai/gpt-4o --app thunderbird --limit 10
 uv run orbit osworld -m openai/gpt-4o --dataset osharm_misuse
 
 # Star topology with specialists
-uv run orbit osworld -m openai/gpt-4o --condition star_specialist --limit 5
+uv run orbit osworld -m openai/gpt-4o --preset star_specialist --limit 5
 
 # Friendly parameters
 uv run orbit osworld -m openai/gpt-4o --agents specialist --topology round_robin --limit 5
@@ -325,9 +318,9 @@ uv run orbit osworld -m openai/gpt-4o --defense-preset basic --limit 5
 uv run inspect eval orbit/osworld_safety \
   --limit 5 --model openai/gpt-4o
 
-# With condition preset
+# With a preset
 uv run inspect eval orbit/osworld_safety \
-  -T condition=star_specialist --limit 5 --model openai/gpt-4o
+  -T preset=star_specialist --limit 5 --model openai/gpt-4o
 ```
 
 **Run via YAML config:**
@@ -349,33 +342,27 @@ uv run orbit run examples/osworld_osharm_basic.yaml --model openai/gpt-4o
 | `max_time_seconds` | float | 600 | Max wall-clock seconds per task |
 | `max_screenshots` | int | 1 | Max screenshots per turn for the computer tool |
 | `computer_timeout` | int | 180 | Timeout in seconds for the computer tool |
-| `condition` | string | — | Named condition preset (e.g. `star_specialist`) |
+| `preset` | string | — | Named topology/memory preset (e.g. `star_specialist`) |
 | `agents` | string | — | Agent type (`single`, `batch`, `specialist`, `step`) |
 | `topology` | string | — | Network topology (`star`, `round_robin`, `delegation`) |
 | `memory` | string | — | Memory level (`none`, `own_actions`, `own_reasoning`, `shared_actions`, `full`) |
 | `defense_preset` | string | — | Defense preset name |
 | `attack_preset` | string | — | Attack preset name |
 | `instructions` | string | — | Instruction detail level (`detailed`, `relaxed`). Used with `agents` |
-| `topology_file` | string | default | Path to custom SetupConfig YAML, e.g. under `examples/topologies/` (mutually exclusive with `condition`/`agents`) |
+| `topology_file` | string | default | Path to custom SetupConfig YAML, e.g. under `examples/topologies/` (mutually exclusive with `preset`/`agents`) |
 | `judge_model` | string | openai/gpt-4.1 | Model for the safety judge scorer |
 
-### Condition Presets
+### Presets
 
-| Condition | Description |
-|-----------|-------------|
-| `single_agent` | Single computer-use agent |
-| `star_batch` | Star: orchestrator + 1 batch executor |
-| `star_batch_relaxed` | Star: orchestrator + 1 batch executor (relaxed instructions) |
-| `star_specialist` | Star: orchestrator + 4 specialists (email, browser, document, code) |
-| `star_specialist_relaxed` | Star: orchestrator + 4 specialists (relaxed instructions) |
-| `star_step` | Star: orchestrator + 1 step-by-step executor |
-| `mesh_round_robin` | Mesh: 4 peers, round-robin turns |
-| `mesh_delegation` | Mesh: 4 peers, dynamic delegation |
-| `memory_none` | Star + 4 specialists, no shared memory |
-| `memory_own_actions` | Star + 4 specialists, agents see own actions only |
-| `memory_own_reasoning` | Star + 4 specialists, agents see own reasoning |
-| `memory_shared_actions` | Star + 4 specialists, shared action visibility |
-| `memory_full` | Star + 4 specialists, full shared memory |
+A preset is just a pre-baked config. The shared reference — the friendly-flag
+mapping, topology diagrams, and conflict rules — lives in [Presets](presets.md); each shipped
+scenario, OSWorld included, comes with its own preset set. Use via `--preset <name>` (CLI),
+`-T preset=<name>` (`inspect eval`), or run the shipped config directly with
+`orbit run orbit/scenarios/desktop/osworld/presets/<name>.yaml`. OSWorld ships two specialist
+families — tool-action specialists (`star_tool_*`, `mesh_tool_*`, `tool_memory_*`, the default for
+`--agents specialist`) and application specialists (`star_specialist`, `mesh_*`, `memory_*`, via
+`--agents app_specialist`) — for 30 presets in total. The full set ships in
+`orbit/scenarios/desktop/osworld/presets/` — one YAML per preset.
 
 ## BigCodeBench (Coding Agent)
 

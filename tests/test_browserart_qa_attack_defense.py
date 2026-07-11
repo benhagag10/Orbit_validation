@@ -25,14 +25,14 @@ pytestmark = pytest.mark.skipif(
     ),
 )
 
-from orbit.scenarios.browser.browserart.condition_presets import get_condition_setup
+from orbit.scenarios.browser.browserart.preset_registry import get_preset_setup
 from orbit.scenarios.browser.browserart.config_builder import build_experiment_config
 from orbit.scenarios.browser.browserart.configs import (
     BrowserARTBehavior,
     BrowserARTScenarioConfig,
 )
 from orbit.scenarios.browser.browserart.dataset_builder import load_browserart_behaviors
-from orbit.scenarios.browser.browserart.presets import (
+from orbit.scenarios.browser.browserart.security_presets import (
     caution_defense_preset,
     compromised_executor_attack_preset,
     full_guard_defense_preset,
@@ -42,9 +42,9 @@ from orbit.scenarios.browser.browserart.presets import (
 from orbit.configs.experiment import ExperimentConfig
 
 from tests.conftest_browserart_qa import (
-    CANONICAL_CONDITIONS,
-    CONDITIONS_WITH_EXECUTOR,
-    MEMORY_CONDITIONS,
+    CANONICAL_PRESETS,
+    PRESETS_WITH_EXECUTOR,
+    MEMORY_PRESETS,
     MEMORY_FLAGS,
     PRESET_COMBOS,
     SELECTED_HBB_IDS,
@@ -66,24 +66,24 @@ def hbb_by_id() -> dict[int, BrowserARTBehavior]:
 # Test: compromised_executor targets non-existent agent (A1)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("condition", CANONICAL_CONDITIONS)
-def test_compromised_executor_target_exists_in_topology(condition):
-    """A1 FIXED: The attack preset now parametrizes target_agent by condition.
+@pytest.mark.parametrize("preset", CANONICAL_PRESETS)
+def test_compromised_executor_target_exists_in_topology(preset):
+    """A1 FIXED: The attack preset now parametrizes target_agent by preset.
 
-    Every condition should have a valid attack target when the condition
+    Every preset should have a valid attack target when the preset
     is passed to the preset factory.
     """
-    from orbit.scenarios.browser.browserart.presets import CONDITION_ATTACK_TARGETS
+    from orbit.scenarios.browser.browserart.security_presets import PRESET_ATTACK_TARGETS
 
-    setup = get_condition_setup(condition)
+    setup = get_preset_setup(preset)
     agent_names = {a.name for a in setup.agents}
 
-    # Get the condition-aware target
-    attacks = compromised_executor_attack_preset(condition=condition)
+    # Get the preset-aware target
+    attacks = compromised_executor_attack_preset(preset=preset)
     attack_target = attacks[0].target_agent
 
     assert attack_target in agent_names, (
-        f"Condition {condition}: attack target '{attack_target}' not in "
+        f"Preset {preset}: attack target '{attack_target}' not in "
         f"agents {agent_names}"
     )
 
@@ -134,15 +134,15 @@ def test_defense_preset_structure(preset_fn, expected_count):
 # Test: defense presets build with all topologies
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("condition", CANONICAL_CONDITIONS)
+@pytest.mark.parametrize("preset", CANONICAL_PRESETS)
 @pytest.mark.parametrize(
     "defense_name",
     ["caution", "vaccination", "text_guard", "full_guard"],
 )
-def test_defense_presets_build_with_all_topologies(condition, defense_name, hbb_by_id):
-    """All defense × condition combos produce valid ExperimentConfig."""
+def test_defense_presets_build_with_all_topologies(preset, defense_name, hbb_by_id):
+    """All defense × preset combos produce valid ExperimentConfig."""
     behavior = hbb_by_id[0]
-    config = build_config_for_test(behavior, condition, defense_name=defense_name)
+    config = build_config_for_test(behavior, preset, defense_name=defense_name)
     assert isinstance(config, ExperimentConfig)
     assert len(config.defenses) > 0
 
@@ -167,12 +167,12 @@ def test_full_guard_guardian_spec_present():
 # Test: combined attack + defense config
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("condition", ["star_batch", "star_specialist", "mesh_round_robin"])
-def test_combined_attack_defense_config(condition, hbb_by_id):
+@pytest.mark.parametrize("preset", ["star_batch", "star_specialist", "mesh_round_robin"])
+def test_combined_attack_defense_config(preset, hbb_by_id):
     """Both attack and defense can coexist on the same ExperimentConfig."""
     behavior = hbb_by_id[0]
     config = build_config_for_test(
-        behavior, condition,
+        behavior, preset,
         attack_name="compromised_executor",
         defense_name="full_guard",
     )
@@ -203,7 +203,7 @@ def test_memory_levels_progressive():
     """
     prev_flags: set[str] = set()
 
-    for level in MEMORY_CONDITIONS:
+    for level in MEMORY_PRESETS:
         expected = MEMORY_FLAGS[level]
         # Each level should be a superset of the previous
         assert expected >= prev_flags, (
@@ -216,10 +216,10 @@ def test_memory_levels_progressive():
 # Test: memory config has agent_memory_access for all agents
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("level", MEMORY_CONDITIONS)
+@pytest.mark.parametrize("level", MEMORY_PRESETS)
 def test_memory_all_agents_have_memory_access(level):
-    """All agents in memory conditions get memory access entries."""
-    setup = get_condition_setup(level)
+    """All agents in memory presets get memory access entries."""
+    setup = get_preset_setup(level)
     agent_names = {a.name for a in setup.agents}
 
     access_names = {
@@ -235,10 +235,10 @@ def test_memory_all_agents_have_memory_access(level):
 # Test: memory flags match expected values
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("level", MEMORY_CONDITIONS)
+@pytest.mark.parametrize("level", MEMORY_PRESETS)
 def test_memory_flags_correct(level):
     """Memory access flags match expected per-level configuration."""
-    setup = get_condition_setup(level)
+    setup = get_preset_setup(level)
     expected_flags = MEMORY_FLAGS[level]
 
     for entry in setup.memory.agent_memory_access:
@@ -265,10 +265,10 @@ def test_memory_flags_correct(level):
 # Test: shared memory config
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("level", MEMORY_CONDITIONS)
+@pytest.mark.parametrize("level", MEMORY_PRESETS)
 def test_memory_shared_memory_enabled(level):
-    """All memory conditions have shared memory enabled."""
-    setup = get_condition_setup(level)
+    """All memory presets have shared memory enabled."""
+    setup = get_preset_setup(level)
     assert setup.memory.shared is True
     assert len(setup.memory.shared_groups) == 1
     # The shared group contains all agents

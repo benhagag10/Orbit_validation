@@ -135,8 +135,8 @@ def build_experiment_config(
         "osworld_judge_model": scenario_config.judge_model,
     }
 
-    # Propagate condition metadata from topology properties
-    for key in ("condition_type", "execution_style", "memory_level", "topology_type"):
+    # Propagate preset metadata from topology properties
+    for key in ("preset_type", "execution_style", "memory_level", "topology_type"):
         if key in topology_template.properties:
             meta[f"osworld_{key}"] = topology_template.properties[key]
 
@@ -278,8 +278,8 @@ def build_benchmark_config(
         "osworld_dataset": scenario_config.dataset,
     }
 
-    # Propagate condition metadata from topology properties
-    for key in ("condition_type", "execution_style", "memory_level", "topology_type"):
+    # Propagate preset metadata from topology properties
+    for key in ("preset_type", "execution_style", "memory_level", "topology_type"):
         if key in topology_template.properties:
             meta[f"osworld_{key}"] = topology_template.properties[key]
 

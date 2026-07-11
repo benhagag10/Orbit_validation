@@ -62,15 +62,15 @@ class TopologySource(str, Enum):
     """Where a scenario's runtime topology comes from (issue #33).
 
     ``CONFIG`` (the default): the topology is ``config.setup`` — authored
-    inline or materialised from a ``{prefix}_condition`` preset — and the
+    inline or materialised from a ``{prefix}_preset`` topology preset — and the
     builder enforces the topology floor (expansion may not reduce the agent
     count or drop shared memory).
 
     ``SCENARIO``: the scenario *derives* its roster from a scenario-native
-    selector (tau2 builds per-task rosters from its condition) and
+    selector (tau2 builds per-task rosters from its preset) and
     deliberately ignores ``config.setup``; the builder skips the floor and the
     shared resolver arbitrates a declared inline setup against the roster the
-    condition will actually build.
+    preset will actually build.
     """
 
     CONFIG = "config"
@@ -113,7 +113,7 @@ class ScenarioPlugin:
     """The ``scenario.name`` this plugin handles."""
 
     shorthand: ShorthandSpec | None = None
-    """Declarative YAML-shorthand surface (``{prefix}_condition`` /
+    """Declarative YAML-shorthand surface (``{prefix}_preset`` /
     ``{prefix}_attack_preset`` / ``{prefix}_defense_preset`` metadata keys) —
     see :class:`orbit.scenarios.shorthand.ShorthandSpec`. Resolved by the
     shared resolver on BOTH entry points (builder, ``orbit validate``,
@@ -188,7 +188,7 @@ class ScenarioPlugin:
     every produced config and the builder enforces the topology floor (a
     produced config may not have FEWER agents than the resolved config, nor
     drop shared memory). ``SCENARIO`` (tau2) means the roster is
-    derived from the scenario's own condition selector; the floor is skipped
+    derived from the scenario's own preset selector; the floor is skipped
     and a declared inline ``setup`` is arbitrated by the shared resolver."""
 
     alias_prefixes: tuple[str, ...] = ()

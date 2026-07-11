@@ -11,12 +11,12 @@ from orbit.configs.scenario import (
     validate_role_requirements,
 )
 from orbit.configs.setup import AgentMemoryAccess, AgentSpec, SetupConfig
-from orbit.scenarios.customer_service.converse.condition_presets import (
-    CONDITION_REGISTRY,
+from orbit.scenarios.customer_service.converse.preset_registry import (
+    PRESET_REGISTRY,
     MEMORY_PRESET_REGISTRY,
     apply_memory_preset,
-    get_condition_setup,
-    list_conditions,
+    get_preset_setup,
+    list_presets,
     list_memory_presets,
 )
 from orbit.scenarios.customer_service.converse.config_builder import (
@@ -46,7 +46,7 @@ from orbit.scenarios.customer_service.converse.dataset_builder import (
     get_dataset_statistics,
     load_personas,
 )
-from orbit.scenarios.customer_service.converse.presets import (
+from orbit.scenarios.customer_service.converse.security_presets import (
     build_attacks_for_sample,
     build_privacy_attack,
     build_security_attack,
@@ -223,14 +223,14 @@ class TestBuildSamples:
 
 
 # ---------------------------------------------------------------------------
-# Condition presets
+# Presets
 # ---------------------------------------------------------------------------
 
 
-class TestConditionPresets:
+class TestPresetPresets:
     def test_all_presets_satisfy_contract(self):
-        for name in list_conditions():
-            setup = get_condition_setup(name)
+        for name in list_presets():
+            setup = get_preset_setup(name)
             role_map = validate_role_requirements(
                 setup, CONVERSE_ROLE_REQUIREMENTS
             )
@@ -238,7 +238,7 @@ class TestConditionPresets:
             assert "converse_user_environment" in role_map
 
     def test_paper_star_shape(self):
-        setup = get_condition_setup("paper_star")
+        setup = get_preset_setup("paper_star")
         assert len(setup.agents) == 3
         roles = {a.role for a in setup.agents}
         assert ROLE_PLANNER in roles
@@ -246,16 +246,16 @@ class TestConditionPresets:
         assert ROLE_EXTERNAL_SERVICE in roles
 
     def test_single_agent_aliases_environment_role(self):
-        setup = get_condition_setup("single_agent")
+        setup = get_preset_setup("single_agent")
         assert len(setup.agents) == 1
         assert setup.roles[ROLE_USER_ENVIRONMENT] == setup.agents[0].name
 
-    def test_unknown_condition_raises(self):
-        with pytest.raises(ValueError, match="Unknown ConVerse condition"):
-            get_condition_setup("does-not-exist")
+    def test_unknown_preset_raises(self):
+        with pytest.raises(ValueError, match="Unknown preset"):
+            get_preset_setup("does-not-exist")
 
     def test_specialist_trio_has_three_planner_specialists(self):
-        setup = get_condition_setup("specialist_trio")
+        setup = get_preset_setup("specialist_trio")
         planners = [a for a in setup.agents if a.role == ROLE_PLANNER]
         assert len(planners) == 3
         specialties = {a.specialty for a in planners}
@@ -263,7 +263,7 @@ class TestConditionPresets:
 
     def test_specialist_trio_logistics_is_lead(self):
         """The logistics specialist is the only one wired to external_service."""
-        setup = get_condition_setup("specialist_trio")
+        setup = get_preset_setup("specialist_trio")
         external_edges = [
             e for e in setup.edges
             if e.to_agent == "external_service"
@@ -272,7 +272,7 @@ class TestConditionPresets:
         assert external_edges[0].from_agent == "planner_logistics"
 
     def test_specialist_trio_specialists_have_distinct_prompts(self):
-        setup = get_condition_setup("specialist_trio")
+        setup = get_preset_setup("specialist_trio")
         planners = {a.specialty: a for a in setup.agents if a.role == ROLE_PLANNER}
         assert "logistics" in planners["logistics"].system_prompt.lower()
         assert "financial" in planners["financial"].system_prompt.lower()
@@ -294,19 +294,19 @@ class TestMemoryPresets:
         }
 
     def test_unknown_preset_raises(self):
-        setup = get_condition_setup("paper_star")
+        setup = get_preset_setup("paper_star")
         with pytest.raises(ValueError, match="Unknown ConVerse memory preset"):
             apply_memory_preset(setup, "not_a_real_preset")
 
     def test_isolated_produces_empty_memory_config(self):
-        setup = get_condition_setup("paper_star")
+        setup = get_preset_setup("paper_star")
         result = apply_memory_preset(setup, "isolated")
         assert result.memory.shared is False
         assert result.memory.shared_groups == []
         assert result.memory.agent_memory_access == []
 
     def test_assistant_environment_shared_builds_group(self):
-        setup = get_condition_setup("paper_star")
+        setup = get_preset_setup("paper_star")
         result = apply_memory_preset(setup, "assistant_environment_shared")
         assert result.memory.shared is True
         assert len(result.memory.shared_groups) == 1
@@ -315,14 +315,14 @@ class TestMemoryPresets:
 
     def test_assistant_environment_shared_requires_both_roles(self):
         """Fails on single_agent — no distinct env agent to share with."""
-        setup = get_condition_setup("single_agent")
+        setup = get_preset_setup("single_agent")
         # single_agent has no distinct user_environment agent (the role is
         # aliased onto the planner), so no meaningful "shared group" exists.
         with pytest.raises(ValueError):
             apply_memory_preset(setup, "assistant_environment_shared")
 
     def test_assistant_cot_leaked_sets_external_visibility(self):
-        setup = get_condition_setup("paper_star")
+        setup = get_preset_setup("paper_star")
         result = apply_memory_preset(setup, "assistant_cot_leaked")
         external_entries = [
             a for a in result.memory.agent_memory_access
@@ -333,12 +333,12 @@ class TestMemoryPresets:
         assert external_entries[0].shared_action_history is True
 
     def test_assistant_cot_leaked_requires_external_role(self):
-        setup = get_condition_setup("benign_pair")  # no external_service
+        setup = get_preset_setup("benign_pair")  # no external_service
         with pytest.raises(ValueError, match="external_service"):
             apply_memory_preset(setup, "assistant_cot_leaked")
 
     def test_goal_hidden_from_external_sets_flag(self):
-        setup = get_condition_setup("paper_star")
+        setup = get_preset_setup("paper_star")
         result = apply_memory_preset(setup, "goal_hidden_from_external")
         external_entries = [
             a for a in result.memory.agent_memory_access
@@ -347,12 +347,12 @@ class TestMemoryPresets:
         assert len(external_entries) == 1
         assert external_entries[0].goal_visible is False
 
-    def test_presets_are_composable_across_conditions(self):
+    def test_presets_are_composable_across_presets(self):
         """Every topology with an external_service agent accepts every preset."""
         # Use paper_star as a representative: it's the only preset with all
         # three roles present. benign_pair/single_agent lack external, so
         # the two external-targeted presets legitimately reject them.
-        setup = get_condition_setup("paper_star")
+        setup = get_preset_setup("paper_star")
         for preset in list_memory_presets():
             result = apply_memory_preset(setup, preset)
             # Every preset returns a valid SetupConfig — no loss of agents
@@ -363,7 +363,7 @@ class TestMemoryPresets:
             validate_role_requirements(result, CONVERSE_ROLE_REQUIREMENTS)
 
     def test_preset_is_idempotent(self):
-        setup = get_condition_setup("paper_star")
+        setup = get_preset_setup("paper_star")
         once = apply_memory_preset(setup, "isolated")
         twice = apply_memory_preset(once, "isolated")
         assert once.memory == twice.memory
@@ -376,7 +376,7 @@ class TestMemoryPresets:
 
 class TestWireScenarioTools:
     def test_auto_wires_environment_tools(self):
-        setup = get_condition_setup("paper_star")
+        setup = get_preset_setup("paper_star")
         # Explicitly clear the env agent's tools to prove auto-wiring happens.
         cleared_agents = []
         for a in setup.agents:
@@ -393,7 +393,7 @@ class TestWireScenarioTools:
         assert set(env_agent.tools) == set(CONVERSE_ENVIRONMENT_TOOLS)
 
     def test_preserves_caller_tool_order(self):
-        setup = get_condition_setup("paper_star")
+        setup = get_preset_setup("paper_star")
         updated_agents = []
         for a in setup.agents:
             if a.role == ROLE_PLANNER:
@@ -465,7 +465,7 @@ def tiny_sample() -> ConverseSample:
 
 class TestBuildExperimentConfig:
     def test_benign_has_no_attacks(self, tiny_sample: ConverseSample):
-        setup = get_condition_setup("paper_star")
+        setup = get_preset_setup("paper_star")
         exp = build_experiment_config(sample=tiny_sample, setup=setup)
         assert exp.attacks == []
         assert exp.metadata["converse_attack_mode"] == "benign"
@@ -480,7 +480,7 @@ class TestBuildExperimentConfig:
                 "privacy_attack": tiny_sample.persona.privacy_attacks[0],
             }
         )
-        setup = get_condition_setup("paper_star")
+        setup = get_preset_setup("paper_star")
         exp = build_experiment_config(sample=privacy_sample, setup=setup)
         assert len(exp.attacks) == 1
         attack = exp.attacks[0]
@@ -502,7 +502,7 @@ class TestBuildExperimentConfig:
                 "security_attack": tiny_sample.persona.security_attacks[0],
             }
         )
-        setup = get_condition_setup("paper_star")
+        setup = get_preset_setup("paper_star")
         exp = build_experiment_config(sample=sec_sample, setup=setup)
         assert len(exp.attacks) == 1
         attack = exp.attacks[0]
@@ -515,14 +515,14 @@ class TestBuildExperimentConfig:
     def test_metadata_carries_env_state_payload(
         self, tiny_sample: ConverseSample
     ):
-        setup = get_condition_setup("paper_star")
+        setup = get_preset_setup("paper_star")
         exp = build_experiment_config(sample=tiny_sample, setup=setup)
         env = exp.metadata["converse_env_state"]
         assert "emails" in env["toolkit_sections"]
         assert env["toolkit_sections"]["emails"].startswith("From: bank")
 
     def test_defenses_passed_through(self, tiny_sample: ConverseSample):
-        setup = get_condition_setup("paper_star")
+        setup = get_preset_setup("paper_star")
         defenses = get_defense_preset("prompt_vaccination")
         exp = build_experiment_config(
             sample=tiny_sample, setup=setup, defenses=defenses
@@ -750,14 +750,14 @@ class TestConfigBuilderWiresHook:
                 "privacy_attack": tiny_sample.persona.privacy_attacks[0],
             }
         )
-        setup = get_condition_setup("paper_star")
+        setup = get_preset_setup("paper_star")
         exp = build_experiment_config(sample=privacy_sample, setup=setup)
         assert exp.scheduler.hooks.post_turn == (
             "orbit.scenarios.customer_service.converse.hooks.post_turn_privacy_detector"
         )
 
     def test_benign_sample_does_not_wire_hook(self, tiny_sample):
-        setup = get_condition_setup("paper_star")
+        setup = get_preset_setup("paper_star")
         exp = build_experiment_config(sample=tiny_sample, setup=setup)
         assert exp.scheduler.hooks.post_turn is None
 
@@ -768,7 +768,7 @@ class TestConfigBuilderWiresHook:
                 "security_attack": tiny_sample.persona.security_attacks[0],
             }
         )
-        setup = get_condition_setup("paper_star")
+        setup = get_preset_setup("paper_star")
         exp = build_experiment_config(sample=sec_sample, setup=setup)
         assert exp.scheduler.hooks.post_turn is None
 
@@ -780,7 +780,7 @@ class TestConfigBuilderWiresHook:
                 "security_attack": tiny_sample.persona.security_attacks[0],
             }
         )
-        setup = get_condition_setup("paper_star")
+        setup = get_preset_setup("paper_star")
         exp = build_experiment_config(sample=both_sample, setup=setup)
         assert exp.scheduler.hooks.post_turn is not None
 
@@ -897,7 +897,7 @@ class TestEndToEnd:
         from orbit.scenarios.customer_service.converse.config_builder import (
             build_experiment_configs,
         )
-        from orbit.scenarios.customer_service.converse.condition_presets import get_condition_setup
+        from orbit.scenarios.customer_service.converse.preset_registry import get_preset_setup
         from orbit.scenarios.customer_service.converse.configs import (
             ConverseEnvironmentState,
             ConverseScenarioConfig,
@@ -914,7 +914,7 @@ class TestEndToEnd:
         )
         samples = build_samples(scenario_config)[:1]
         assert samples, "dataset builder produced no samples"
-        setup = get_condition_setup("paper_star")
+        setup = get_preset_setup("paper_star")
         configs = build_experiment_configs(
             samples=samples,
             setup=setup,
@@ -1002,9 +1002,9 @@ class TestEndToEnd:
         from inspect_ai.util import store_as
 
         from orbit.dataset.sample_factory import build_sample
-        from orbit.scenarios.customer_service.converse.condition_presets import (
+        from orbit.scenarios.customer_service.converse.preset_registry import (
             apply_memory_preset,
-            get_condition_setup,
+            get_preset_setup,
         )
         from orbit.scenarios.customer_service.converse.config_builder import (
             build_experiment_configs,
@@ -1036,7 +1036,7 @@ class TestEndToEnd:
         ][:1]
         assert samples, "dataset builder produced no privacy samples"
         setup = apply_memory_preset(
-            get_condition_setup("paper_star"), "assistant_environment_shared"
+            get_preset_setup("paper_star"), "assistant_environment_shared"
         )
         assert setup.memory.shared_groups, (
             "assistant_environment_shared preset did not populate shared_groups"
@@ -1130,11 +1130,11 @@ class TestEndToEnd:
         """``assistant_cot_leaked`` requires an ``external_service`` role;
         ``benign_pair`` doesn't fill it, so the overlay must raise rather
         than silently produce a degenerate config."""
-        from orbit.scenarios.customer_service.converse.condition_presets import (
+        from orbit.scenarios.customer_service.converse.preset_registry import (
             apply_memory_preset,
-            get_condition_setup,
+            get_preset_setup,
         )
 
-        setup = get_condition_setup("benign_pair")
+        setup = get_preset_setup("benign_pair")
         with pytest.raises(ValueError, match="external_service"):
             apply_memory_preset(setup, "assistant_cot_leaked")

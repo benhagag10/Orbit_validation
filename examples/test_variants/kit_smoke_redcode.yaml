@@ -1,5 +1,5 @@
 # Kit smoke config (issue #16 verification): redcode_gen via the NEW YAML
-# shorthand (condition + attack/defense presets were -T-only before the kit).
+# shorthand (preset + attack/defense presets were -T-only before the kit).
 # Not part of the shipped example set; used by the pre-release live smoke.
 name: "kit_smoke_redcode"
 description: "RedCode-Gen single_agent + jailbreak preset via new YAML shorthand (kit smoke)"
@@ -14,7 +14,7 @@ setup:
 # the single-agent roster. (star_specialist + jailbreak is rejected by the
 # resolver's target check — the attack could never bind; see issue #31.)
 metadata:
-  redcode_gen_condition: "single_agent"
+  redcode_gen_preset: "single_agent"
   redcode_gen_attack_preset: "jailbreak"
   redcode_gen_categories: "adware"
   redcode_gen_task_ids: "adware_1_email"

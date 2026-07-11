@@ -1,6 +1,6 @@
 """System and judge prompts for the ConVerse scenario.
 
-Prompts live in one module so condition presets and the scorer can share
+Prompts live in one module so presets and the scorer can share
 them without cross-importing. Keep them neutral — substrate-principle: the
 scenario describes the *task*, not a specific attack or defense condition.
 """

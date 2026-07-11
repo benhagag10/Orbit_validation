@@ -96,12 +96,12 @@ class ConfigValidator:
         agent_names = {agent.name for agent in config.setup.agents}
 
         # A topology_source=SCENARIO scenario (tau2) derives its
-        # roster from its own condition selector; an EMPTY setup.agents is the
+        # roster from its own preset selector; an EMPTY setup.agents is the
         # recommended single-source form there, not an error. (Requiring a
         # roster here is what forced every tau2 example to carry a redundant
-        # inline copy of its condition's roster — issue #32.) A non-empty
+        # inline copy of its preset's roster — issue #32.) A non-empty
         # inline setup is still validated normally, and the shared shorthand
-        # resolver separately arbitrates it against the condition's roster.
+        # resolver separately arbitrates it against the preset's roster.
         scenario_derives_topology = False
         if not config.setup.agents and config.scenario and config.scenario.name:
             try:

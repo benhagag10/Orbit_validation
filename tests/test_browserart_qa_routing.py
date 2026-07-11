@@ -1,7 +1,7 @@
 """
 BrowserART QA — Layer 2: Solver routing validation.
 
-Verifies correct solver selection per condition, topology type → execution
+Verifies correct solver selection per preset, topology type → execution
 loop mapping, and agent tool assignments.
 """
 
@@ -25,9 +25,9 @@ pytestmark = pytest.mark.skipif(
     ),
 )
 
-from orbit.scenarios.browser.browserart.condition_presets import (
-    CONDITION_REGISTRY,
-    get_condition_setup,
+from orbit.scenarios.browser.browserart.preset_registry import (
+    PRESET_REGISTRY,
+    get_preset_setup,
 )
 from orbit.scenarios.browser.browserart.config_builder import build_experiment_config
 from orbit.scenarios.browser.browserart.configs import (
@@ -37,12 +37,12 @@ from orbit.scenarios.browser.browserart.configs import (
 from orbit.scenarios.browser.browserart.dataset_builder import load_browserart_behaviors
 
 from tests.conftest_browserart_qa import (
-    CANONICAL_CONDITIONS,
-    CONDITION_AGENT_COUNT,
-    CONDITION_EXECUTION_STYLE,
-    CONDITION_TOPOLOGY_TYPE,
+    CANONICAL_PRESETS,
+    PRESET_AGENT_COUNT,
+    PRESET_EXECUTION_STYLE,
+    PRESET_TOPOLOGY_TYPE,
     SELECTED_HBB_IDS,
-    SINGLE_AGENT_CONDITIONS,
+    SINGLE_AGENT_PRESETS,
     build_config_for_test,
 )
 
@@ -58,64 +58,64 @@ def hbb_by_id() -> dict[int, BrowserARTBehavior]:
 
 
 # ---------------------------------------------------------------------------
-# Test: single-agent conditions declare topology_type="single"
+# Test: single-agent presets declare topology_type="single"
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("condition", sorted(SINGLE_AGENT_CONDITIONS))
-def test_single_agent_conditions_topology(condition):
+@pytest.mark.parametrize("preset", sorted(SINGLE_AGENT_PRESETS))
+def test_single_agent_presets_topology(preset):
     """single_agent presets expose topology_type=single with one agent."""
-    setup = get_condition_setup(condition)
+    setup = get_preset_setup(preset)
     topo_type = setup.properties.get("topology_type", "")
     assert topo_type == "single", (
-        f"Condition {condition} expected topology_type=single, got {topo_type}"
+        f"Preset {preset} expected topology_type=single, got {topo_type}"
     )
     assert len(setup.agents) == 1
 
 
 # ---------------------------------------------------------------------------
-# Test: multi-agent conditions do not declare topology_type="single"
+# Test: multi-agent presets do not declare topology_type="single"
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize(
-    "condition",
-    [c for c in CANONICAL_CONDITIONS if c not in SINGLE_AGENT_CONDITIONS],
+    "preset",
+    [c for c in CANONICAL_PRESETS if c not in SINGLE_AGENT_PRESETS],
 )
-def test_multi_agent_conditions_topology(condition):
+def test_multi_agent_presets_topology(preset):
     """Non-single presets keep a multi-agent topology_type."""
-    setup = get_condition_setup(condition)
+    setup = get_preset_setup(preset)
     topo_type = setup.properties.get("topology_type", "")
     assert topo_type != "single", (
-        f"Condition {condition}: expected non-single topology_type, got {topo_type}"
+        f"Preset {preset}: expected non-single topology_type, got {topo_type}"
     )
 
 
 # ---------------------------------------------------------------------------
-# Test: topology_type maps to expected value for each condition
+# Test: topology_type maps to expected value for each preset
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("condition", CANONICAL_CONDITIONS)
-def test_topology_type_determines_loop(condition):
-    """topology_type matches expected value for each condition."""
-    setup = get_condition_setup(condition)
-    expected = CONDITION_TOPOLOGY_TYPE[condition]
+@pytest.mark.parametrize("preset", CANONICAL_PRESETS)
+def test_topology_type_determines_loop(preset):
+    """topology_type matches expected value for each preset."""
+    setup = get_preset_setup(preset)
+    expected = PRESET_TOPOLOGY_TYPE[preset]
     actual = setup.properties.get("topology_type", "")
     assert actual == expected, (
-        f"Condition {condition}: expected topology_type={expected}, got {actual}"
+        f"Preset {preset}: expected topology_type={expected}, got {actual}"
     )
 
 
 # ---------------------------------------------------------------------------
-# Test: execution_style for star conditions
+# Test: execution_style for star presets
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("condition", CANONICAL_CONDITIONS)
-def test_execution_style_for_conditions(condition):
+@pytest.mark.parametrize("preset", CANONICAL_PRESETS)
+def test_execution_style_for_presets(preset):
     """execution_style matches expected value."""
-    setup = get_condition_setup(condition)
-    expected = CONDITION_EXECUTION_STYLE[condition]
+    setup = get_preset_setup(preset)
+    expected = PRESET_EXECUTION_STYLE[preset]
     actual = setup.properties.get("execution_style", "")
     assert actual == expected, (
-        f"Condition {condition}: expected execution_style={expected!r}, got {actual!r}"
+        f"Preset {preset}: expected execution_style={expected!r}, got {actual!r}"
     )
 
 
@@ -125,7 +125,7 @@ def test_execution_style_for_conditions(condition):
 
 def test_mesh_round_robin_has_turn_order():
     """mesh_round_robin has turn_order in properties listing all 4 agents."""
-    setup = get_condition_setup("mesh_round_robin")
+    setup = get_preset_setup("mesh_round_robin")
     turn_order = setup.properties.get("turn_order")
     assert turn_order is not None, "mesh_round_robin missing turn_order property"
     assert len(turn_order) == 4, f"Expected 4 agents in turn_order, got {len(turn_order)}"
@@ -141,7 +141,7 @@ def test_mesh_round_robin_has_turn_order():
 
 def test_mesh_delegation_has_agent_list():
     """mesh_delegation has agent_list in properties listing all 4 agents."""
-    setup = get_condition_setup("mesh_delegation")
+    setup = get_preset_setup("mesh_delegation")
     agent_list = setup.properties.get("agent_list")
     assert agent_list is not None, "mesh_delegation missing agent_list property"
     assert len(agent_list) == 4, f"Expected 4 agents in agent_list, got {len(agent_list)}"
@@ -151,22 +151,22 @@ def test_mesh_delegation_has_agent_list():
 # Test: all worker agents have browser tools
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("condition", CANONICAL_CONDITIONS)
-def test_all_worker_agents_have_browser_tools(condition):
+@pytest.mark.parametrize("preset", CANONICAL_PRESETS)
+def test_all_worker_agents_have_browser_tools(preset):
     """Every non-orchestrator agent has a browser tool in its tools list.
 
     Single-agent uses the new browserart-service scenario tools
-    (``browser_click`` etc.); multi-agent conditions still use the
+    (``browser_click`` etc.); multi-agent presets still use the
     legacy ``web_browser`` tool and the legacy solver until PR 3.
     """
-    setup = get_condition_setup(condition)
+    setup = get_preset_setup(preset)
     for agent in setup.agents:
         if agent.role == "orchestrator":
             continue
         has_legacy = "web_browser" in agent.tools
         has_new = any(t.startswith("browser_") for t in agent.tools)
         assert has_legacy or has_new, (
-            f"Condition {condition}, agent {agent.name} (role={agent.role}) "
+            f"Preset {preset}, agent {agent.name} (role={agent.role}) "
             f"missing browser tools. Tools: {agent.tools}"
         )
 
@@ -176,16 +176,16 @@ def test_all_worker_agents_have_browser_tools(condition):
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize(
-    "condition",
-    [c for c in CANONICAL_CONDITIONS if c not in SINGLE_AGENT_CONDITIONS],
+    "preset",
+    [c for c in CANONICAL_PRESETS if c not in SINGLE_AGENT_PRESETS],
 )
-def test_orchestrators_have_no_tools(condition):
+def test_orchestrators_have_no_tools(preset):
     """Orchestrator agents have empty tools list (they don't act in browser)."""
-    setup = get_condition_setup(condition)
+    setup = get_preset_setup(preset)
     for agent in setup.agents:
         if agent.role == "orchestrator":
             assert agent.tools == [], (
-                f"Condition {condition}: orchestrator {agent.name} has tools: {agent.tools}"
+                f"Preset {preset}: orchestrator {agent.name} has tools: {agent.tools}"
             )
 
 
@@ -193,20 +193,20 @@ def test_orchestrators_have_no_tools(condition):
 # Test: solver routing end-to-end (task.py logic)
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("condition", CANONICAL_CONDITIONS)
-def test_solver_routing_logic(condition, hbb_by_id):
+@pytest.mark.parametrize("preset", CANONICAL_PRESETS)
+def test_solver_routing_logic(preset, hbb_by_id):
     """Verify the solver routing logic from task.py without actually running."""
-    setup = get_condition_setup(condition)
+    setup = get_preset_setup(preset)
     topo_type = setup.properties.get("topology_type", "single")
     is_multi_agent = topo_type != "single"
 
-    if condition in SINGLE_AGENT_CONDITIONS:
-        assert not is_multi_agent, f"{condition} should route to single solver"
+    if preset in SINGLE_AGENT_PRESETS:
+        assert not is_multi_agent, f"{preset} should route to single solver"
     else:
-        assert is_multi_agent, f"{condition} should route to multi solver"
+        assert is_multi_agent, f"{preset} should route to multi solver"
 
     # Verify the multi_solver dispatch would work for the topology type
     if is_multi_agent:
         assert topo_type in ("star", "mesh_round_robin", "mesh_delegation"), (
-            f"Unhandled topology_type {topo_type} for condition {condition}"
+            f"Unhandled topology_type {topo_type} for preset {preset}"
         )

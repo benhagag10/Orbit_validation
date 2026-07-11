@@ -4,12 +4,12 @@ BrowserART safety task entry point.
 Registered with Inspect via _registry.py. Creates a Task from BrowserART
 behaviors with configurable topology, attacks, and defenses.
 
-Every condition (single-agent, star, memory, mesh) drives the persistent
+Every preset (single-agent, star, memory, mesh) drives the persistent
 ``browserart-service`` Docker container via the shared ``mas_orchestrator``:
 the task solver is ``chain(browserart_setup, mas_orchestrator,
-browserart_teardown)``. Star and memory conditions run the shared-state TopologyExecutor
+browserart_teardown)``. Star and memory presets run the shared-state TopologyExecutor
 (orchestrator is the ``react()`` root, specialists are ``as_tool()``
-sub-agents); mesh conditions run the ScheduledExecutor
+sub-agents); mesh presets run the ScheduledExecutor
 (``AgentScheduler`` with round_robin + observation summary). Start the service with ``scripts/browserart_service.sh up`` and
 point ``BROWSERART_SERVICE_URL`` at it (default ``http://localhost:7878``).
 
@@ -80,24 +80,24 @@ def _scenario_config(config: ExperimentConfig) -> BrowserARTScenarioConfig:
 def _shorthand() -> ShorthandSpec:
     """browserart YAML shorthand — declarative, resolved by the shared kit.
 
-    ``browserart_condition`` resolves to a ``ConditionSetup`` that may carry an
-    ``execution`` config (mesh/scheduled execution conditions) alongside the
+    ``browserart_preset`` resolves to a ``Preset`` that may carry an
+    ``execution`` config (mesh/scheduled execution presets) alongside the
     topology — the shared resolver materialises both. Attack presets take the
-    applied condition so the compromised-agent target matches the resolved
+    applied topology preset so the compromised-agent target matches the resolved
     roster; before the kit the YAML path had no preset reader at all.
     """
-    from orbit.scenarios.browser.browserart.condition_presets import get_condition
-    from orbit.scenarios.browser.browserart.presets import (
+    from orbit.scenarios.browser.browserart.preset_registry import get_preset
+    from orbit.scenarios.browser.browserart.security_presets import (
         get_attack_preset,
         get_defense_preset,
     )
 
     return ShorthandSpec(
         prefix="browserart",
-        condition=get_condition,
+        preset=get_preset,
         attack_preset=get_attack_preset,
         defense_preset=get_defense_preset,
-        preset_takes_condition=True,
+        attack_preset_takes_preset=True,
         default_setup=default_topology_template,
     )
 
@@ -106,7 +106,7 @@ def _browserart_expand(config: ExperimentConfig) -> list[ExperimentConfig]:
     """Fan the config out into one ExperimentConfig per BrowserART behavior.
 
     Topology comes from ``config.setup`` (populated inline or by
-    :func:`_browserart_resolve` from a condition); the single-agent default is
+    :func:`_browserart_resolve` from a preset); the single-agent default is
     the fallback when neither was given.
     """
     meta = config.metadata or {}
@@ -193,7 +193,7 @@ def browserart_safety(
     attack_preset: str | None = None,
     headless: bool = True,
     record_video_dir: str | None = None,
-    condition: str | None = None,
+    preset: str | None = None,
     agents: str | None = None,
     topology: str = "star",
     memory: str = "none",
@@ -214,9 +214,9 @@ def browserart_safety(
         inspect eval orbit/browserart_safety \\
             --limit 1 -T max_turns=5 --model openai/gpt-4o
 
-        # Condition preset:
+        # Topology preset:
         inspect eval orbit/browserart_safety \\
-            -T condition=star_specialist --limit 1 --model openai/gpt-4o
+            -T preset=star_specialist --limit 1 --model openai/gpt-4o
 
     Args:
         categories: Filter behaviors by semantic_category (comma-separated,
@@ -231,9 +231,9 @@ def browserart_safety(
         headless: Run browser headlessly inside the service.
         record_video_dir: Directory for browser video recordings inside
             the service container. ``None`` disables recording.
-        condition: Condition preset name (e.g. ``"star_specialist"``,
+        preset: Topology preset name (e.g. ``"star_specialist"``,
             ``"memory_full"``). When set, overrides topology with the
-            condition's setup and routes to the appropriate solver.
+            preset's setup and routes to the appropriate solver.
         dataset: Dataset variant: ``"hbb"`` (default), ``"hbb_benign"``,
             or ``"hbb_extension"`` (10 multi-step tasks).
         task_ids: Comma-separated list of task IDs to include (e.g.
@@ -248,15 +248,15 @@ def browserart_safety(
 
     _suppress_browserart_warnings(verbose)
 
-    # ---- Resolve human-readable params to a condition name ----
-    if agents is not None and condition is not None:
+    # ---- Resolve human-readable params to a preset name ----
+    if agents is not None and preset is not None:
         raise ValueError(
-            "Cannot specify both --condition and --agents. Use one or the other."
+            "Cannot specify both --preset and --agents. Use one or the other."
         )
     if agents is not None:
-        from orbit.scenarios.browser.browserart.condition_presets import resolve_condition
+        from orbit.scenarios.browser.browserart.preset_registry import resolve_preset
 
-        condition = resolve_condition(
+        preset = resolve_preset(
             agents=agents, topology=topology, memory=memory,
             instructions=instructions,
         )
@@ -270,10 +270,10 @@ def browserart_safety(
 
     # ---- Resolve topology template (+ optional mesh/scheduled execution) ----
     execution_template: ExecutionConfig | None = None
-    if condition is not None:
-        from orbit.scenarios.browser.browserart.condition_presets import get_condition
+    if preset is not None:
+        from orbit.scenarios.browser.browserart.preset_registry import get_preset
 
-        cs = get_condition(condition)
+        cs = get_preset(preset)
         topology_template = cs.setup
         execution_template = cs.execution
     elif topology_file == "default":
@@ -289,11 +289,11 @@ def browserart_safety(
     attacks = None
     defenses = None
     if attack_preset:
-        from orbit.scenarios.browser.browserart.presets import get_attack_preset
+        from orbit.scenarios.browser.browserart.security_presets import get_attack_preset
 
-        attacks = get_attack_preset(attack_preset, condition=condition)
+        attacks = get_attack_preset(attack_preset, preset=preset)
     if defense_preset:
-        from orbit.scenarios.browser.browserart.presets import get_defense_preset
+        from orbit.scenarios.browser.browserart.security_presets import get_defense_preset
 
         defenses = get_defense_preset(defense_preset)
 

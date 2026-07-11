@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Batch runner for ConVerse experiments.
 
-Runs combinations of {condition} × {memory} × {attack_modes} × {defense}
+Runs combinations of {preset} × {memory} × {attack_modes} × {defense}
 against the ConVerse benchmark and writes results to one directory per
 cell. Intended as a worked example of how to use ConVerse as a research
 substrate rather than a fixed benchmark.
@@ -13,19 +13,19 @@ Usage:
 
     # Topology sweep: compare paper_star / guarded_star / split_planner
     python scripts/run_converse_sweep.py --model openai/gpt-4o \\
-        --conditions paper_star,guarded_star,split_planner
+        --presets paper_star,guarded_star,split_planner
 
     # Defense sweep: benign + 3 defenses on paper_star
     python scripts/run_converse_sweep.py --model openai/gpt-4o \\
-        --conditions paper_star --defenses none,prompt_vaccination,guardian_mediator
+        --presets paper_star --defenses none,prompt_vaccination,guardian_mediator
 
     # Memory sweep: paper_star × all 4 memory presets × privacy attacks
     python scripts/run_converse_sweep.py --model openai/gpt-4o \\
-        --conditions paper_star \\
+        --presets paper_star \\
         --memory isolated,assistant_environment_shared,assistant_cot_leaked,goal_hidden_from_external \\
         --attack-modes privacy
 
-    # Smoke test: tiny sample, one condition, benign only
+    # Smoke test: tiny sample, one preset, benign only
     python scripts/run_converse_sweep.py --model openai/gpt-4o --smoke
 """
 
@@ -52,7 +52,7 @@ DEFAULT_JUDGE_MODEL = "openai/gpt-4.1"
 DEFAULT_MAX_TURNS = 10
 DEFAULT_MAX_TIME = 300.0
 
-ALL_CONDITIONS = (
+ALL_PRESETS = (
     "paper_star",
     "benign_pair",
     "guarded_star",
@@ -79,7 +79,7 @@ ALL_MEMORY_PRESETS = (
 # paper_star topology, isolated memory (implicit), privacy + security
 # attack sweeps, no defenses, 600s wall-clock per sample.
 PAPER_REPRO_CONFIG: dict[str, Any] = {
-    "conditions": "paper_star",
+    "presets": "paper_star",
     "memory": "isolated",
     "attack_modes": "privacy,security",
     "defenses": "none",
@@ -91,9 +91,9 @@ PAPER_REPRO_CONFIG: dict[str, Any] = {
 
 @dataclass
 class CellResult:
-    """One {condition × memory × attack_mode × defense} sweep cell."""
+    """One {preset × memory × attack_mode × defense} sweep cell."""
 
-    condition: str
+    preset: str
     memory: str
     attack_mode: str
     defense: str
@@ -122,11 +122,11 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
-        "--conditions",
+        "--presets",
         default="paper_star",
         help=(
-            "Comma-separated topology condition names. Options: "
-            f"{','.join(ALL_CONDITIONS)}. Default: paper_star."
+            "Comma-separated topology preset names. Options: "
+            f"{','.join(ALL_PRESETS)}. Default: paper_star."
         ),
     )
     parser.add_argument(
@@ -203,7 +203,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--smoke",
         action="store_true",
-        help="Smoke test: one condition, benign only, 2 samples, short budget.",
+        help="Smoke test: one preset, benign only, 2 samples, short budget.",
     )
     parser.add_argument(
         "--dry-run",
@@ -220,7 +220,7 @@ def _apply_paper_repro(args: argparse.Namespace) -> None:
 
 def _build_command(
     *,
-    condition: str,
+    preset: str,
     memory: str,
     attack_mode: str,
     defense: str,
@@ -236,7 +236,7 @@ def _build_command(
         "--model",
         args.model,
         "-T",
-        f"condition={condition}",
+        f"preset={preset}",
         "-T",
         f"attack_modes={attack_mode}",
         "-T",
@@ -259,13 +259,13 @@ def _build_command(
 
 def _run_one(
     *,
-    condition: str,
+    preset: str,
     memory: str,
     attack_mode: str,
     defense: str,
     args: argparse.Namespace,
 ) -> CellResult:
-    slug_parts = [condition, attack_mode, defense]
+    slug_parts = [preset, attack_mode, defense]
     if memory != "none":
         slug_parts.insert(1, f"mem_{memory}")
     slug = "__".join(slug_parts)
@@ -273,7 +273,7 @@ def _run_one(
     log_dir.mkdir(parents=True, exist_ok=True)
 
     task_args = _build_command(
-        condition=condition,
+        preset=preset,
         memory=memory,
         attack_mode=attack_mode,
         defense=defense,
@@ -286,7 +286,7 @@ def _run_one(
 
     if args.dry_run:
         return CellResult(
-            condition=condition,
+            preset=preset,
             memory=memory,
             attack_mode=attack_mode,
             defense=defense,
@@ -303,7 +303,7 @@ def _run_one(
 
     metrics, n_samples = _read_cell_metrics(log_dir)
     return CellResult(
-        condition=condition,
+        preset=preset,
         memory=memory,
         attack_mode=attack_mode,
         defense=defense,
@@ -384,7 +384,7 @@ def _write_matrix_summary(
         "dry_run": args.dry_run,
         "paper_repro": args.paper_repro,
         "config": {
-            "conditions": args.conditions,
+            "presets": args.presets,
             "memory": args.memory,
             "attack_modes": args.attack_modes,
             "defenses": args.defenses,
@@ -406,7 +406,7 @@ def main() -> int:
         _apply_paper_repro(args)
 
     if args.smoke:
-        args.conditions = "paper_star"
+        args.presets = "paper_star"
         args.memory = "none"
         args.attack_modes = "benign"
         args.defenses = "none"
@@ -414,19 +414,19 @@ def main() -> int:
         args.max_turns = 3
         args.max_time = 60.0
 
-    conditions = [c.strip() for c in args.conditions.split(",") if c.strip()]
+    presets = [c.strip() for c in args.presets.split(",") if c.strip()]
     memory_presets = [m.strip() for m in args.memory.split(",") if m.strip()]
     modes = [m.strip() for m in args.attack_modes.split(",") if m.strip()]
     defenses = [d.strip() for d in args.defenses.split(",") if d.strip()]
 
     cells: list[CellResult] = []
     failures = 0
-    for cond in conditions:
+    for preset in presets:
         for memory in memory_presets:
             for mode in modes:
                 for defense in defenses:
                     cell = _run_one(
-                        condition=cond,
+                        preset=preset,
                         memory=memory,
                         attack_mode=mode,
                         defense=defense,

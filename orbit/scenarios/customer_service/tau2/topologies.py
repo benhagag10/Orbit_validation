@@ -976,13 +976,13 @@ _PRESET_BUILDERS = {
 }
 
 
-def expected_agent_names(condition: str, domain: str) -> set[str] | None:
-    """The agent names a condition's plan will build, derived offline.
+def expected_agent_names(preset: str, domain: str) -> set[str] | None:
+    """The agent names a preset's plan will build, derived offline.
 
     Consumed by the shared shorthand resolver to arbitrate an inline
-    ``setup.agents`` block against the roster the condition actually runs
+    ``setup.agents`` block against the roster the preset actually runs
     (issue #32) — no task load, no policy render. Returns ``None`` for an
-    unknown condition (the resolver falls back to a warning; ``expand``
+    unknown preset (the resolver falls back to a warning; ``expand``
     reports the bad name authoritatively). Kept adjacent to the plan builders
     it mirrors, and pinned to their real output by
     ``TestExpectedAgentNamesMatchPlans`` so the names cannot drift.
@@ -1007,7 +1007,7 @@ def expected_agent_names(condition: str, domain: str) -> set[str] | None:
             *(f"{d}_specialist" for d in _CROSS_DOMAIN_ACTIVE_DOMAINS),
         },
     }
-    return rosters.get(condition)
+    return rosters.get(preset)
 
 
 def build_topology(
