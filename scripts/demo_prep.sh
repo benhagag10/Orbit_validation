@@ -299,9 +299,9 @@ for f in "$OUTPUT_DIR_SINGLE/run_output.txt" "$OUTPUT_DIR_MULTI/run_output.txt" 
     fi
 done
 
-# ── 7. Print recording instructions ──────────────────────────────────────
+# ── 7. Print artifact summary ─────────────────────────────────────────────
 
-header "Ready for recording!"
+header "Demo artifacts ready"
 
 echo -e "${BOLD}All demo artifacts have been generated.${RESET}"
 echo ""
@@ -309,17 +309,6 @@ echo "Artifacts:"
 echo "  Videos:  $VIDEO_DIR_SINGLE/  $VIDEO_DIR_MULTI/"
 echo "  Output:  $OUTPUT_DIR_SINGLE/run_output.txt  $OUTPUT_DIR_MULTI/run_output.txt"
 echo "  Summary: logs/demo_summary.txt"
-echo ""
-echo "Next steps:"
-echo "  1. Review the storyboard: scripts/demo_storyboard.md"
-echo "  2. Set up terminal: dark theme, 16-18pt font, 1920x1080"
-echo "  3. Record each act separately:"
-echo "     - Act 1: Title card (create in Keynote/Canva)"
-echo "     - Act 2: Type/replay the inspect eval command in terminal"
-echo "     - Act 3: Play the .webm videos at 3-4x speed"
-echo "     - Act 4: Show CLI output (cat logs/demo_single/run_output.txt)"
-echo "     - Act 5: Feature card + closing"
-echo "  4. Edit together with narration"
 echo ""
 echo "Tips:"
 echo "  - Use 'cat $OUTPUT_DIR_SINGLE/run_output.txt' to show single-agent results"
@@ -332,5 +321,5 @@ if [[ "$ERRORS" -gt 0 ]]; then
     warn "$ERRORS artifact(s) may need attention — see warnings above"
     exit 1
 else
-    ok "All artifacts verified. Ready to record!"
+    ok "All artifacts verified."
 fi
