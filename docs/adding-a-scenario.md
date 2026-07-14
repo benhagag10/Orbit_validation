@@ -5,15 +5,44 @@ kit. It is grounded in real modules — every claim cites the code that enforces
 it. Read [architecture.md](architecture.md) first for the data flow; this page
 is the "how do I plug into it" companion.
 
+## What you will build
+
+A scenario is **one `ScenarioPlugin` registration plus one `@task` entry
+point**, both funnelling into the shared Task builder. Here is the complete
+shape of the work before any detail — a typical scenario package:
+
+```
+orbit/scenarios/<family>/myscenario/
+├── __init__.py            # package marker (may be empty)
+├── task.py                # ScenarioPlugin + @task factory — the skeleton below
+├── configs.py             # frozen Pydantic model of the scenario's knobs
+├── config_builder.py      # default_topology_template() + build_experiment_configs()
+├── preset_registry.py     # thin binding of the shared preset loader to presets/
+├── presets/
+│   └── single_agent.yaml  # at least one named topology preset (a runnable config YAML)
+├── security_presets.py    # named attack/defense bundles
+└── scorer.py              # the scenario's @scorer
+```
+
+…plus three one-line registration edits outside the package
+(`orbit/scenarios/registry.py`, `orbit/_registry.py`,
+`orbit/scenarios/requirements.py`), and validation in three layers: discovery
+(`uv run inspect list tasks orbit`), offline config validation
+(`orbit validate` / `orbit --skip-preflight run … --dry-run`), and a full
+offline Task build that exercises `expand` and every builder contract. The
+[checklist](#step-by-step-checklist) walks the files in order;
+[Validating your scenario](#validating-your-scenario) gives the exact commands
+and states precisely what each layer can and cannot catch.
+
 ## Mental model
 
 Every Orbit scenario turns **one `ExperimentConfig` into one Inspect `Task`**,
 and both entry points converge on the *same* builder:
 
 ```
-orbit run <yaml>            → security_benchmark(config) ─┐
-inspect eval orbit/<name>   → @task factory → ExperimentConfig ─┤
-                                                               ├→ build_scenario_task()  → Task
+orbit run <yaml>            → security_benchmark(config) ──────┐
+inspect eval orbit/<task>   → @task factory → ExperimentConfig ┤
+                                                               └→ build_scenario_task() → Task
 ```
 
 `orbit.tasks.builder.build_scenario_task` is the single place that does dataset
@@ -72,7 +101,10 @@ skeleton below is modelled on it.
 You do not have to use all of these — a scenario with no attacks needs no
 `security_presets.py`, one with no dataset needs no `dataset_builder.py`, and one
 with no shipped presets needs neither `presets/` nor `preset_registry.py`. The
-kit only cares about `task.py`.
+kit only cares about `task.py`. (The skeleton below *does* import
+`config_builder.py`, `preset_registry.py`, `security_presets.py`, and
+`scorer.py`, so if you start from it, create those too — that is exactly what
+the checklist walks through.)
 
 **Presets are per-scenario.** A new scenario does not inherit any presets — it
 ships its own. There are two ways to do that. Most scenarios drop one runnable
@@ -85,25 +117,90 @@ mapping and conflict rules once, over whatever preset set each scenario ships.
 
 ## Step-by-step checklist
 
-1. Create `orbit/scenarios/<family>/<name>/` with an `__init__.py`.
-2. Write `configs.py` — a frozen `BaseModel` for your scenario knobs.
-3. Write `config_builder.py` — `default_topology_template()` +
-   `build_experiment_configs()`.
-4. Write `task.py` — the `ScenarioPlugin` + `@task` factory (skeleton below).
-5. Add a `_LOADERS` entry in `orbit/scenarios/registry.py`.
-6. Import your `@task`/`@scorer` in `orbit/_registry.py` so Inspect discovers
-   them.
-7. Add a `SCENARIO_REQUIREMENTS` entry in `orbit/scenarios/requirements.py`.
-8. Validate (last section).
+Each step names the file it creates, what goes in it, and a smoke test for just
+that step. The skeleton in the next section is the centrepiece — steps 3–6 are
+the sibling modules it imports, so **`task.py` alone is not enough**: the plugin
+registers at module import time, and registration itself imports
+`config_builder.py`, `preset_registry.py`, and `security_presets.py` (a missing
+one is a `ModuleNotFoundError` the moment anything touches your scenario). The
+smoke tests below use the skeleton's fictional `coding/myscenario` path —
+substitute your own.
+
+1. **Create the package** — `orbit/scenarios/<family>/<name>/` with an
+   `__init__.py` (may be empty).
+
+2. **`configs.py`** — a frozen `BaseModel` for your scenario knobs (dataset
+   filters, judge model, limits). Minimal version: the `MyScenarioConfig` class
+   from the skeleton, moved here. (The skeleton inlines it to stay one file;
+   every production scenario keeps it in `configs.py`.)
+
+   ```bash
+   uv run python -c "from orbit.scenarios.coding.myscenario.configs import MyScenarioConfig; print(MyScenarioConfig())"
+   ```
+
+3. **`config_builder.py`** — `default_topology_template() -> SetupConfig` (the
+   roster used when no preset or inline setup is given) and
+   `build_experiment_configs(...) -> list[ExperimentConfig]` (dataset tasks ×
+   topology template → one config per sample; called by your `expand` hook).
+
+   ```bash
+   uv run python -c "from orbit.scenarios.coding.myscenario.config_builder import default_topology_template; print([a.name for a in default_topology_template().agents])"
+   ```
+
+4. **`presets/` + `preset_registry.py`** — at least one named topology preset.
+   A preset is a runnable config YAML in the general orbit syntax — the loader
+   consumes its `setup:` and optional `execution:` blocks — so the fastest
+   start is copying one of `redcode_gen/presets/*.yaml` and editing.
+   `preset_registry.py` can be a verbatim copy of
+   `redcode_gen/preset_registry.py`: a thin binding (`PRESETS_DIR`,
+   `get_preset_setup`, `list_presets`) of the shared loader
+   (`orbit/scenarios/presets.py`) to your `presets/` directory.
+
+   ```bash
+   uv run python -c "from orbit.scenarios.coding.myscenario.preset_registry import list_presets; print(list_presets())"
+   ```
+
+5. **`security_presets.py`** — `get_attack_preset(name) -> list[AttackConfig]`
+   and `get_defense_preset(name) -> list[DefenseConfig]` over module-level
+   dicts of named bundles, raising `ValueError` naming the available presets on
+   an unknown name (`redcode_gen/security_presets.py` is the model).
+
+   ```bash
+   uv run python -c "from orbit.scenarios.coding.myscenario.security_presets import get_attack_preset; print([a.name for a in get_attack_preset('jailbreak')])"
+   ```
+
+6. **`scorer.py`** — the scenario's Inspect `@scorer`. Minimal version: one
+   scorer function returning a `Score`. It is imported lazily by
+   `build_scorers`, so a missing or broken `scorer.py` passes `orbit validate`
+   and only surfaces when the Task is actually built (the full-build check in
+   the validation section).
+
+7. **`task.py`** — the `ScenarioPlugin` + `@task` factory. Copy the skeleton
+   below and rename.
+
+8. **Register** — four edits, detailed in
+   [Registration](#registration-lazy-loading-and-the-optional-extra): the
+   `register_scenario(...)` call is already in the skeleton; add a `_LOADERS`
+   entry (`orbit/scenarios/registry.py`), import your `@task`/`@scorer` in
+   `orbit/_registry.py`, and add a `SCENARIO_REQUIREMENTS` entry
+   (`orbit/scenarios/requirements.py`).
+
+   ```bash
+   uv run python -c "from orbit.scenarios.registry import get_scenario; print(get_scenario('myscenario').name)"
+   ```
+
+9. **Validate** — work through
+   [Validating your scenario](#validating-your-scenario): discovery → offline
+   validation → full offline Task build → contract tests → live smoke run.
 
 ## Minimal copyable skeleton
 
-A complete, faithful `task.py` for a fictional `myscenario`. It is modelled
-directly on `redcode_gen/task.py` (single-agent coding-style scenario, LLM-judge
-scorer, Docker sandbox) with a declarative `ShorthandSpec` added the way
-`swe_bench` wires it. Copy it, then fill in the sibling modules it imports
-(`configs.py`, `config_builder.py`, `preset_registry.py` + a `presets/` YAML
-dir, `security_presets.py`, `scorer.py`).
+A complete, faithful `task.py` for a fictional `myscenario` (checklist step 7).
+It is modelled directly on `redcode_gen/task.py` — single-agent coding-style
+scenario, LLM-judge scorer, Docker sandbox — including an identical declarative
+`ShorthandSpec`. Copy it, rename, and fill in the sibling modules it imports
+(checklist steps 3–6: `config_builder.py`, `preset_registry.py` + a `presets/`
+YAML dir, `security_presets.py`, `scorer.py`).
 
 ```python
 """
@@ -331,11 +428,33 @@ Two parallel surfaces are visible here, and they are deliberate:
 Both hand a config to `build_scenario_task`, which enforces the same contracts
 either way.
 
-> **Naming.** `ScenarioPlugin.name` **must equal** `scenario.name` — it is the
-> registry key looked up by `get_scenario`. The `@task` function name is a
-> *separate* thing: it is the Inspect CLI entry point (`inspect eval
-> orbit/<function-name>`). They usually match; `swe_bench` is the exception
-> (plugin `name="swe_bench"`, task `swe_bench_multi_issue`).
+### Plugin name vs task name
+
+`ScenarioPlugin.name` **must equal** `scenario.name` in every YAML — it is the
+registry key looked up by `get_scenario`. The `@task` function name is a
+*separate* identifier: the Inspect CLI entry point (`inspect eval
+orbit/<task-name>`). The two coincide for half the shipped scenarios and differ
+for the other half, so check the table rather than guessing:
+
+| Plugin name (= `scenario.name`) | `@task` name (`inspect eval orbit/<task>`) |
+|---------------------------------|--------------------------------------------|
+| `bigcodebench` | `bigcodebench` |
+| `browserart` | `browserart_safety` |
+| `code_ipi` | `code_ipi` |
+| `converse` | `converse_safety` |
+| `hospital` | `hospital_scheduling` |
+| `jira_ticket` | `jira_ticket_allocation` |
+| `meeting_scheduling` | `meeting_scheduling` |
+| `osworld` | `osworld_safety` |
+| `osworld_benchmark` | `osworld_benchmark` |
+| `redcode_gen` | `redcode_gen` |
+| `swe_bench` | `swe_bench_multi_issue` |
+| `tau2` | `tau2` |
+
+(The thirteenth registered task, `security_benchmark`, is the generic
+YAML-driven entry point, not a scenario.) For a new scenario, giving the plugin
+and the `@task` the same name — as the skeleton does — is the least surprising
+choice.
 
 ## Contracts the builder enforces
 
@@ -409,11 +528,9 @@ The conflict policy is uniform across every scenario:
   `setup.agents` roster **equals** the preset's roster, the inline block is
   treated as redundant documentation and resolution is **silent**. A
   **materially differing** roster is a `ShorthandConflictError` by default
-  (downgradable to a warning with `ORBIT_LENIENT=1`). *This precedence is the
-  reverse of the pre-kit behaviour* — inline setup no longer wins.
+  (downgradable to a warning with `ORBIT_LENIENT=1`).
 - **Preset vs inline attacks/defenses — the inline section WINS**, the preset is
-  ignored **with a warning** and a `<prefix>_ignored_<kind>_preset` breadcrumb
-  (previously a silent drop).
+  ignored **with a warning** and a `<prefix>_ignored_<kind>_preset` breadcrumb.
 - **Materialised attack targets** are validated against the runtime roster
   (post-resolution topology, expanded to runtime names — so
   template-replicating scenarios validate against `solver_0`-style names). A
@@ -497,6 +614,7 @@ ScenarioPlugin(
     name="tau2",
     shorthand=ShorthandSpec(
         prefix="tau2",
+        defense_preset=get_defense_preset,    # security presets resolve as usual
         expected_roster=_expected_roster,     # names the preset will build
         default_preset="dual_control",        # assumed when no *_preset key
     ),
@@ -506,6 +624,10 @@ ScenarioPlugin(
 )
 ```
 
+- Only the *topology* preset key changes behaviour under `SCENARIO`:
+  `attack_preset` / `defense_preset` resolution can still hang off the spec
+  (τ² wires `defense_preset`) and is materialised by the shared resolver
+  exactly as for a `CONFIG` plugin.
 - `expected_roster(config, preset) -> set[str] | None` returns the agent
   names the preset will build (τ²'s specialists are domain-dependent, so it
   takes the config too). Return `None` for "unknown" — the resolver then falls
@@ -558,10 +680,11 @@ from orbit.scenarios.coding.myscenario.scorer import myscenario_scorer  # noqa: 
 ```
 
 **4. `SCENARIO_REQUIREMENTS` in `orbit/scenarios/requirements.py`** — the single
-source of truth for install requirements, consumed by `get_scenario`'s
-missing-dependency message, `orbit verify-setup`, and the README install matrix
-(a test asserts every registered scenario has an entry). For a core scenario
-with a Docker sandbox and a data-fetch step:
+source of truth for install requirements. `get_scenario` consults it to turn a
+failed lazy import into an actionable missing-dependency message, a test asserts
+every registered scenario has an entry, and the install matrix (in `README.md`
+and `docs/scenarios.md`) is kept in sync with it. For a core scenario with a
+Docker sandbox and a data-fetch step:
 
 ```python
 "myscenario": ScenarioRequirements(
@@ -577,7 +700,7 @@ with a Docker sandbox and a data-fetch step:
 If you *do* add a pip extra, declare it in `[project.optional-dependencies]` in
 `pyproject.toml` and list its importable module names in `packages` — that is
 how `missing_extra_message` reports exactly which modules are absent. Keep the
-README install matrix (`docs/scenarios.md`) in sync.
+install matrix (`README.md` and `docs/scenarios.md`) in sync.
 
 ## Validating your scenario
 
@@ -589,18 +712,49 @@ Work outward from cheap structural checks to a live smoke run.
 uv run inspect list tasks orbit          # your @task should appear
 ```
 
-**Config validation** — an offline gate that expands the template and checks
-attack/defense targets against the post-expansion roster (this is where
-`expand_agent_names` earns its keep):
+**Offline validation** — `orbit validate` and `orbit run --dry-run` both run
+the shared shorthand-resolution pipeline plus `ConfigValidator`, entirely
+offline. (`--skip-preflight` is a flag on the `orbit` group itself, so it goes
+*before* `run`. You can validate a shipped preset YAML directly — presets are
+runnable configs.)
 
 ```bash
 uv run orbit validate examples/myscenario.yaml
-uv run orbit run examples/myscenario.yaml --dry-run --skip-preflight
+uv run orbit --skip-preflight run examples/myscenario.yaml --dry-run
 ```
 
-`--dry-run` builds the Task without executing it, so it exercises `expand`, the
-shorthand resolver, and every builder contract above — a `ScenarioExpansionError`
-or `ShorthandConflictError` surfaces here, before you spend a token.
+Be precise about what this layer does and does not catch:
+
+- **Caught here:** an unknown or unimportable scenario module
+  (`MissingScenarioDependencyError` / `ScenarioImportError`), a
+  `ShorthandConflictError` (preset vs materially-different inline setup, a
+  preset-materialised attack targeting an absent agent), a `resolve`-stage
+  dimension drop (`ScenarioExpansionError` at stage `"resolving"`), and
+  `ConfigValidator` errors — attack/defense targets are checked against the
+  *runtime* roster derived by `expand_agent_names`, not by running `expand`.
+- **NOT caught here:** anything inside `expand` or the other build hooks.
+  `dry_run()` (`orbit/wrapper/runner.py`) never calls `build_scenario_task`,
+  so an expand-stage `ScenarioExpansionError`, the topology floor
+  (`_assert_topology_preserved`), a broken `scorer.py`, and dataset-loading
+  failures all pass `--dry-run` silently.
+
+**Full Task build** — the cheapest command that actually exercises `expand` and
+every builder contract. It constructs the Task without executing it, so it
+needs no API key (it does run your dataset loading, so vendored or fetched data
+must be present):
+
+```bash
+uv run python -c "
+from orbit.tasks.builder import build_scenario_task
+from orbit.wrapper.yaml_loader import load_experiment_config
+
+task = build_scenario_task(load_experiment_config('examples/myscenario.yaml'))
+print(type(task).__name__, len(task.dataset), 'samples')
+"
+```
+
+This is where a dropped attack dimension or a collapsed topology in your
+`expand` raises `ScenarioExpansionError` — before you spend a token.
 
 **Contract tests** — the suite includes scenario-portability and
 config-completeness tests (`tests/test_scenario_portability.py`,
@@ -622,6 +776,34 @@ uv run python scripts/verify_construct_validity.py logs/ -v
 Any construct-validity FAIL is a P0 blocker. The structural checks catch the
 mechanical failures; a human still eyeballs a few logs to confirm the output
 makes sense.
+
+## Common failure modes
+
+- **`ModuleNotFoundError` for `preset_registry` / `config_builder` /
+  `security_presets` the first time anything touches the scenario.** The plugin
+  registers at module import time, and building its `ShorthandSpec` imports all
+  three siblings — `task.py` alone is not enough. Create the checklist step 3–5
+  files first (or stub them). `scorer.py` is the late one: it is only imported
+  when the Task is built, so its absence passes `orbit validate` and surfaces in
+  the full-build one-liner.
+- **`orbit validate` and `--dry-run` pass, but the real run fails — or runs the
+  wrong experiment.** Offline validation never calls `expand`, so a bug that
+  drops attacks or collapses the topology inside `expand` is invisible until the
+  Task is built. Run the full-build one-liner above; the builder's
+  `ScenarioExpansionError` contracts fire there.
+- **Plugin name vs task name confusion.** `inspect eval orbit/<X>` wants the
+  `@task` *function* name; `scenario.name` in a YAML wants the *plugin* name —
+  and the two differ for half the shipped scenarios (see the
+  [table](#plugin-name-vs-task-name)). The worst variant is a typo'd
+  `scenario.name`: `build_scenario_task` falls back to the generic
+  single-sample path — loudly, with a warning naming the registered
+  scenarios — and the eval still runs, minus your dataset expansion and
+  scorers.
+- **`ShorthandConflictError` on a config that declares both a preset and an
+  inline setup.** The preset wins, so a materially different inline roster
+  mislabels the run and is rejected — declare exactly one topology source.
+  (`ORBIT_LENIENT=1` downgrades this to a warning for debugging only; the
+  conflict means the config mislabels the experiment.)
 
 ## See also
 
