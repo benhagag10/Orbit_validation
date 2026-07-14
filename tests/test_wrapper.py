@@ -821,6 +821,105 @@ class TestScenarioCommandCleanErrors:
         assert not isinstance(result.exception, ValueError)
 
 
+class TestSubFlagsRequireAgents:
+    """--topology/--memory/--instructions without --agents must error, not no-op.
+
+    Historically these flags were silently ignored unless --agents was also
+    given, so e.g. `orbit browserart --topology round_robin --memory full`
+    ran the default single-agent topology while reporting success — the
+    "silently degenerates" failure mode the construct-validity checker exists
+    to catch.
+    """
+
+    @pytest.fixture
+    def runner(self) -> CliRunner:
+        return CliRunner()
+
+    @pytest.mark.parametrize(
+        "flag, value",
+        [
+            ("--topology", "round_robin"),
+            ("--memory", "full"),
+            ("--instructions", "relaxed"),
+        ],
+    )
+    def test_browserart_sub_flag_without_agents_errors(
+        self, runner: CliRunner, flag: str, value: str,
+    ):
+        from orbit.wrapper.cli import cli
+
+        result = runner.invoke(
+            cli, ["--skip-preflight", "browserart", "-m", "openai/gpt-4o",
+                  flag, value],
+        )
+        assert result.exit_code == 2, result.output
+        assert f"Unsupported: {flag} without --agents" in result.output
+        assert "Traceback" not in result.output
+
+    def test_browserart_multiple_sub_flags_all_named(self, runner: CliRunner):
+        from orbit.wrapper.cli import cli
+
+        result = runner.invoke(
+            cli, ["--skip-preflight", "browserart", "-m", "openai/gpt-4o",
+                  "--topology", "round_robin", "--memory", "full"],
+        )
+        assert result.exit_code == 2, result.output
+        assert "Unsupported: --topology, --memory without --agents" in result.output
+
+    def test_swe_bench_sub_flag_without_agents_errors(self, runner: CliRunner):
+        from orbit.wrapper.cli import cli
+
+        result = runner.invoke(
+            cli, ["--skip-preflight", "swe-bench", "-m", "openai/gpt-4o",
+                  "--memory", "full"],
+        )
+        assert result.exit_code == 2, result.output
+        assert "Unsupported: --memory without --agents" in result.output
+
+    def test_osworld_sub_flag_without_agents_errors(self, runner: CliRunner):
+        """osworld already guarded this; pin the behavior at the CLI layer."""
+        from orbit.wrapper.cli import cli
+
+        result = runner.invoke(
+            cli, ["--skip-preflight", "osworld", "-m", "openai/gpt-4o",
+                  "--memory", "full"],
+        )
+        assert result.exit_code == 2, result.output
+        assert "require --agents" in result.output
+
+    def test_browserart_task_builder_raises_directly(self):
+        """The guard lives in the task builder, so `-T` invocations get it too."""
+        from orbit.scenarios.browser.browserart.task import browserart_safety
+
+        with pytest.raises(ValueError, match="without --agents"):
+            browserart_safety(topology="round_robin", memory="full")
+
+    def test_swe_bench_setupconfig_topology_is_exempt(self):
+        """A SetupConfig passed as `topology` is the direct-template path,
+        not a stray flag — only the genuinely stray --memory is reported."""
+        from orbit.configs.setup import SetupConfig
+        from orbit.scenarios.coding.swe_bench.task import swe_bench_multi_issue
+
+        with pytest.raises(ValueError) as exc_info:
+            swe_bench_multi_issue(topology=SetupConfig(), memory="full")
+        assert str(exc_info.value).startswith(
+            "Unsupported: --memory without --agents"
+        )
+
+    def test_browserart_defaults_pass_the_guard(self, monkeypatch: pytest.MonkeyPatch):
+        """No sub-flags, no --agents: the guard must not fire (default path)."""
+        from orbit.scenarios.browser.browserart import task as task_module
+
+        class FakeTask:
+            """@task stamps registry info on the return value, so it needs a __dict__."""
+
+        sentinel = FakeTask()
+        monkeypatch.setattr(
+            task_module, "build_scenario_task", lambda config, plugin: sentinel
+        )
+        assert task_module.browserart_safety() is sentinel
+
+
 class TestOSWorldAgentsChoice:
     """The osworld CLI must accept every agent type the preset registry supports."""
 
