@@ -6,6 +6,10 @@
   multi-step BrowserART behaviours authored in-house (all entries
   tagged `"source": "Original-MultiStep"`). Licensed under Apache-2.0
   with the rest of Orbit (see `/LICENSE`).
+- **`hbb_benign_custom.json`** — *Orbit-original* content. 59 benign
+  task entries authored in-house, merged into the `hbb_benign` dataset
+  at load time by `dataset_builder.py`. Licensed under Apache-2.0 with
+  the rest of Orbit (see `/LICENSE`).
 
 ## What Orbit does **not** ship here
 
@@ -37,16 +41,25 @@ uv run python scripts/fetch_browserart_data.py
 ```
 
 This downloads the three files from upstream `scaleapi/browser-art`
-at a pinned commit (see the script's `REVISION` constant) and writes
-them into this directory. The downloads are subject to the upstream
-CC BY-NC-ND 4.0 license — do not redistribute them.
+at a pinned commit (see the script's `REVISION` constant). `hbb.json`
+and `hbb_benign.json` are written into this directory;
+`behaviors.json` is written into the sibling `hbb/` package directory.
+The downloads are subject to the upstream CC BY-NC-ND 4.0 license —
+do not redistribute them.
 
 ### Option B: clone upstream and point Orbit at it
 
 ```bash
 git clone https://github.com/scaleapi/browser-art.git
-orbit browserart -m openai/gpt-4o -T data_path=/path/to/browser-art/src/datasets/behaviors
+cp browser-art/src/agents/OpenDevin/BrowserGym/hbb/src/browsergym/hbb/behaviors.json \
+   orbit/scenarios/browser/browserart/hbb/behaviors.json
+uv run orbit browserart -m openai/gpt-4o --data-path browser-art/src/datasets/behaviors
 ```
+
+`--data-path` covers the behaviour listings (`hbb.json` /
+`hbb_benign.json`); the BrowserGym task configuration
+(`behaviors.json`) is always loaded from the `hbb/` package directory,
+hence the `cp` step.
 
 ## Upstream attribution
 

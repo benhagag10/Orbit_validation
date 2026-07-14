@@ -54,7 +54,8 @@ class HBBTask(AbstractBrowserTask):
                 "(upstream scaleapi/browser-art is CC BY-NC-ND 4.0 and is "
                 "not redistributable). Fetch it with:\n"
                 "    uv run python scripts/fetch_browserart_data.py\n"
-                "See orbit/scenarios/browserart/data/README.md for details."
+                "See orbit/scenarios/browser/browserart/data/README.md for "
+                "details."
             ) from exc
 
         # Substitute local URL placeholders with configured URLs.

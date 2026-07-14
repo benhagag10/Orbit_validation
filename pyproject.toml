@@ -71,11 +71,16 @@ orbit = "orbit.wrapper.cli:cli"
 include = ["orbit*"]
 
 [tool.setuptools.package-data]
-# BrowserART: only the Orbit-original hbb_extension.json is redistributed.
-# Upstream-derived hbb.json, hbb_benign.json, and hbb/behaviors.json are
-# fetched via scripts/fetch_browserart_data.py — see
-# orbit/scenarios/browserart/data/README.md.
-"orbit.scenarios.browser.browserart.data" = ["hbb_extension.json", "README.md"]
+# BrowserART: only the Orbit-original hbb_extension.json and
+# hbb_benign_custom.json are redistributed. Upstream-derived hbb.json,
+# hbb_benign.json, and hbb/behaviors.json are fetched via
+# scripts/fetch_browserart_data.py — see
+# orbit/scenarios/browser/browserart/data/README.md.
+"orbit.scenarios.browser.browserart.data" = [
+    "hbb_extension.json",
+    "hbb_benign_custom.json",
+    "README.md",
+]
 "orbit.scenarios.coding.swe_bench._vendor" = ["LICENSE.inspect_evals"]
 "orbit.scenarios.customer_service.tau2" = ["LICENSE.tau2"]
 "orbit.scenarios.customer_service.tau2.data" = ["**/*.json", "**/*.md", "**/*.toml", "README.md"]
