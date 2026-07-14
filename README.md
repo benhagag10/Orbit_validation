@@ -8,11 +8,11 @@
 
 <h1 align="center">Orbit</h1>
 
-<p align="center"><strong>Multi-Agent Security Benchmarking Framework</strong></p>
+<p align="center"><strong>Multi-Agent Safety and Security Evaluations Framework</strong></p>
 
 <p align="center">
   Built on <a href="https://inspect.ai-safety-institute.org.uk/">Inspect AI</a> by the <a href="https://www.aisi.gov.uk/">UK AI Security Institute</a><br>
-  Developed at <a href="https://wittlab.ai/">Wittlab</a> as part of the <a href="https://www.matsprogram.org/">MATS</a> program
+  Developed at <a href="https://wittlab.ai/">Wittlab</a> as part of the <a href="https://www.matsprogram.org/">MATS</a> program, now supported by the <a href="https://www.cooperativeai.com/foundation">Cooperative AI Foundation</a>
 </p>
 
 <p align="center">
@@ -27,14 +27,21 @@
 
 ## Overview
 
-Orbit evaluates whether LLM agents remain safe and aligned when composed into multi-agent systems. It provides:
+**Orbit** is a framework for empirical multi-agent safety and security evaluations built on UK AISI's [Inspect](https://inspect.ai-safety-institute.org.uk/). It includes:
 
-- **5 scenario families** spanning coding, desktop, browser, customer-service, and cooperative-allocation tasks
-- **4 threat types** — prompt injection, compromised agent, collusion, and misuse
-- **4 defense categories** — security prompting, monitors, guardian agents, and dual-LLM
-- **Configurable topologies** — star, mesh, chain, solo — with variable memory visibility and scheduling modes
+- **Flexible orchestration** allowing for centralized and decentralized systems with arbitrary topologies, execution orders, per-agent context, etc
+- **All the benefits of Inspect**, including robust logging, tooling, and an ecosystem of extensions
+- **Easy experimentation out-of-the-box**, with YAML configs able to choose between our initial range including: 
+  - **5 scenario families** — coding, desktop, browser, customer-service, and cooperative-allocation tasks
+  - **4 threat types** — prompt injection, compromised agent, collusion, and misuse
+  - **4 defense categories** — security prompting, monitors, guardian agents, and dual-LLM
+  - **Configurable topologies** — star, mesh, chain — with variable memory visibility and scheduling modes
+- **Extensiblity, flexibility, hackability**, so you can easily build new scenarios and recombine existing ones
 
-Combined, these dimensions yield thousands of distinct experimental configurations, letting researchers explore the full attack–defense–architecture space without rebuilding infrastructure for each study. Every experiment is defined by one choice per dimension. This factorization enables controlled ablation — e.g., varying only the defense while holding topology, attack, and scenario fixed.
+<br>
+
+We found that multi-agent security lacks a standardized toolkit for experimentation, which means each project has required bespoke engineering. Further, there are no standard environments or benchmarks, making comparison of defenses across threat models nearly impossible. We made **Orbit** to solve these problems.
+
 
 ---
 
@@ -88,21 +95,23 @@ uv run inspect view
 
 ## Scenarios
 
-Orbit includes 11 scenarios organized into 5 families:
+Orbit initially includes 11 scenarios organized into 5 families:
 
 | Family | Scenarios | Action Space |
 |--------|-----------|-------------|
-| **Coding** | SWE-Bench, RedCode-Gen, BigCodeBench, CodeIPI | File edits, shell, tests in real repos |
-| **Desktop** | OSWorld / OS-Harm | GUI primitives over virtual desktop |
-| **Browser** | BrowserART | Web actions over accessibility tree |
+| **Coding** | SWE-Bench, RedCode-Gen, BigCodeBench, CodeIPI | Agentic coding sandboxed environments |
+| **Desktop** | OSWorld / OS-Harm | GUI primitives interaction with a desktop |
+| **Browser** | BrowserART | Web actions |
 | **Customer Service** | &tau;&sup2;-Bench, ConVerse | Policy-bound tool calls, dual-control loops |
-| **Cooperative Allocation** | Hospital, JiraTicket, MeetSched | DCOP resource allocation |
+| **Cooperative Allocation** | Hospital, JiraTicket, MeetSched | Resource allocation problems |
 
 Each scenario lives under `orbit/scenarios/<family>/<name>/`.
 
 ---
 
 ## Attacks & Defenses
+We initially provide four attack types and four defense types, and plan to substantially expand these. All attacks and defenses are configurable and extensible via registries, and users can add arbitrary new attacks and defenses.
+
 
 ### Threat Types
 
@@ -110,7 +119,7 @@ Each scenario lives under `orbit/scenarios/<family>/<name>/`.
 |-------------|-------------|-------------|
 | **Injection** | `direct_injection`, `indirect_injection`, `memory_poisoning`, `codebase_injection`, `self_replicating_injection` | Malicious data hijacks agent behavior |
 | **Compromised Agent** | `compromised_agent`, `subtle_code_injection`, `cross_issue_sabotage` | Misaligned or attacker-controlled agent |
-| **Collusion** | `collusion` | Multiple agents covertly coordinate against objectives |
+| **Collusion** | `collusion` | Multiple agents covertly coordinate |
 | **Misuse** | *(scenario-level)* | User deliberately requests harmful actions |
 
 ### Defense Categories
@@ -122,26 +131,23 @@ Each scenario lives under `orbit/scenarios/<family>/<name>/`.
 | **Guardian Agent** | `guardian_agent`, `code_review_defense` | History-aware agentic monitoring |
 | **Dual-LLM** | `dual_llm`, `git_branch_isolation` | Planning separated from untrusted data interaction |
 
-All attacks and defenses are configurable (timing, target, threshold, resampling policy, model) and extensible via registries.
-
 ---
 
 ## Configuration
 
-Every experiment is one **configuration** — which agents, how they connect, and what they remember.
+Every experiment is one **configuration** built on a scenario.
 You can specify it at three levels, each a shorthand for the next:
 
 - **Flags** — quick: `--agents specialist --memory full`
 - **Preset** — a name for a ready-made setup: `--preset memory_full`
-- **YAML** — the same setup as a complete config file you can open, copy, and edit:
+- **YAML** — a complete config file you can design:
   `orbit run orbit/scenarios/browser/browserart/presets/memory_full.yaml`
 
-All three run the same thing: the flags pick a preset, `--preset NAME` loads its YAML, and the YAML is
-the full config. A preset is just a pre-baked config; each shipped scenario comes with its own set
+A preset is just a pre-baked config; each shipped scenario comes with its own set
 under `orbit/scenarios/<family>/<scenario>/presets/` — open one to see exactly what a preset is, or
 copy it and tweak it. See [Presets](docs/presets.md) for the full reference.
 
-Three ways to run experiments:
+To run experiments:
 
 ### CLI flags (quick exploration)
 
@@ -154,12 +160,6 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_ro
 | `--agents` | `single`, `batch`, `specialist`, `step` | Agent roles and count |
 | `--topology` | `star`, `round_robin`, `delegation` | Network structure |
 | `--memory` | `none`, `own_actions`, `own_reasoning`, `shared_actions`, `full` | Inter-agent visibility |
-
-### Inspect CLI (direct access)
-
-```bash
-uv run inspect eval orbit/browserart_safety -T agents=specialist -T topology=round_robin --model openai/gpt-4o
-```
 
 ### YAML configs (full control)
 
@@ -215,7 +215,7 @@ orbit/
 │   ├── desktop/                # OSWorld / OS-Harm
 │   ├── customer_service/       # τ²-Bench, ConVerse
 │   └── cooperative_allocation/ # DCOP, Hospital, JiraTicket, MeetSched
-├── solvers/                    # MAS orchestrator (3 execution paths)
+├── solvers/                    # MAS orchestrator
 ├── scorers/                    # security scorer, LLM judge, collusion metrics
 ├── execution/                  # agent scheduler, submit registry
 ├── scheduler/                  # experiment loop, halt conditions
