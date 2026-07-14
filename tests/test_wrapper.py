@@ -662,6 +662,235 @@ class TestCLI:
         assert "inspect view" in output
 
 
+class TestGroupFlagPlacement:
+    """--skip-preflight and -v/--verbose must work before AND after the subcommand."""
+
+    @pytest.fixture
+    def runner(self) -> CliRunner:
+        return CliRunner()
+
+    def test_skip_preflight_before_subcommand(
+        self, runner: CliRunner, valid_yaml_file: Path, monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Group-level placement (the historical form) still skips preflight."""
+        from orbit.wrapper.cli import cli
+
+        def fail_if_called(*args, **kwargs):
+            raise AssertionError("preflight ran despite --skip-preflight")
+
+        monkeypatch.setattr("orbit.wrapper.preflight.run_preflight", fail_if_called)
+        result = runner.invoke(
+            cli, ["--skip-preflight", "run", str(valid_yaml_file), "--dry-run"]
+        )
+        assert result.exit_code == 0, result.output
+        assert "Dry-run summary" in result.output
+
+    def test_skip_preflight_after_subcommand(
+        self, runner: CliRunner, valid_yaml_file: Path, monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Subcommand-level placement (`orbit run … --skip-preflight`) works too."""
+        from orbit.wrapper.cli import cli
+
+        def fail_if_called(*args, **kwargs):
+            raise AssertionError("preflight ran despite --skip-preflight")
+
+        monkeypatch.setattr("orbit.wrapper.preflight.run_preflight", fail_if_called)
+        result = runner.invoke(
+            cli, ["run", str(valid_yaml_file), "--dry-run", "--skip-preflight"]
+        )
+        assert result.exit_code == 0, result.output
+        assert "Dry-run summary" in result.output
+
+    def test_preflight_runs_without_skip_flag(
+        self, runner: CliRunner, valid_yaml_file: Path, monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Without --skip-preflight anywhere, a failing preflight aborts the run."""
+        from orbit.wrapper.cli import cli
+
+        monkeypatch.setattr(
+            "orbit.wrapper.preflight.run_preflight", lambda *a, **kw: False
+        )
+        result = runner.invoke(cli, ["run", str(valid_yaml_file), "--dry-run"])
+        assert result.exit_code == 1
+
+    def test_skip_preflight_after_scenario_subcommand(
+        self, runner: CliRunner, monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Scenario subcommands accept the flag after the subcommand as well."""
+        from orbit.wrapper.cli import cli
+
+        def fail_if_called(*args, **kwargs):
+            raise AssertionError("preflight ran despite --skip-preflight")
+
+        monkeypatch.setattr("orbit.wrapper.preflight.run_preflight", fail_if_called)
+        # The unsupported combo makes the command fail fast at preset
+        # resolution — a step that runs after preflight — so reaching that
+        # clean error proves the subcommand-level flag skipped preflight.
+        result = runner.invoke(
+            cli,
+            ["browserart", "-m", "openai/gpt-4o", "--skip-preflight",
+             "--agents", "specialist", "--topology", "round_robin",
+             "--memory", "full"],
+        )
+        assert "No such option" not in result.output
+        assert result.exit_code == 2, result.output
+        assert "Unsupported" in result.output
+
+    def test_verbose_before_subcommand(
+        self, runner: CliRunner, valid_yaml_file: Path, monkeypatch: pytest.MonkeyPatch,
+    ):
+        from orbit.wrapper import cli as cli_module
+
+        calls: list[bool] = []
+        monkeypatch.setattr(
+            cli_module, "_enable_verbose_logging", lambda: calls.append(True)
+        )
+        result = runner.invoke(
+            cli_module.cli,
+            ["-v", "--skip-preflight", "run", str(valid_yaml_file), "--dry-run"],
+        )
+        assert result.exit_code == 0, result.output
+        assert calls, "-v before the subcommand did not enable verbose logging"
+
+    def test_verbose_after_subcommand(
+        self, runner: CliRunner, valid_yaml_file: Path, monkeypatch: pytest.MonkeyPatch,
+    ):
+        from orbit.wrapper import cli as cli_module
+
+        calls: list[bool] = []
+        monkeypatch.setattr(
+            cli_module, "_enable_verbose_logging", lambda: calls.append(True)
+        )
+        result = runner.invoke(
+            cli_module.cli,
+            ["run", str(valid_yaml_file), "--dry-run", "--skip-preflight", "-v"],
+        )
+        assert result.exit_code == 0, result.output
+        assert calls, "-v after the subcommand did not enable verbose logging"
+
+    @pytest.mark.parametrize(
+        "subcommand",
+        ["run", "suite", "browserart", "swe-bench", "osworld", "redcode-gen", "tau2"],
+    )
+    def test_subcommand_help_lists_group_flags(
+        self, runner: CliRunner, subcommand: str,
+    ):
+        from orbit.wrapper.cli import cli
+
+        result = runner.invoke(cli, [subcommand, "--help"])
+        assert result.exit_code == 0
+        assert "--skip-preflight" in result.output
+        assert "--verbose" in result.output
+
+
+class TestScenarioCommandCleanErrors:
+    """Unsupported preset/flag combos must fail with a clean CLI error, not a traceback."""
+
+    @pytest.fixture
+    def runner(self) -> CliRunner:
+        return CliRunner()
+
+    def test_browserart_unsupported_combo_clean_error(self, runner: CliRunner):
+        from orbit.wrapper.cli import cli
+
+        result = runner.invoke(
+            cli,
+            ["--skip-preflight", "browserart", "-m", "openai/gpt-4o",
+             "--agents", "specialist", "--topology", "round_robin",
+             "--memory", "full"],
+        )
+        assert result.exit_code == 2  # click UsageError
+        # The preset registry's actionable message is preserved verbatim.
+        assert "Unsupported: --memory 'full' with --topology 'round_robin'" in result.output
+        assert "Traceback" not in result.output
+        # standalone_mode converts the UsageError to SystemExit — no raw ValueError.
+        assert not isinstance(result.exception, ValueError)
+
+    def test_swe_bench_unsupported_combo_clean_error(self, runner: CliRunner):
+        from orbit.wrapper.cli import cli
+
+        result = runner.invoke(
+            cli,
+            ["--skip-preflight", "swe-bench", "-m", "openai/gpt-4o",
+             "--agents", "specialist", "--topology", "round_robin",
+             "--memory", "full"],
+        )
+        assert result.exit_code == 2
+        assert "Unsupported" in result.output
+        assert "Traceback" not in result.output
+        assert not isinstance(result.exception, ValueError)
+
+
+class TestOSWorldAgentsChoice:
+    """The osworld CLI must accept every agent type the preset registry supports."""
+
+    def test_cli_choice_matches_registry(self):
+        from orbit.scenarios.desktop.osworld.preset_registry import VALID_AGENTS
+        from orbit.wrapper.cli import osworld_cmd
+
+        agents_param = next(
+            p for p in osworld_cmd.params if p.name == "agents_param"
+        )
+        assert tuple(agents_param.type.choices) == VALID_AGENTS
+
+    def test_app_specialist_resolves_presets(self):
+        from orbit.scenarios.desktop.osworld.preset_registry import resolve_preset
+
+        assert resolve_preset(
+            "app_specialist", "star", "none", "detailed"
+        ) == "star_specialist"
+        assert resolve_preset(
+            "app_specialist", "star", "full", "detailed"
+        ) == "memory_full"
+
+
+class TestDryRunMaxTurnsSummary:
+    """The dry-run summary reports scheduler.max_turns, which drives the run loop."""
+
+    @pytest.fixture
+    def runner(self) -> CliRunner:
+        return CliRunner()
+
+    def test_summary_reports_scheduler_max_turns(
+        self, runner: CliRunner, valid_yaml_file: Path,
+    ):
+        from orbit.wrapper.cli import cli
+
+        # valid_yaml_file sets scheduler.max_turns: 5 and top-level max_turns: 20;
+        # the summary must show the scheduler value, clearly labelled.
+        result = runner.invoke(
+            cli, ["--skip-preflight", "run", str(valid_yaml_file), "--dry-run"]
+        )
+        assert result.exit_code == 0, result.output
+        assert "Max turns:    5 (scheduler.max_turns)" in result.output
+
+    def test_summary_reflects_scheduler_override(
+        self, runner: CliRunner, valid_yaml_file: Path,
+    ):
+        from orbit.wrapper.cli import cli
+
+        result = runner.invoke(
+            cli,
+            ["--skip-preflight", "run", str(valid_yaml_file), "--dry-run",
+             "-T", "scheduler.max_turns=7"],
+        )
+        assert result.exit_code == 0, result.output
+        assert "Max turns:    7 (scheduler.max_turns)" in result.output
+
+
+class TestCLIBanner:
+    """The CLI self-description matches the public tagline (no stale wording)."""
+
+    def test_group_help_uses_release_tagline(self):
+        runner = CliRunner()
+        from orbit.wrapper.cli import cli
+
+        result = runner.invoke(cli, ["--help"])
+        assert result.exit_code == 0
+        assert "Multi-Agent Safety and Security Evaluations Framework" in result.output
+        assert "Benchmarking" not in result.output
+
+
 # ===========================================================================
 # Wrapper → BrowserART preset passthrough
 # ===========================================================================

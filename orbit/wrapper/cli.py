@@ -198,6 +198,63 @@ def config_override_options(fn):  # noqa: ANN001, ANN201
     )(fn)
 
 
+def _enable_verbose_logging() -> None:
+    """Turn on DEBUG logging (shared by group- and subcommand-level -v)."""
+    import logging
+
+    logging.basicConfig(level=logging.DEBUG)
+
+
+def group_flag_options(fn):  # noqa: ANN001, ANN201
+    """Re-declare the group-level flags on a subcommand.
+
+    ``--skip-preflight`` and ``-v/--verbose`` are defined on the ``orbit``
+    group itself, which requires them *before* the subcommand
+    (``orbit --skip-preflight run …``). These duplicate options accept the
+    natural placement after the subcommand too
+    (``orbit run … --skip-preflight``); either placement works, and the two
+    values are OR-ed together via ``ctx.obj``.
+    """
+
+    def _record(name: str):  # noqa: ANN202
+        def callback(
+            ctx: click.Context, param: click.Parameter, value: bool,
+        ) -> bool:
+            if value:
+                ctx.ensure_object(dict)
+                ctx.obj[name] = True
+                if name == "verbose":
+                    _enable_verbose_logging()
+            return value
+
+        return callback
+
+    options = [
+        click.option("--verbose", "-v", is_flag=True, expose_value=False,
+                      callback=_record("verbose"),
+                      help="Enable verbose logging."),
+        click.option("--skip-preflight", is_flag=True, expose_value=False,
+                      callback=_record("skip_preflight"),
+                      help="Skip preflight checks."),
+    ]
+    for option in reversed(options):
+        fn = option(fn)
+    return fn
+
+
+def _build_task_or_fail(task_builder: Any, **task_kwargs: Any) -> Any:
+    """Build a scenario Task, converting builder errors to clean CLI errors.
+
+    Preset registries raise ``ValueError`` for unsupported flag combinations
+    (e.g. ``--memory full`` with ``--topology round_robin``); surface those
+    as a usage error instead of a raw traceback.
+    """
+    try:
+        return task_builder(**task_kwargs)
+    except (FileNotFoundError, ValueError) as e:
+        raise click.UsageError(str(e)) from e
+
+
 def scenario_options(fn):  # noqa: ANN001, ANN201
     """Shared Click options for scenario commands (browserart, swe-bench)."""
     options = [
@@ -302,14 +359,12 @@ def _parse_config_overrides(raw: tuple[str, ...]) -> dict[str, str] | None:
 @click.option("--skip-preflight", is_flag=True, help="Skip preflight checks.")
 @click.pass_context
 def cli(ctx: click.Context, verbose: bool, skip_preflight: bool) -> None:
-    """Orbit -- Multi-Agent Security Benchmarking CLI."""
+    """Orbit -- Multi-Agent Safety and Security Evaluations Framework."""
     ctx.ensure_object(dict)
     ctx.obj["verbose"] = verbose
     ctx.obj["skip_preflight"] = skip_preflight
     if verbose:
-        import logging
-
-        logging.basicConfig(level=logging.DEBUG)
+        _enable_verbose_logging()
 
 
 @cli.command("run")
@@ -319,6 +374,7 @@ def cli(ctx: click.Context, verbose: bool, skip_preflight: bool) -> None:
               help="Validate and summarize without running eval.")
 @inspect_eval_options
 @config_override_options
+@group_flag_options
 @preflight()
 def run_cmd(
     config_path: str,
@@ -403,6 +459,7 @@ def run_cmd(
               help="Seconds to wait between retries.")
 @inspect_eval_options
 @config_override_options
+@group_flag_options
 @preflight()
 def suite_cmd(
     config_paths: tuple[str, ...],
@@ -496,6 +553,7 @@ def suite_cmd(
 @scenario_options
 @inspect_eval_options
 @config_override_options
+@group_flag_options
 @preflight("browserart")
 def browserart_cmd(
     # Scenario-specific options
@@ -577,7 +635,7 @@ def browserart_cmd(
     config_overrides = _parse_config_overrides(config_overrides_raw)
     _apply_task_overrides(task_kwargs, config_overrides)
 
-    task = browserart_safety(**task_kwargs)
+    task = _build_task_or_fail(browserart_safety, **task_kwargs)
 
     eval_kwargs = _build_eval_kwargs(
         log_dir=log_dir, log_format=log_format, epochs=epochs, tags=tags,
@@ -617,6 +675,7 @@ def browserart_cmd(
 @scenario_options
 @inspect_eval_options
 @config_override_options
+@group_flag_options
 @preflight("swe-bench")
 def swe_bench_cmd(
     # Scenario-specific options
@@ -700,7 +759,7 @@ def swe_bench_cmd(
     config_overrides = _parse_config_overrides(config_overrides_raw)
     _apply_task_overrides(task_kwargs, config_overrides)
 
-    task = swe_bench_multi_issue(**task_kwargs)
+    task = _build_task_or_fail(swe_bench_multi_issue, **task_kwargs)
 
     eval_kwargs = _build_eval_kwargs(
         log_dir=log_dir, log_format=log_format, epochs=epochs, tags=tags,
@@ -750,7 +809,8 @@ def swe_bench_cmd(
 @click.option("--preset", default=None,
               help="Named topology preset (e.g. star_specialist, mesh_round_robin).")
 @click.option("--agents", "agents_param", default=None,
-              type=click.Choice(["single", "batch", "specialist", "step"]),
+              type=click.Choice(
+                  ["single", "batch", "specialist", "app_specialist", "step"]),
               help="Agent type (alternative to --preset).")
 @click.option("--topology", "topology_param",
               type=click.Choice(["star", "round_robin", "delegation"]),
@@ -770,6 +830,7 @@ def swe_bench_cmd(
               help="Model for the safety judge scorer.")
 @inspect_eval_options
 @config_override_options
+@group_flag_options
 @preflight("osworld")
 def osworld_cmd(
     model: str,
@@ -836,7 +897,8 @@ def osworld_cmd(
     if is_benchmark:
         from orbit.scenarios.desktop.osworld.task import osworld_benchmark
 
-        task = osworld_benchmark(
+        task = _build_task_or_fail(
+            osworld_benchmark,
             dataset=dataset,
             app=app,
             task_ids=task_ids,
@@ -857,7 +919,8 @@ def osworld_cmd(
     else:
         from orbit.scenarios.desktop.osworld.task import osworld_safety
 
-        task = osworld_safety(
+        task = _build_task_or_fail(
+            osworld_safety,
             dataset=dataset,
             app=app,
             threat_category=threat_category,
@@ -923,6 +986,7 @@ def osworld_cmd(
               help="Path to RedCode-Gen dataset directory.")
 @inspect_eval_options
 @config_override_options
+@group_flag_options
 @preflight("redcode_gen")
 def redcode_gen_cmd(
     model: str,
@@ -972,7 +1036,8 @@ def redcode_gen_cmd(
 
     from orbit.scenarios.coding.redcode_gen.task import redcode_gen
 
-    task = redcode_gen(
+    task = _build_task_or_fail(
+        redcode_gen,
         categories=categories,
         task_ids=task_ids,
         judge_model=judge_model,
@@ -1025,8 +1090,8 @@ def redcode_gen_cmd(
     default="dual_control",
     help=(
         "Named topology preset. 'solo'/'dual_control' reproduce upstream "
-        "baselines; the rest are Orbit-specific multi-agent shapes (PR 4, "
-        "extension E1 of issue #116). 'solo' requires --domain airline."
+        "baselines; the rest are Orbit-specific multi-agent shapes. "
+        "'solo' requires --domain airline."
     ),
 )
 @click.option("--task-ids", default=None,
@@ -1042,6 +1107,7 @@ def redcode_gen_cmd(
               help="Override path to the tau2 data directory.")
 @inspect_eval_options
 @config_override_options
+@group_flag_options
 @preflight("tau2")
 def tau2_cmd(
     model: str,
@@ -1086,7 +1152,8 @@ def tau2_cmd(
 
     from orbit.scenarios.customer_service.tau2.task import tau2
 
-    task = tau2(
+    task = _build_task_or_fail(
+        tau2,
         domain=domain,
         task_ids=task_ids,
         preset=preset,
@@ -1925,7 +1992,10 @@ def _print_dry_run(info: dict[str, Any]) -> None:
     click.echo(f"  Defenses:     {', '.join(info['defenses']) or '(none)'}")
     click.echo(f"  Baseline:     {info['baseline_mode']}")
     click.echo(f"  Epochs:       {info['epochs']}")
-    click.echo(f"  Max turns:    {info['max_turns']}")
+    # scheduler.max_turns is what actually limits the run loop; the top-level
+    # max_turns field has no runtime effect, so reporting it here would make
+    # users think their scheduler.max_turns setting was ignored.
+    click.echo(f"  Max turns:    {info['scheduler_max_turns']} (scheduler.max_turns)")
 
     # Label this explicitly as *config* validation so it is not mistaken for a
     # preflight pass — a dry-run reached here even if preflight FAILED and the
