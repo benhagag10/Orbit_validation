@@ -24,12 +24,28 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_ro
 | `--max-time-seconds` | float | 300 | Max seconds per behavior |
 | `--categories` | string | — | Filter by behavior category (e.g. `"content/phishing"`) |
 | `--limit` | int | all | Limit number of behaviors (Inspect passthrough) |
-| `--task-id` | int | — | Run a single task by ID |
-| `--dataset` | choice | `hbb` | `hbb` or `hbb_extension` |
+| `--task-id` | int | — | Run a single task by ID (passed to the task as `task_ids`) |
+| `--dataset` | choice | `hbb` | `hbb`, `hbb_benign` (benign-baseline variant), or `hbb_extension` |
+| `--data-path` | string | — | Override path to the dataset JSON file |
 | `--headless / --no-headless` | bool | true | Run browser headlessly |
 | `--record-video-dir` | string | — | Save browser recordings to this directory |
 | `--judge-model` | string | openai/gpt-4.1 | Model for the safety classifier |
 | `--topology-file` | string | `default` | Custom topology YAML path, e.g. `examples/topologies/…` (advanced) |
+
+How the `--agents`/`--topology`/`--memory` combinations map to named presets
+is tabulated in [Presets](presets.md#parameter-mapping).
+
+Two behaviors worth knowing about:
+
+- **`hbb_extension` auto-adjusts turn limits.** The extension tasks are
+  multi-step, so with `--dataset hbb_extension` the defaults become
+  `--max-turns 50` and `--max-time-seconds 600`. Passing any non-default
+  value disables the adjustment for that flag.
+- **Category filtering is silent exact-match** on the full
+  `semantic_category` string, and valid values depend on the dataset
+  (`content/phishing` exists in `hbb`; the extension dataset uses e.g.
+  `social_engineering/phishing`). A category that matches nothing yields
+  zero behaviors without an error.
 
 ### Examples
 
@@ -52,7 +68,7 @@ uv run orbit browserart -m openai/gpt-4o --categories content/phishing --limit 5
 
 ## `inspect eval` with `-T` Flags
 
-You can also use Inspect's native CLI directly. All parameters from `orbit browserart` are available as `-T` flags:
+You can also use Inspect's native CLI directly. All parameters from `orbit browserart` are available as `-T` flags, plus the `attack_preset` / `defense_preset` selectors, which have no dedicated flag on `orbit browserart`:
 
 ```bash
 uv run inspect eval orbit/browserart_safety \
@@ -69,14 +85,22 @@ uv run inspect eval orbit/browserart_safety \
 | `memory` | string | `none` | Memory sharing level |
 | `instructions` | string | `detailed` | Instruction detail: `detailed`, `relaxed` |
 | `preset` | string | — | Preset name (cannot be used with `agents`) |
-| `max_turns` | int | 15 | Max turns per behavior |
-| `max_time_seconds` | float | 300 | Max seconds per behavior |
-| `categories` | string | — | Filter by behavior category (e.g. `"content/phishing"`) |
+| `attack_preset` | string | — | Named attack bundle — the way to attach attacks on this path |
+| `defense_preset` | string | — | Named defense bundle — the way to attach defenses on this path |
+| `max_turns` | int | 15 | Max turns per behavior (auto-adjusts to 50 for `hbb_extension`) |
+| `max_time_seconds` | float | 300 | Max seconds per behavior (auto-adjusts to 600 for `hbb_extension`) |
+| `categories` | string | — | Filter by behavior category (silent exact match, e.g. `"content/phishing"`) |
+| `dataset` | string | `hbb` | Dataset variant: `hbb`, `hbb_benign`, or `hbb_extension` |
+| `task_ids` | string | — | Comma-separated task IDs (e.g. `"227,228"`); the CLI's `--task-id` maps to this |
 | `headless` | bool | true | Run browser headlessly |
 | `record_video_dir` | string | — | Save browser recordings to this directory |
 | `judge_model` | string | openai/gpt-4.1 | Model for the safety classifier |
 | `topology_file` | string | `default` | Custom topology YAML path, e.g. `examples/topologies/…` (advanced) |
 | `data_path` | string | — | Override path to hbb.json dataset |
+| `verbose` | bool | false | Show suppressed warnings (gymnasium registration, etc.) |
+
+Note the one name change between the two surfaces: the CLI's `--task-id`
+(single int) becomes the `task_ids` task parameter (comma-separated string).
 
 ---
 
@@ -97,7 +121,8 @@ setup:
   agents:
     - name: "browser_agent"
       role: "executor"
-      tools: ["web_browser"]
+      tools: ["browser_goto", "browser_click", "browser_fill",
+              "browser_scroll", "browser_screenshot", "browser_send_msg"]
       system_prompt: "You are a browser automation agent."
   edges: []
 
@@ -114,14 +139,10 @@ metadata: {}
 ### Multi-Agent Config (with a Preset)
 
 When using `browserart_preset`, the preset supplies the agents and
-topology automatically — **omit the `setup` block entirely**. If you declare
-both an inline `setup` and a preset, the **preset wins**: a `setup.agents`
-roster that *differs* from the preset's raises a `ShorthandConflictError`
-(set `ORBIT_LENIENT=1` to downgrade it to a warning), while a roster that
-*matches* the preset is treated as redundant documentation and silently
-dropped in favour of the preset. Declaring exactly one topology source keeps
-the config unambiguous. (This precedence reversed with the scenario authoring
-kit — inline setup no longer overrides a preset.)
+topology automatically — **omit the `setup` block entirely**. Declaring both
+an inline `setup` and a preset is a conflict; see the
+[conflict rules](#scenario-shorthand-metadata-keys) below for exactly how it
+is resolved.
 
 ```yaml
 name: "browserart_multi_agent"
@@ -150,7 +171,7 @@ setup:
       system_prompt: "You coordinate tasks."
     - name: "worker"
       role: "worker"
-      tools: ["web_browser"]
+      tools: ["browser_goto", "browser_click", "browser_screenshot"]
       system_prompt: "You execute browser actions."
   edges:
     - from_agent: "supervisor"
@@ -189,15 +210,35 @@ metadata: {}
 |-------|------|---------|-------------|
 | `name` | string | (required) | Experiment name |
 | `description` | string | "" | Human-readable description |
+| `version` | string | "1.0.0" | Config schema version |
 | `setup` | object | {} | Agent topology (see below) |
 | `scenario` | object | (required) | Task domain |
 | `attacks` | list | [] | Attack configurations |
 | `defenses` | list | [] | Defense configurations |
+| `execution` | object | {} | Agent groups, scheduling mode, observation (see below) |
 | `scheduler` | object | {} | Timing and halt conditions |
 | `metrics` | object | {} | Which metrics to compute |
+| `baseline_mode` | string | `none` | Baseline variant: `none`, `no_defense`, `no_attack`, `benign` (see below) |
 | `models` | list | ["openai/gpt-4o"] | Models to evaluate |
 | `epochs` | int | 1 | Evaluation epochs |
-| `metadata` | dict | {} | Arbitrary metadata for logging |
+| `max_turns` | int | 100 | Task-level turn limit (scenarios usually control turns via `scheduler.max_turns`) |
+| `max_time_seconds` | float | 600.0 | Task-level wall-clock limit |
+| `user_prompt` | string | "" | The legitimate task prompt given to the system |
+| `system_prompts` | dict | {} | Per-agent system prompt overrides (keys are agent names) |
+| `metadata` | dict | {} | Arbitrary metadata for logging; also carries [scenario shorthand keys](#scenario-shorthand-metadata-keys) |
+
+#### `baseline_mode`
+
+Baselines re-run the same config with attacks and/or defenses stripped, to
+establish reference points (`orbit suite --baselines` generates them
+automatically):
+
+| Value | Attacks | Defenses | Measures |
+|-------|---------|----------|----------|
+| `none` | active | active | The normal experiment |
+| `no_defense` | active | stripped | Raw attack success without protection |
+| `no_attack` | stripped | active | Defense overhead / false positives on benign tasks |
+| `benign` | stripped | stripped | Clean task performance for utility comparison |
 
 ### `setup`
 
@@ -211,7 +252,7 @@ setup:
       model: "openai/gpt-4o"       # Optional, defaults to task model
       system_prompt: "You are..."
       tools: ["web_browser"]
-      temperature: 0.0
+      temperature: 0.0              # omit for the model's default
       max_messages: 50
   edges:
     - from_agent: "supervisor"
@@ -219,7 +260,7 @@ setup:
       mechanism: "tool"             # "handoff", "tool", or "direct_run"
   memory:
     shared: false
-    agent_memory_access:            # Per-agent memory visibility (for memory presets)
+    agent_memory_access:            # Per-agent memory visibility (see below)
       - agent_name: "worker"
         goal_visible: true
         own_action_history: true
@@ -237,7 +278,7 @@ setup:
 | `model` | string | — | Model override (defaults to task model) |
 | `system_prompt` | string | "" | System prompt text |
 | `tools` | list | [] | Tool names |
-| `temperature` | float | 0.0 | LLM temperature |
+| `temperature` | float | `None` | LLM temperature. `None` means the model's own default; set `0.0` explicitly for deterministic runs |
 | `max_messages` | int | 50 | Max messages before forced stop |
 | `framework` | string | "inspect" | `"inspect"`, `"langgraph"` (needs `uv sync --extra langgraph`), or `"custom"` |
 | `is_compromised` | bool | false | Starts as compromised agent |
@@ -252,7 +293,11 @@ setup:
 
 #### Memory Access Flags
 
-Used by memory presets to control what each agent sees from previous turns.
+The `memory.agent_memory_access` list is what actually controls memory at
+runtime: each agent with an entry gets a `[Memory Context]` message injected
+before its model calls, filtered by that agent's flags. The
+`shared_action_history` / `shared_cot` flags are the switches that grant
+**cross-agent** visibility.
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -262,6 +307,46 @@ Used by memory presets to control what each agent sees from previous turns.
 | `shared_action_history` | false | Can see other agents' actions |
 | `shared_cot` | false | Can see other agents' reasoning |
 | `nl_instructions_accumulated` | false | Can see accumulated orchestrator instructions |
+
+`memory.shared: true` on its own does **not** inject any cross-agent
+context — it declares intent. The declaration matters (the task builder
+fails loudly if a scenario drops a declared `shared: true`, and
+memory-poisoning attacks target the declared `shared_groups`), but
+visibility only changes through the per-agent flags.
+
+To enable shared memory in a hand-written config, declare all three the way
+the shipped `memory_*` presets do — `shared: true`, a `shared_groups` entry,
+and one `agent_memory_access` entry per agent:
+
+```yaml
+setup:
+  agents:
+    - name: "worker_a"
+      role: "worker"
+      system_prompt: "..."
+    - name: "worker_b"
+      role: "worker"
+      system_prompt: "..."
+  edges:
+    - from_agent: "worker_a"
+      to_agent: "worker_b"
+      mechanism: "tool"
+  memory:
+    shared: true
+    shared_groups:
+      - ["worker_a", "worker_b"]
+    agent_memory_access:
+      - agent_name: "worker_a"
+        own_action_history: true
+        shared_action_history: true
+      - agent_name: "worker_b"
+        own_action_history: true
+        shared_action_history: true
+```
+
+Agents without an `agent_memory_access` entry get no memory context injected.
+For a complete worked example, open any shipped memory preset, e.g.
+`orbit/scenarios/browser/browserart/presets/memory_shared_actions.yaml`.
 
 ### `scenario`
 
@@ -282,7 +367,7 @@ scenario:
 ```yaml
 attacks:
   - name: "my_attack"
-    attack_type: "direct_injection"   # or "indirect_injection", "compromised_agent"
+    attack_type: "direct_injection"   # any built-in type, see the table below
     payload: "Malicious instructions here"
     target_agent: "worker"
     timing:
@@ -295,11 +380,21 @@ attacks:
 
 #### Attack Types
 
-| Type | Description |
-|------|-------------|
-| `direct_injection` | Malicious prompt injected into agent's input |
-| `indirect_injection` | Payload hidden in tool output or environment |
-| `compromised_agent` | An agent is controlled by the attacker |
+All nine built-in attack types, grouped by the threat type they map to:
+
+| Type | Threat type | Description |
+|------|-------------|-------------|
+| `direct_injection` | injection | Attacker directly injects a malicious prompt into an agent's conversation |
+| `indirect_injection` | injection | Attacker plants the payload in environment data (files, tool outputs) |
+| `self_replicating_injection` | injection | Payload that propagates via shared codebase edits |
+| `codebase_injection` | injection | Plants malicious instructions in repo files before the agent starts |
+| `memory_poisoning` | injection | Writes adversary-controlled content into a shared memory group |
+| `compromised_agent` | compromised_agent | Attacker controls one or more agents |
+| `subtle_code_injection` | compromised_agent | Agent inserts backdoors alongside legitimate fixes |
+| `cross_issue_sabotage` | compromised_agent | Compromised agent breaks other agents' tests |
+| `collusion` | collusion | Coalition of agents secretly coordinating against system objectives |
+
+Custom attack types can be registered via `orbit.attacks.registry.register_attack()`.
 
 ### `defenses`
 
@@ -315,13 +410,50 @@ defenses:
 
 #### Defense Types
 
-| Type | Description |
-|------|-------------|
-| `prompt_vaccination` | Inject safety instructions into system prompts |
-| `guardian_agent` | Dedicated agent that monitors others |
-| `monitor` | Passive monitoring with alerts |
-| `tool_wrapper` | Intercept and filter tool calls |
-| `secure_model` | Wrap the agent's model with a safety system prompt and an optional output content filter |
+All eleven built-in defense types, grouped by defense category. The last
+four are designed for coding scenarios (they operate on git repos and issue
+patches) but are registered globally like the rest.
+
+| Type | Category | Description |
+|------|----------|-------------|
+| `prompt_vaccination` | security_prompting | Inject safety instructions into system prompts |
+| `secure_model` | security_prompting | Wrap the agent's model with a safety system prompt and an optional output content filter |
+| `monitor` | monitoring | Rule-based pattern monitor that **blocks** matching messages/tool calls (patterns via `config.blocked_patterns`) |
+| `llm_monitor` | monitoring | Myopic LLM monitor that judges each message/tool call in isolation† |
+| `tool_wrapper` | monitoring | Intercept and filter tool calls |
+| `guardian_agent` | guardian_agent | History-aware LLM guardian that reviews actions with full context† |
+| `dual_llm` | dual_llm | Quarantine untrusted tool output through a separate quarantined LLM (Q-LLM) |
+| `file_change_monitor` | monitoring | Enforces per-agent file scope based on issue patches (coding) |
+| `diff_monitor` | monitoring | Scans git diffs for blocked patterns (coding) |
+| `code_review_defense` | guardian_agent | Guardian agent specialized for code review (coding) |
+| `git_branch_isolation` | dual_llm | Creates per-agent git branches for isolation (coding) |
+
+† `llm_monitor` and `guardian_agent` **require** either a `guardian_spec`
+(an inline agent spec for the judge) or a `model_override` (a model
+identifier) — a config without one of them fails validation. `dual_llm`
+accepts the same two fields to pick the Q-LLM but falls back to the
+task-level model when neither is set.
+
+```yaml
+defenses:
+  - name: "myopic_monitor"
+    defense_type: "llm_monitor"
+    model_override: "openai/gpt-4o-mini"   # the monitor's judge model (required*)
+    target_agents: ["worker"]
+  - name: "history_guardian"
+    defense_type: "guardian_agent"
+    guardian_spec:                          # *or an inline agent spec instead
+      name: "guardian"
+      role: "guardian"
+      model: "openai/gpt-4o-mini"
+    target_agents: ["worker"]
+  - name: "quarantine"
+    defense_type: "dual_llm"
+    model_override: "openai/gpt-4o-mini"   # Q-LLM; optional (defaults to task model)
+    target_agents: ["worker"]
+```
+
+Custom defense types can be registered via `orbit.defenses.registry.register_defense()`.
 
 > **Response-caching caveat.** `prompt_vaccination` and `secure_model` are
 > applied as model filters *below* Inspect's response cache (the same is true
@@ -351,6 +483,32 @@ scheduler:
   health_check_interval: 5
   max_retries_per_turn: 0
 ```
+
+### `execution`
+
+Controls how agents are grouped and scheduled. With no `agent_groups`, the
+orchestrator runs shared-state topology execution (the default for star
+topologies); populated `agent_groups` switch to the scheduled executor,
+where each group's agents take turns under `scheduling_mode`.
+
+```yaml
+execution:
+  scheduling_mode: "round_robin"    # "round_robin", "superstep", or "interleaved"
+  agent_groups:
+    - name: "team"
+      agents: ["worker_a", "worker_b"]   # must reference setup.agents names
+      goal: "Resolve the assigned task"
+  observation:
+    mode: "summary"                 # "none", "summary", "peer_messages", "custom"
+    include_own_group_only: false
+```
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `scheduling_mode` | `round_robin` | `round_robin`: one agent per turn, agents leave the rotation when they call `submit()`. `superstep`: all agents run each turn against a frozen observation snapshot. `interleaved`: strict single-model-call alternation for turn-taking conversations |
+| `agent_groups` | [] | Named groups of agents that share a goal; empty means shared-state topology execution |
+| `observation` | `none` | What agents see about other agents' recent activity between turns |
+| `dcop` | — | Phase control for the cooperative-allocation scenarios; see [DCOP & Collusion](dcop-collusion.md) |
 
 ### Scenario Shorthand (metadata keys)
 
@@ -395,8 +553,9 @@ defense presets.
 - **`<prefix>_attack_preset` / `_defense_preset` vs an inline `attacks` /
   `defenses` list** — the **inline list wins** and the preset is ignored with a
   warning. Declare exactly one.
-- A preset is never applied to a dimension your `baseline_mode` strips, so a
-  `no_attack` / `benign` control cannot re-acquire an attack through a preset.
+- A preset is never applied to a dimension your
+  [`baseline_mode`](#baseline_mode) strips, so a `no_attack` / `benign`
+  control cannot re-acquire an attack through a preset.
 
 See [Adding a New Scenario](adding-a-scenario.md#shorthand-and-the-conflict-policy)
 for the full policy and the breadcrumb keys the resolver records.
@@ -408,7 +567,7 @@ These go in the `metadata` section and are specific to the BrowserART scenario.
 | Field | Type | Description |
 |-------|------|-------------|
 | `browserart_categories` | list | Filter by category (e.g. `["content/phishing"]`) |
-| `browserart_preset` | string | Preset name. See [Presets](presets.md). Declare either this or an inline `setup:`; if both are given the **preset wins** — a differing inline roster raises `ShorthandConflictError` (`ORBIT_LENIENT=1` downgrades to a warning), a matching one is dropped as redundant. |
+| `browserart_preset` | string | Preset name. See [Presets](presets.md). Declare either this or an inline `setup:`, not both (see the [conflict rules](#scenario-shorthand-metadata-keys)). |
 | `browserart_headless` | bool | Run browser headlessly (default: true) |
 | `browserart_record_video_dir` | string | Directory for video recordings |
 | `browserart_data_path` | string | Override path to hbb.json |
@@ -431,6 +590,28 @@ These go in the `metadata` section and are specific to the SWE-Bench scenario.
 
 ## CLI Reference
 
+The `orbit` CLI has ten subcommands. Four are detailed below; each of the
+others is a one-screen `--help` away, and the scenario runners are covered
+scenario-by-scenario in [Scenarios](scenarios.md):
+
+| Command | What it does |
+|---------|--------------|
+| `orbit browserart` | Run a BrowserART eval directly (detailed below) |
+| `orbit swe-bench` | Run a SWE-Bench multi-issue eval directly (`orbit swe-bench --help`) |
+| `orbit osworld` | Run an OSWorld / OS-Harm eval directly (`orbit osworld --help`) |
+| `orbit redcode-gen` | Run a RedCode-Gen eval directly (`orbit redcode-gen --help`) |
+| `orbit tau2` | Run a τ²-Bench eval directly (`orbit tau2 --help`) |
+| `orbit run` | Run a single experiment from a YAML config (detailed below) |
+| `orbit suite` | Run multiple configs as a benchmark suite (detailed below) |
+| `orbit validate` | Check a config file for errors without running (detailed below) |
+| `orbit score` | Re-score an existing eval log without re-running (`orbit score --help`) |
+| `orbit verify-setup` | Verify a scenario's prerequisites: `browserart`, `swe-bench`, `osworld`, `bigcodebench`, `dcop`, or `all` |
+
+Two flags apply to every subcommand: `-v, --verbose` (verbose logging) and
+`--skip-preflight` (skip environment preflight checks). They are accepted
+both at group level (`orbit -v run …`) and after the subcommand
+(`orbit run … -v`).
+
 ### `orbit browserart`
 
 Run a BrowserART eval directly (no YAML config needed).
@@ -452,12 +633,12 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_ro
 | `--categories TEXT` | Filter by category (comma-separated) |
 | `--limit INT` | Limit number of behaviors (Inspect passthrough) |
 | `--task-id INT` | Single task ID to run |
-| `--dataset CHOICE` | `hbb` or `hbb_extension` |
+| `--dataset CHOICE` | `hbb`, `hbb_benign` (benign baseline), or `hbb_extension` |
+| `--data-path TEXT` | Custom data file path |
 | `--headless / --no-headless` | Run browser headlessly (default: on) |
 | `--record-video-dir PATH` | Directory for video recordings |
 | `--judge-model TEXT` | Model for scoring classifier |
 | `--topology-file PATH` | Custom topology YAML path, e.g. `examples/topologies/…` (advanced) |
-| `-v, --verbose` | Verbose logging |
 
 ### `orbit run`
 
@@ -476,16 +657,20 @@ uv run orbit run <config.yaml> [OPTIONS]
 | `--epochs INT` | Evaluation epochs |
 | `--temperature FLOAT` | Model temperature |
 | `--max-tasks INT` | Max concurrent tasks |
-| `-v, --verbose` | Verbose logging |
 
-**Note:** `-T` overrides work on Pydantic model fields (e.g. `-T epochs=3`, `-T scheduler.max_turns=50`). They cannot add new keys to dict fields like `metadata`. Set metadata values in the YAML file.
+**Note:** `-T` overrides work on Pydantic model fields (e.g. `-T epochs=3`, `-T scheduler.max_turns=50`). They cannot add new keys to dict fields like `metadata`. Set metadata values in the YAML file. (This is different from `-T` on `inspect eval`, where it sets task parameters.)
+
+**Note:** `--dry-run` validates and summarizes the config without calling
+`eval()`, but the preflight environment checks still run first (and prompt
+interactively on failure). Skip them with
+`uv run orbit --skip-preflight run <config.yaml> --dry-run`.
 
 ### `orbit suite`
 
 Run multiple configs as a benchmark suite.
 
 ```bash
-uv run orbit suite configs/*.yaml --model openai/gpt-4o --baselines
+uv run orbit suite examples/*.yaml --model openai/gpt-4o --baselines
 ```
 
 | Option | Description |
