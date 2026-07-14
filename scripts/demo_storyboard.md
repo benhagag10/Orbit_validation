@@ -1,4 +1,4 @@
-# InspectMAS 90-Second Demo Video — Storyboard
+# Orbit 90-Second Demo Video — Storyboard
 
 > **Target audience:** AI safety researchers, multi-agent systems practitioners
 > **Core question:** *Does splitting an AI into a team make it safer... or more dangerous?*
@@ -47,7 +47,7 @@ Static title card (create in Keynote/Canva or overlay in editor):
 ```
 ┌─────────────────────────────────────────────────┐
 │                                                  │
-│              InspectMAS                          │
+│              Orbit                          │
 │   Multi-Agent Security Benchmarking Framework    │
 │                                                  │
 │   Does splitting an AI into a team               │
@@ -70,7 +70,7 @@ Static title card (create in Keynote/Canva or overlay in editor):
 
 ## Act 2 — Framework (0:12 – 0:35)
 
-**Purpose:** Show InspectMAS is easy to use — one CLI command, configurable presets.
+**Purpose:** Show Orbit is easy to use — one CLI command, configurable presets.
 
 ### Shot 2a — CLI Command (0:12 – 0:22)
 
@@ -87,7 +87,7 @@ $ inspect eval inspect_mas/browserart_safety \
 ```
 
 **Narration:**
-> "InspectMAS lets you test the same harmful task under different multi-agent topologies — with a single command."
+> "Orbit lets you test the same harmful task under different multi-agent topologies — with a single command."
 
 **Editing Notes:**
 - Type or reveal the command progressively (or use a typing animation)
@@ -246,7 +246,7 @@ preset: star_4_specialists
 
 ## Act 5 — Close (1:20 – 1:30)
 
-**Purpose:** Call to action — what InspectMAS offers, where to get it.
+**Purpose:** Call to action — what Orbit offers, where to get it.
 
 ### Screen Content
 
@@ -255,7 +255,7 @@ Feature summary card (overlay or slide):
 ```
 ┌─────────────────────────────────────────────────┐
 │                                                  │
-│   InspectMAS                                     │
+│   Orbit                                     │
 │                                                  │
 │   - 10+ topology presets out of the box       │
 │   - Attack & defense injection framework         │
@@ -268,7 +268,7 @@ Feature summary card (overlay or slide):
 ```
 
 ### Narration
-> "InspectMAS. Measure multi-agent safety before you ship."
+> "Orbit. Measure multi-agent safety before you ship."
 
 ### Editing Notes
 - **1:20–1:25**: Dissolve from results to feature card

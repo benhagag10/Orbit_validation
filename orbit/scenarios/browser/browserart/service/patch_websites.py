@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 
-_PATCH_SENTINEL = "<!-- inspectmas-button-patch -->"
+_PATCH_SENTINEL = "<!-- orbit-button-patch -->"
 
 
 _BUTTON_PATCHES: list[tuple[str, str, str]] = [

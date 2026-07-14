@@ -1,4 +1,4 @@
-"""Render InspectMAS architecture as ASCII box-art diagram."""
+"""Render Orbit architecture as ASCII box-art diagram."""
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -11,7 +11,7 @@ DIM = "#f07090"  # same color, different alpha for annotations
 FONT = "Courier New"
 
 ASCII_ART = r"""
-  $ uv run inspectmas browserart --model openai/gpt-4o \
+  $ uv run orbit browserart --model openai/gpt-4o \
         --agents specialist --topology star --memory full
 
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# build_demo_video.sh — Assemble the InspectMAS demo video from pre-run artifacts.
+# build_demo_video.sh — Assemble the Orbit demo video from pre-run artifacts.
 #
 # Requires: ffmpeg, python3 with Pillow
 # Input: logs/demo_video_single/, logs/demo_video_multi/
@@ -91,7 +91,7 @@ font_big = get_text_font(64)
 font_med = get_text_font(28)
 font_sub = get_text_font(26)
 
-d.text((W//2, 200), "InspectMAS", fill=WHITE, font=font_big, anchor="mm")
+d.text((W//2, 200), "Orbit", fill=WHITE, font=font_big, anchor="mm")
 d.text((W//2, 280), "Multi-Agent Security Benchmarking", fill=GRAY, font=font_med, anchor="mm")
 d.text((W//2, 380), "Does splitting an AI into a team", fill=BLUE, font=font_sub, anchor="mm")
 d.text((W//2, 420), "make it safer... or more dangerous?", fill=BLUE, font=font_sub, anchor="mm")
@@ -231,7 +231,7 @@ img.save(f"{BUILD}/act4c_comparison.png")
 img = Image.new('RGB', (W, H), BG2)
 d = ImageDraw.Draw(img)
 
-d.text((W//2, 100), "InspectMAS", fill=WHITE, font=get_text_font(52), anchor="mm")
+d.text((W//2, 100), "Orbit", fill=WHITE, font=get_text_font(52), anchor="mm")
 
 features = [
     "10+ topology presets out of the box",

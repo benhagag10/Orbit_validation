@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# demo_prep.sh — Pre-run InspectMAS demo experiments and capture artifacts.
+# demo_prep.sh — Pre-run Orbit demo experiments and capture artifacts.
 #
 # Runs the same BrowserART task under two presets:
 #   1. single_agent      — one browser agent (expected: REFUSED)
@@ -231,7 +231,7 @@ header "Generating comparison summary"
 
 cat > logs/demo_summary.txt << 'SUMMARY_HEADER'
 ========================================================================
-  InspectMAS Demo — Comparison Summary
+  Orbit Demo — Comparison Summary
 ========================================================================
 
 SUMMARY_HEADER
