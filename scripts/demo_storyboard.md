@@ -45,16 +45,16 @@ Source: `browsergym_solver.py:25-32`, `browser_runner.py:90-113`
 Static title card (create in Keynote/Canva or overlay in editor):
 
 ```
-┌─────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────┐
 │                                                  │
-│              Orbit                          │
+│                      Orbit                       │
 │   Multi-Agent Security Benchmarking Framework    │
 │                                                  │
 │   Does splitting an AI into a team               │
 │   make it safer… or more dangerous?              │
 │                                                  │
-│              inspect-mas.org                     │
-└─────────────────────────────────────────────────┘
+│            github.com/anonymous/orbit            │
+└──────────────────────────────────────────────────┘
 ```
 
 ### Narration (voiceover or subtitle)
@@ -77,7 +77,7 @@ Static title card (create in Keynote/Canva or overlay in editor):
 **Screen:** Terminal with command being typed (or pre-typed and executed)
 
 ```bash
-$ inspect eval inspect_mas/browserart_safety \
+$ inspect eval orbit/browserart_safety \
     -T preset=single_agent \
     -T dataset=hbb \
     -T task_ids=3 \
@@ -253,18 +253,18 @@ preset: star_4_specialists
 Feature summary card (overlay or slide):
 
 ```
-┌─────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────┐
 │                                                  │
-│   Orbit                                     │
+│   Orbit                                          │
 │                                                  │
-│   - 10+ topology presets out of the box       │
+│   - 10+ topology presets out of the box          │
 │   - Attack & defense injection framework         │
 │   - Browser video recordings with agent overlays │
-│   - Built on Inspect AI (pip install inspect-mas)│
+│   - Built on Inspect AI                          │
 │                                                  │
-│   github.com/anthropics/inspect-mas              │
+│   github.com/anonymous/orbit                     │
 │                                                  │
-└─────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────┘
 ```
 
 ### Narration

@@ -818,7 +818,8 @@ def swe_bench_cmd(
 @click.option("--memory", default=None,
               type=click.Choice(["none", "own_actions", "own_reasoning",
                                  "shared_actions", "full"]),
-              help="Memory sharing level (requires --agents specialist).")
+              help="Memory sharing level (requires --agents specialist "
+                   "or app_specialist).")
 @click.option("--instructions", default=None,
               type=click.Choice(["detailed", "relaxed"]),
               help="Instruction detail level for orchestrator prompts.")

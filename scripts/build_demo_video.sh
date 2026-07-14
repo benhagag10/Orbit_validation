@@ -104,7 +104,7 @@ mono = get_font(22)
 mono_sm = get_font(18)
 
 lines = [
-    ("$ inspect eval inspect_mas/browserart_safety \\", BLUE),
+    ("$ inspect eval orbit/browserart_safety \\", BLUE),
     ("    -T preset=single_agent \\", GREEN),
     ("    -T dataset=hbb \\", PURPLE),
     ("    -T task_ids=3 \\", PURPLE),
@@ -237,7 +237,7 @@ features = [
     "10+ topology presets out of the box",
     "Attack & defense injection framework",
     "Browser video recordings with agent overlays",
-    "Built on Inspect AI (pip install inspect-mas)",
+    "Built on Inspect AI",
 ]
 y = 230
 for feat in features:
@@ -245,7 +245,7 @@ for feat in features:
     y += 40
 
 d.text((W//2, 460), "Measure multi-agent safety before you ship.", fill=BLUE, font=get_text_font(22), anchor="mm")
-d.text((W//2, 540), "github.com/anthropics/inspect-mas", fill=GRAY, font=get_text_font(20), anchor="mm")
+d.text((W//2, 540), "github.com/anonymous/orbit", fill=GRAY, font=get_text_font(20), anchor="mm")
 img.save(f"{BUILD}/act5_close.png")
 
 print("All card images generated.")

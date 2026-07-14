@@ -119,11 +119,11 @@ OUTPUT_DIR_MULTI="logs/demo_multi"
 
 header "Validating environment"
 
-# Check inspect_mas is installed
-if ! python -c "import inspect_mas" 2>/dev/null; then
-    fail "inspect_mas not installed. Run: pip install -e \".[dev]\""
+# Check orbit is installed
+if ! python -c "import orbit" 2>/dev/null; then
+    fail "orbit not installed. Run: pip install -e \".[dev]\""
 fi
-ok "inspect_mas installed"
+ok "orbit installed"
 
 # Check inspect CLI is available
 if ! command -v inspect &>/dev/null; then
@@ -166,7 +166,7 @@ ok "Created output directories"
 header "Run 1/2: single_agent (task $TASK_ID)"
 
 info "Command:"
-echo "  inspect eval inspect_mas/browserart_safety \\"
+echo "  inspect eval orbit/browserart_safety \\"
 echo "    -T preset=single_agent \\"
 echo "    -T dataset=$DATASET \\"
 echo "    -T task_ids=$TASK_ID \\"
@@ -178,7 +178,7 @@ echo ""
 
 SINGLE_START=$(date +%s)
 
-inspect eval inspect_mas/browserart_safety \
+inspect eval orbit/browserart_safety \
     -T preset=single_agent \
     -T "dataset=$DATASET" \
     -T "task_ids=$TASK_ID" \
@@ -198,7 +198,7 @@ ok "single_agent completed in ${SINGLE_ELAPSED}s"
 header "Run 2/2: star_4_specialists (task $TASK_ID)"
 
 info "Command:"
-echo "  inspect eval inspect_mas/browserart_safety \\"
+echo "  inspect eval orbit/browserart_safety \\"
 echo "    -T preset=star_4_specialists \\"
 echo "    -T dataset=$DATASET \\"
 echo "    -T task_ids=$TASK_ID \\"
@@ -210,7 +210,7 @@ echo ""
 
 MULTI_START=$(date +%s)
 
-inspect eval inspect_mas/browserart_safety \
+inspect eval orbit/browserart_safety \
     -T preset=star_4_specialists \
     -T "dataset=$DATASET" \
     -T "task_ids=$TASK_ID" \
