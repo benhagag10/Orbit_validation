@@ -24,7 +24,7 @@ orbit/scenarios/<family>/myscenario/
 └── scorer.py              # the scenario's @scorer
 ```
 
-…plus three one-line registration edits outside the package
+…plus three small registration edits outside the package
 (`orbit/scenarios/registry.py`, `orbit/_registry.py`,
 `orbit/scenarios/requirements.py`), and validation in three layers: discovery
 (`uv run inspect list tasks orbit`), offline config validation
@@ -430,8 +430,11 @@ either way.
 
 ### Plugin name vs task name
 
-`ScenarioPlugin.name` **must equal** `scenario.name` in every YAML — it is the
-registry key looked up by `get_scenario`. The `@task` function name is a
+`ScenarioPlugin.name` is the registry key looked up by `get_scenario`:
+`scenario.name` in a YAML must **equal it or resolve to it via a declared
+alias prefix** (τ²'s `tau2_airline` → the `tau2` plugin — see
+[Registration](#registration-lazy-loading-and-the-optional-extra)). The
+`@task` function name is a
 *separate* identifier: the Inspect CLI entry point (`inspect eval
 orbit/<task-name>`). The two coincide for half the shipped scenarios and differ
 for the other half, so check the table rather than guessing:
@@ -534,7 +537,9 @@ The conflict policy is uniform across every scenario:
 - **Materialised attack targets** are validated against the runtime roster
   (post-resolution topology, expanded to runtime names — so
   template-replicating scenarios validate against `solver_0`-style names). A
-  dangling target is a `ShorthandConflictError`.
+  dangling target is a `ShorthandConflictError`. `topology_source=SCENARIO`
+  plugins skip this check — see
+  [`topology_source=SCENARIO`](#topology_sourcescenario).
 - **Baselines.** A preset is never materialised into a dimension the config's
   `baseline_mode` strips, so a `no_attack` / `benign` control cannot re-acquire
   its attack through a preset. Gated in the resolver *and* re-stripped centrally
@@ -624,10 +629,13 @@ ScenarioPlugin(
 )
 ```
 
-- Only the *topology* preset key changes behaviour under `SCENARIO`:
-  `attack_preset` / `defense_preset` resolution can still hang off the spec
-  (τ² wires `defense_preset`) and is materialised by the shared resolver
-  exactly as for a `CONFIG` plugin.
+- `attack_preset` / `defense_preset` resolution can still hang off the spec
+  (τ² wires `defense_preset`) and is materialised by the shared resolver —
+  with one gap: the dangling-target check on a materialised *attack* is
+  skipped under `SCENARIO` (there is no config-declared roster to validate
+  against), so an attack preset targeting an absent agent passes offline
+  validation. If you wire `attack_preset` on a `SCENARIO` plugin, validate
+  the targets against your native roster in `expand`.
 - `expected_roster(config, preset) -> set[str] | None` returns the agent
   names the preset will build (τ²'s specialists are domain-dependent, so it
   takes the config too). Return `None` for "unknown" — the resolver then falls
@@ -725,16 +733,21 @@ uv run orbit --skip-preflight run examples/myscenario.yaml --dry-run
 
 Be precise about what this layer does and does not catch:
 
-- **Caught here:** an unknown or unimportable scenario module
+- **Caught here:** a known-but-unimportable scenario module
   (`MissingScenarioDependencyError` / `ScenarioImportError`), a
   `ShorthandConflictError` (preset vs materially-different inline setup, a
-  preset-materialised attack targeting an absent agent), a `resolve`-stage
-  dimension drop (`ScenarioExpansionError` at stage `"resolving"`), and
-  `ConfigValidator` errors — attack/defense targets are checked against the
-  *runtime* roster derived by `expand_agent_names`, not by running `expand`.
-- **NOT caught here:** anything inside `expand` or the other build hooks.
-  `dry_run()` (`orbit/wrapper/runner.py`) never calls `build_scenario_task`,
-  so an expand-stage `ScenarioExpansionError`, the topology floor
+  preset-materialised attack targeting an absent agent — `CONFIG`-topology
+  plugins), a `resolve`-stage dimension drop (`ScenarioExpansionError` at
+  stage `"resolving"`), and `ConfigValidator` errors — attack/defense targets
+  are checked against the *runtime* roster derived by `expand_agent_names`,
+  not by running `expand`.
+- **NOT caught here:** a genuinely *unknown* (typo'd) `scenario.name` —
+  `get_scenario` returns `None`, so both commands validate the config as
+  generic without a word; the only signal is the loud fallback warning at
+  Task-build time (see [Common failure modes](#common-failure-modes)). Nor
+  anything inside `expand` or the other build hooks: `dry_run()`
+  (`orbit/wrapper/runner.py`) never calls `build_scenario_task`, so an
+  expand-stage `ScenarioExpansionError`, the topology floor
   (`_assert_topology_preserved`), a broken `scorer.py`, and dataset-loading
   failures all pass `--dry-run` silently.
 
