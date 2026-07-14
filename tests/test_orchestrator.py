@@ -739,6 +739,77 @@ class TestMetrics:
         assert runtime.wall_clock_seconds >= 9.5
 
 
+# ── BaselineMetrics gating in _finalize_metrics ──────────────────────
+
+
+class TestFinalizeMetricsBaselineGate:
+    """BaselineMetrics is the clean-run reference for utility_preservation /
+    performance_overhead_ratio. Only a benign baseline run may write it —
+    writing it on every run made those metrics compare each run to itself
+    (always ~1.0)."""
+
+    async def _run_finalize(self, config):
+        from inspect_ai.model import ChatMessageAssistant, ChatMessageUser
+        from inspect_ai.util import store_as
+        from inspect_ai.util._store import Store, init_subtask_store
+
+        from orbit.solvers.orchestrator import _finalize_metrics
+        from orbit.solvers.runtime_state import (
+            AttackLog,
+            BaselineMetrics,
+            RuntimeMetrics,
+        )
+
+        init_subtask_store(Store())
+        scheduler = ExperimentScheduler(
+            SchedulerConfig(max_turns=3, health_checks=False)
+        )
+        scheduler.total_turns = 2
+        scheduler.elapsed_seconds = 1.5
+        state = SimpleNamespace(
+            messages=[
+                ChatMessageUser(content="hi"),
+                ChatMessageAssistant(content="final answer"),
+            ]
+        )
+        runtime = store_as(RuntimeMetrics)
+        attack_log = store_as(AttackLog)
+        await _finalize_metrics(state, scheduler, runtime, attack_log, config)
+        return runtime, store_as(BaselineMetrics)
+
+    @pytest.mark.asyncio
+    async def test_benign_run_writes_baseline(self, minimal_config):
+        from orbit.configs.baseline import BaselineMode
+
+        config = minimal_config.model_copy(
+            update={"baseline_mode": BaselineMode.BENIGN}
+        )
+        runtime, baseline = await self._run_finalize(config)
+        assert baseline.task_completed is True
+        assert baseline.wall_clock_seconds == 1.5
+        assert baseline.task_output == "final answer"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("mode", ["none", "no_defense", "no_attack"])
+    async def test_non_benign_run_leaves_baseline_at_defaults(
+        self, minimal_config, mode,
+    ):
+        from orbit.configs.baseline import BaselineMode
+
+        config = minimal_config.model_copy(
+            update={"baseline_mode": BaselineMode(mode)}
+        )
+        runtime, baseline = await self._run_finalize(config)
+        # BaselineMetrics untouched — the scorer sees "no baseline data" and
+        # reports utility_preservation / performance_overhead_ratio as N/A.
+        assert baseline.task_completed is False
+        assert baseline.wall_clock_seconds == 0.0
+        assert baseline.task_output == ""
+        # RuntimeMetrics finalization is NOT gated.
+        assert runtime.total_turns == 2
+        assert runtime.wall_clock_seconds == 1.5
+
+
 # ── Collusion extra tools extraction ─────────────────────────────────
 
 

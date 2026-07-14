@@ -1199,9 +1199,11 @@ class TestDCOPScenarioABC:
         """Provided methods should not be abstract."""
         from orbit.scenarios.cooperative_allocation.dcop.scenario import DCOPScenario
 
-        # (build_task was removed — Task wiring lives in the shared builder now.)
+        # (build_task was removed — Task wiring lives in the shared builder now.
+        # get_phase_config was removed as dead API — phase config comes from
+        # config.execution.dcop only.)
         for method_name in (
-            "get_communication_topology", "get_phase_config",
+            "get_communication_topology",
             "get_group_name", "get_group_goal", "get_scenario_scorer",
         ):
             method = getattr(DCOPScenario, method_name, None)

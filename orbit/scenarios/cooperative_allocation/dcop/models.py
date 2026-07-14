@@ -144,10 +144,13 @@ class DCOPExecutionConfig(BaseModel, frozen=True):
     """Phase control configuration for DCOP two-phase execution.
 
     Terrarium/Colosseum use two phases per round:
-    - Planning: agents communicate via blackboards (action tools blocked)
-    - Execution: agents commit actions (blackboard posting optional)
+    - Planning: agents are expected to coordinate via blackboards
+    - Execution: agents are expected to commit actions
 
-    Added to ExecutionConfig as an optional 'dcop' field.
+    Added to ExecutionConfig as an optional 'dcop' field. The phase
+    schedule is bookkeeping only: the current phase/round is recorded in
+    DCOPState for post-hoc analysis, but action tools are NOT blocked
+    during planning turns.
     """
 
     planning_turns: int = 3
@@ -160,5 +163,6 @@ class DCOPExecutionConfig(BaseModel, frozen=True):
     """Number of planning+execution rounds."""
 
     enforce_phase_separation: bool = True
-    """If True, action tools return error during planning phase.
-    If False, phase info is advisory only (agents can act anytime)."""
+    """Intended: action tools return an error during the planning phase.
+    Currently has NO runtime effect — phase info is advisory bookkeeping
+    (agents can act in any phase); see phase_controller.is_action_allowed."""
