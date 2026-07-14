@@ -132,7 +132,7 @@ def injection_execution_rate_per_attempt():
 
 
 # ---------------------------------------------------------------------------
-# Multi-agent evaluation metrics (Tier 1: C_i → PD → ER → AS → ASR)
+# Multi-agent evaluation metrics (C_i → PD → ER → AS → ASR)
 # ---------------------------------------------------------------------------
 
 
