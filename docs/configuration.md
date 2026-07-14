@@ -251,7 +251,7 @@ setup:
       role: "executor"              # Informational label
       model: "openai/gpt-4o"       # Optional, defaults to task model
       system_prompt: "You are..."
-      tools: ["web_browser"]
+      tools: ["browser_goto"]       # Scenario-defined tool names
       temperature: 0.0              # omit for the model's default
       max_messages: 50
   edges:
@@ -310,9 +310,10 @@ before its model calls, filtered by that agent's flags. The
 
 `memory.shared: true` on its own does **not** inject any cross-agent
 context — it declares intent. The declaration matters (the task builder
-fails loudly if a scenario drops a declared `shared: true`, and
-memory-poisoning attacks target the declared `shared_groups`), but
-visibility only changes through the per-agent flags.
+fails loudly if a scenario drops a declared `shared: true`, and declaring
+`shared_groups` keeps the memory tracker recording even when no agent has
+an `agent_memory_access` entry), but visibility only changes through the
+per-agent flags.
 
 To enable shared memory in a hand-written config, declare all three the way
 the shipped `memory_*` presets do — `shared: true`, a `shared_groups` entry,
@@ -344,7 +345,9 @@ setup:
         shared_action_history: true
 ```
 
-Agents without an `agent_memory_access` entry get no memory context injected.
+Agents without an `agent_memory_access` entry get no memory context injected
+(absent a memory-poisoning attack, which injects its payload into targeted
+agents regardless).
 For a complete worked example, open any shipped memory preset, e.g.
 `orbit/scenarios/browser/browserart/presets/memory_shared_actions.yaml`.
 
@@ -388,7 +391,7 @@ All nine built-in attack types, grouped by the threat type they map to:
 | `indirect_injection` | injection | Attacker plants the payload in environment data (files, tool outputs) |
 | `self_replicating_injection` | injection | Payload that propagates via shared codebase edits |
 | `codebase_injection` | injection | Plants malicious instructions in repo files before the agent starts |
-| `memory_poisoning` | injection | Writes adversary-controlled content into a shared memory group |
+| `memory_poisoning` | injection | Splices a payload into targeted agents' injected memory context; target via `properties.target_memory_group` (list of agent names, fallback: `target_agent`) |
 | `compromised_agent` | compromised_agent | Attacker controls one or more agents |
 | `subtle_code_injection` | compromised_agent | Agent inserts backdoors alongside legitimate fixes |
 | `cross_issue_sabotage` | compromised_agent | Compromised agent breaks other agents' tests |
@@ -487,8 +490,8 @@ scheduler:
 ### `execution`
 
 Controls how agents are grouped and scheduled. With no `agent_groups`, the
-orchestrator runs shared-state topology execution (the default for star
-topologies); populated `agent_groups` switch to the scheduled executor,
+orchestrator runs shared-state topology execution (the default for every
+topology); populated `agent_groups` switch to the scheduled executor,
 where each group's agents take turns under `scheduling_mode`.
 
 ```yaml

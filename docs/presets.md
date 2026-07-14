@@ -3,8 +3,10 @@
 **A preset is just a pre-baked config.** Each named preset is a saved
 [`SetupConfig`](configuration.md#yaml-schema-reference) — the agents, network topology, memory, and
 prompts — plus, where the preset needs one, an
-[`ExecutionConfig`](configuration.md#execution) (the mesh presets pin round-robin scheduling and
-observation summaries). Presets are *worked examples* of the general config syntax,
+[`ExecutionConfig`](configuration.md#execution) (BrowserART's mesh presets, for example, pin
+round-robin scheduling and observation summaries in the YAML itself; other scenarios' builders
+may derive execution settings at run time instead). Presets are *worked examples* of the general
+config syntax,
 not a separate system: you can run one by name, or copy its YAML and edit it into your own experiment.
 
 Presets are per-scenario. Seven of the eleven shipped scenarios ship theirs as runnable
@@ -94,7 +96,8 @@ There is also `--instructions` (`detailed` or `relaxed`) which controls prompt s
 > a roster built per task) have nothing for the flags to vary, so they take a preset name
 > directly.
 >
-> The tables and diagrams below use BrowserART's roster as the worked example. For another
+> The tables and diagrams below use BrowserART as the worked example — its roster *and* its
+> execution mechanics (such as mesh turn scheduling) are per-scenario choices. For another
 > scenario's actual roster, open its `presets/` YAMLs (e.g.
 > `orbit/scenarios/coding/swe_bench/presets/`).
 
