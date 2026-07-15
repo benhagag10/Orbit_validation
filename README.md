@@ -11,7 +11,7 @@
 <p align="center"><strong>Multi-Agent Safety and Security Evaluations Framework</strong></p>
 
 <p align="center">
-  Built on <a href="https://inspect.ai-safety-institute.org.uk/">Inspect AI</a> by the <a href="https://www.aisi.gov.uk/">UK AI Security Institute</a><br>
+  Built on <a href="https://inspect.aisi.org.uk/">Inspect AI</a> by the <a href="https://www.aisi.gov.uk/">UK AI Security Institute</a><br>
   Developed at <a href="https://wittlab.ai/">Wittlab</a> as part of the <a href="https://www.matsprogram.org/">MATS</a> program, now supported by the <a href="https://www.cooperativeai.com/foundation">Cooperative AI Foundation</a>
 </p>
 
@@ -20,23 +20,23 @@
   <a href="#scenarios">Scenarios</a> •
   <a href="#attacks--defenses">Attacks & Defenses</a> •
   <a href="#configuration">Configuration</a> •
-  <a href="docs/configuration.md">Full Documentation</a>
+  <a href="#documentation">Full Documentation</a>
 </p>
 
 ---
 
 ## Overview
 
-**Orbit** is a framework for empirical multi-agent safety and security evaluations built on UK AISI's [Inspect](https://inspect.ai-safety-institute.org.uk/). It includes:
+**Orbit** is a framework for empirical multi-agent safety and security evaluations built on UK AISI's [Inspect](https://inspect.aisi.org.uk/). It includes:
 
-- **Flexible orchestration** allowing for centralized and decentralized systems with arbitrary topologies, execution orders, per-agent context, etc
+- **Flexible orchestration** allowing for centralized and decentralized systems with arbitrary topologies, execution orders, per-agent context, etc.
 - **All the benefits of Inspect**, including robust logging, tooling, and an ecosystem of extensions
-- **Easy experimentation out-of-the-box**, with YAML configs able to choose between our initial range including: 
+- **Easy experimentation out of the box** — YAML configs let you pick from our initial range:
   - **5 scenario families** — coding, desktop, browser, customer-service, and cooperative-allocation tasks
   - **4 threat types** — prompt injection, compromised agent, collusion, and misuse
   - **4 defense categories** — security prompting, monitors, guardian agents, and dual-LLM
   - **Configurable topologies** — star, mesh, chain — with variable memory visibility and scheduling modes
-- **Extensiblity, flexibility, hackability**, so you can easily build new scenarios and recombine existing ones
+- **Extensibility, flexibility, hackability**, so you can easily build new scenarios and recombine existing ones
 
 <br>
 
@@ -49,7 +49,7 @@ We found that multi-agent security lacks a standardized toolkit for experimentat
 
 - Python 3.11+
 - [uv](https://docs.astral.sh/uv/) package manager
-- An LLM API key (any provider supported by [Inspect AI](https://inspect.ai-safety-institute.org.uk/models.html))
+- An LLM API key (any provider supported by [Inspect AI](https://inspect.aisi.org.uk/models.html))
 
 ```bash
 # Install
@@ -70,11 +70,13 @@ Scenario-specific dependencies are installed separately. See [Scenario Requireme
 ## Quick Start
 
 ```bash
+# BrowserART, SWE-Bench, and OSWorld need extra dependencies and Docker — see Scenario-Specific Setup below
+
 # BrowserART — single agent
-uv run orbit browserart -m openai/gpt-4o
+uv run orbit browserart -m openai/gpt-4o --dataset hbb_extension
 
 # BrowserART — star topology with 4 specialists
-uv run orbit browserart -m openai/gpt-4o --agents specialist
+uv run orbit browserart -m openai/gpt-4o --agents specialist --dataset hbb_extension
 
 # SWE-Bench — 2 coding agents on independent issues
 uv run orbit swe-bench --model openai/gpt-4o --repos django/django --num-issues 2
@@ -99,8 +101,8 @@ Orbit initially includes 11 scenarios organized into 5 families:
 
 | Family | Scenarios | Action Space |
 |--------|-----------|-------------|
-| **Coding** | SWE-Bench, RedCode-Gen, BigCodeBench, CodeIPI | Agentic coding sandboxed environments |
-| **Desktop** | OSWorld / OS-Harm | GUI primitives interaction with a desktop |
+| **Coding** | SWE-Bench, RedCode-Gen, BigCodeBench, CodeIPI | Agentic coding in sandboxed environments |
+| **Desktop** | OSWorld / OS-Harm | GUI interaction with a virtual desktop |
 | **Browser** | BrowserART | Web actions |
 | **Customer Service** | &tau;&sup2;-Bench, ConVerse | Policy-bound tool calls, dual-control loops |
 | **Cooperative Allocation** | Hospital, JiraTicket, MeetSched | Resource allocation problems |
@@ -110,7 +112,7 @@ Each scenario lives under `orbit/scenarios/<family>/<name>/`.
 ---
 
 ## Attacks & Defenses
-We initially provide four attack types and four defense types, and plan to substantially expand these. All attacks and defenses are configurable and extensible via registries, and users can add arbitrary new attacks and defenses.
+We initially provide four threat types and four defense categories, and plan to substantially expand these. All attacks and defenses are configurable and extensible via registries, and users can add arbitrary new attacks and defenses.
 
 
 ### Threat Types
@@ -143,16 +145,17 @@ You can specify it at three levels, each a shorthand for the next:
 - **YAML** — a complete config file you can design:
   `orbit run orbit/scenarios/browser/browserart/presets/memory_full.yaml`
 
-A preset is just a pre-baked config; each shipped scenario comes with its own set
+A preset is just a pre-baked config; most shipped scenarios come with their own set
 under `orbit/scenarios/<family>/<scenario>/presets/` — open one to see exactly what a preset is, or
-copy it and tweak it. See [Presets](docs/presets.md) for the full reference.
+copy it and tweak it (&tau;&sup2;-Bench and the cooperative-allocation scenarios resolve preset
+names in code instead). See [Presets](docs/presets.md) for the full reference.
 
 To run experiments:
 
 ### CLI flags (quick exploration)
 
 ```bash
-uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin --memory full
+uv run orbit browserart -m openai/gpt-4o --agents specialist --topology star --memory full
 ```
 
 | Flag | Values | Controls |
@@ -160,6 +163,9 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_ro
 | `--agents` | `single`, `batch`, `specialist`, `step` | Agent roles and count |
 | `--topology` | `star`, `round_robin`, `delegation` | Network structure |
 | `--memory` | `none`, `own_actions`, `own_reasoning`, `shared_actions`, `full` | Inter-agent visibility |
+
+Not every combination is supported — memory levels beyond `none` require the star
+topology; see [docs/presets.md](docs/presets.md) for the validated combinations.
 
 ### YAML configs (full control)
 
@@ -214,7 +220,7 @@ orbit/
 │   ├── coding/                 # SWE-Bench, RedCode-Gen, BigCodeBench, CodeIPI
 │   ├── desktop/                # OSWorld / OS-Harm
 │   ├── customer_service/       # τ²-Bench, ConVerse
-│   └── cooperative_allocation/ # DCOP, Hospital, JiraTicket, MeetSched
+│   └── cooperative_allocation/ # Hospital, JiraTicket, MeetSched (+ shared DCOP engine)
 ├── solvers/                    # MAS orchestrator
 ├── scorers/                    # security scorer, LLM judge, collusion metrics
 ├── execution/                  # agent scheduler, submit registry
@@ -226,8 +232,9 @@ orbit/
 
 ## Scenario-Specific Setup
 
-The core install (`uv sync --extra dev`) runs most scenarios as-is. Five scenarios
-need an optional pip extra; several also need Docker and/or a one-time data fetch.
+The core install (`uv sync --extra dev`) runs most scenarios as-is. Four scenarios
+need an additional pip extra (a fifth, JiraTicket, needs `--extra dcop`, which the
+`dev` install already includes); several also need Docker and/or a one-time data fetch.
 Install only what the scenarios you actually run require.
 
 | Scenario | Family | Install | System / runtime | Data step |
@@ -240,7 +247,7 @@ Install only what the scenarios you actually run require.
 | OSWorld / OS-Harm | Desktop | `uv sync --extra osworld` | Docker | auto (HuggingFace) |
 | &tau;&sup2;-Bench | Customer Service | core | — | vendored |
 | ConVerse | Customer Service | core | — | vendored |
-| JiraTicket | Cooperative Allocation | `uv sync --extra dcop` | — | generated |
+| JiraTicket | Cooperative Allocation | `uv sync --extra dcop` (included in `--extra dev`) | — | generated |
 | Hospital | Cooperative Allocation | core | — | generated |
 | MeetSched | Cooperative Allocation | core | — | generated |
 
@@ -265,8 +272,10 @@ See [Scenario Requirements](docs/scenarios.md) for full per-scenario setup.
 - [Architecture](docs/architecture.md) — data flow, orchestrator, scenario plugins
 - [Configuration](docs/configuration.md) — CLI flags, `-T` params, and the full YAML schema
 - [Presets](docs/presets.md) — multi-agent presets
+- [Wrapper & YAML usage](docs/wrapper-usage.md) — the `orbit` CLI and `inspect eval` entry points, YAML workflow
 - [Scenarios](docs/scenarios.md) — per-scenario setup and requirements
 - [Evaluation](docs/evaluation.md) — scorers, metrics, and construct validity
+- [DCOP & collusion deep dive](docs/dcop-collusion.md) — cooperative-allocation scenarios and collusion detection
 - [Adding a New Scenario](docs/adding-a-scenario.md) — authoring guide for the scenario plugin kit
 - [Scripts](scripts/README.md) — setup, data-fetch, log-auditing, and sweep tooling
 

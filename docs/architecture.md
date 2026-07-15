@@ -21,9 +21,9 @@ The key insight: Inspect works with flat `Sample` objects, so the rich `Experime
 
 The `@task → Task` step is scenario-agnostic. Both entry points — `orbit run <yaml>` and `inspect eval orbit/<scenario> -T ...` — converge on a single builder, `orbit.tasks.builder.build_scenario_task`, which turns one `ExperimentConfig` into one Inspect `Task`. Baseline application, shorthand resolution, sample building (serialising the whole config into metadata), and attack/defense/topology wiring live there, once.
 
-Each scenario contributes only its unique pieces through a `ScenarioPlugin` (`orbit/scenarios/registry.py`), registered lazily via the `_LOADERS` table so optional scenario dependencies stay optional. A plugin declares up to six hooks — `expand` (dataset expansion), `build_setup`, `build_solver`, `build_scorers`, `build_sandbox`, `build_task_kwargs` — plus its declarative YAML `ShorthandSpec`; anything left `None` uses the shared default. Because every scenario funnels through the one builder, it can *enforce* that `expand` never silently drops a declared attack/defense (`ScenarioExpansionError`) or collapses the topology, and that shorthand conflicts fail loud (`ShorthandConflictError`).
+Each scenario contributes only its unique pieces through a `ScenarioPlugin` (`orbit/scenarios/registry.py`), registered lazily via the `_LOADERS` table so optional scenario dependencies stay optional. A plugin declares up to eight hooks — `resolve` (custom shorthand resolution), `expand` (dataset expansion), `expand_agent_names` (runtime agent names for offline validation), `build_setup`, `build_solver`, `build_scorers`, `build_sandbox`, `build_task_kwargs` — plus its declarative YAML `ShorthandSpec`; anything left `None` uses the shared default. Because every scenario funnels through the one builder, it can *enforce* that `expand` never silently drops a declared attack/defense (`ScenarioExpansionError`) or collapses the topology, and that shorthand conflicts fail loud (`ShorthandConflictError`).
 
-Where a scenario builds its roster from a native selector instead of `config.setup` (τ²-Bench), it sets `topology_source=TopologySource.SCENARIO`; the topology floor is skipped and the shared resolver arbitrates any inline setup against the roster the preset will build.
+Where a scenario builds its roster from a native selector instead of `config.setup` (τ²-Bench), it sets `topology_source=TopologySource.SCENARIO`; the topology floor — the builder's guarantee that preset resolution and dataset expansion can never silently collapse the declared topology (fewer agents, or shared memory dropped) — is skipped, and the shared resolver arbitrates any inline setup against the roster the preset will build.
 
 To add a scenario, see **[Adding a New Scenario](adding-a-scenario.md)**.
 
@@ -51,11 +51,11 @@ All config models are frozen (`frozen=True`). Use `model_copy(update=...)` to cr
 
 ## Orchestrator
 
-The `mas_orchestrator` `@solver` (`orbit/solvers/orchestrator.py`) is a single code path. Every turn runs the same loop -- attack injection -> agent execution -> defense monitoring -> memory recording -> attack evaluation -- driven by `ExperimentScheduler.run_loop()` and ending with metrics recording. The only branching point is which `TurnExecutor` (`orbit/execution/executor.py`) it builds:
+The `mas_orchestrator` `@solver` (`orbit/solvers/orchestrator.py`) is a single code path. Every turn runs the same loop -- attack injection -> pre-turn defenses -> agent execution -> defense monitoring (with resampling) -> attack evaluation -- driven by `ExperimentScheduler.run_loop()` and ending with metrics recording. The only branching point is which `TurnExecutor` (`orbit/execution/executor.py`) it builds:
 
 **`TopologyExecutor`** (shared-state; no `agent_groups` configured -- single, star, chain):
 - One shared `TaskState`/`state.messages`; the root agent is a `react()` loop
-- Delegation via topology edges: specialists as `as_tool()` sub-agents, or `direct_run` sequences
+- Delegation via topology edges: specialists as `handoff()` sub-agents (the default mechanism), `as_tool()` sub-agents, or `direct_run` sequences
 - Tracks `invoked_agents`/`message_attribution` by scanning delegated tool calls
 
 **`ScheduledExecutor`** (isolated-state; `agent_groups` configured -- mesh, round-robin, superstep, interleaved):

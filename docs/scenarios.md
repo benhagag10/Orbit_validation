@@ -2,7 +2,7 @@
 
 Each scenario has its own dependencies. You only need to install the ones for the experiments you want to run. If a dependency is missing, you'll get a clear error message telling you exactly what to install (the exact `uv sync --extra <name>` command).
 
-The core install — `uv sync --extra dev` — runs most scenarios as-is. Only five scenarios need an optional pip extra. The table below is the single source of truth; it mirrors `[project.optional-dependencies]` in `pyproject.toml` and the central map in `orbit/scenarios/requirements.py`.
+The core install — `uv sync --extra dev` — runs most scenarios as-is. Only four scenarios need an additional pip extra (a fifth, JiraTicket, needs the `dcop` extra, which the `dev` install already includes). The table below is the single source of truth; it mirrors `[project.optional-dependencies]` in `pyproject.toml` and the central map in `orbit/scenarios/requirements.py`.
 
 ## Install matrix
 
@@ -16,7 +16,7 @@ The core install — `uv sync --extra dev` — runs most scenarios as-is. Only f
 | OSWorld / OS-Harm | Desktop | `uv sync --extra osworld` | Docker | auto (HuggingFace) | `uv run orbit verify-setup osworld` |
 | &tau;&sup2;-Bench | Customer Service | core (no extra) | — | vendored | — |
 | ConVerse | Customer Service | core (no extra) | — | vendored | — |
-| JiraTicket | Cooperative Allocation | `uv sync --extra dcop` | — | generated | `uv run orbit verify-setup dcop` |
+| JiraTicket | Cooperative Allocation | `uv sync --extra dcop` (included in `--extra dev`) | — | generated | `uv run orbit verify-setup dcop` |
 | Hospital | Cooperative Allocation | core (no extra) | — | generated | — |
 | MeetSched | Cooperative Allocation | core (no extra) | — | generated | — |
 
@@ -39,7 +39,7 @@ Tests whether browser agents refuse harmful instructions (phishing pages, malici
 uv sync --extra browserart
 ```
 
-This installs the host-side packages — [BrowserGym](https://github.com/ServiceNow/BrowserGym) (browser automation), `starlette`, and `anthropic` (used by the BrowserART safety judge).
+This installs the host-side packages — [BrowserGym](https://github.com/ServiceNow/BrowserGym) (browser automation), `starlette`, and the `anthropic` SDK.
 
 **Fetch the dataset.** Only Orbit's original `hbb_extension.json` is redistributed; the upstream HarmBench-Browser behaviors are fetched locally (not redistributed):
 
@@ -121,7 +121,7 @@ uv run inspect eval orbit/browserart_safety \
   --model openai/gpt-4o
 ```
 
-These tasks require significantly more turns and time than the standard BrowserART behaviors. When `dataset=hbb_extension` is used, defaults auto-adjust to `max_turns=50` and `max_time_seconds=600` unless explicitly overridden.
+These tasks require significantly more turns and time than the standard BrowserART behaviors. When `dataset=hbb_extension` is used, defaults auto-adjust to `max_turns=50` and `max_time_seconds=600`. Passing any other value wins; the adjustment triggers whenever the value equals the base default, so explicitly passing `max_turns=15` or `max_time_seconds=300` still auto-adjusts.
 
 ## SWE-Bench (Coding Agent)
 
@@ -355,8 +355,9 @@ scenario, OSWorld included, comes with its own preset set. Use via `--preset <na
 `orbit run orbit/scenarios/desktop/osworld/presets/<name>.yaml`. OSWorld ships two specialist
 families — tool-action specialists (`star_tool_*`, `mesh_tool_*`, `tool_memory_*`, the default for
 `--agents specialist`) and application specialists (`star_specialist`, `mesh_*`, `memory_*`, via
-`--agents app_specialist`) — for 30 presets in total. The full set ships in
-`orbit/scenarios/desktop/osworld/presets/` — one YAML per preset.
+`--agents app_specialist`) — 13 presets each, plus four family-less presets
+(`single_agent`, `star_batch`, `star_batch_relaxed`, `star_step`), for 30 in total. The full set
+ships in `orbit/scenarios/desktop/osworld/presets/` — one YAML per preset.
 
 ## BigCodeBench (Coding Agent)
 
@@ -376,7 +377,7 @@ This installs `inspect-evals` (for its HuggingFace dataset loader) and `datasets
 
 ```bash
 uv run orbit verify-setup bigcodebench
-# or: python scripts/check_setup.py --scenario bigcodebench
+# or: uv run python scripts/check_setup.py --scenario bigcodebench
 ```
 
 **Run:**
@@ -393,7 +394,7 @@ Distributed constraint-optimization scenarios where agents allocate resources un
 
 **Install:**
 
-- **JiraTicket** computes the optimal assignment with the Hungarian algorithm and needs SciPy:
+- **JiraTicket** computes the optimal assignment with the Hungarian algorithm and needs SciPy (the `dcop` extra — already included in the `dev` install):
 
   ```bash
   uv sync --extra dcop
