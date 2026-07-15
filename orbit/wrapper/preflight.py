@@ -140,6 +140,29 @@ def _check_docker() -> CheckResult:
         )
 
 
+def _browserart_data_missing() -> list[str]:
+    """Names of the fetched BrowserART data files absent from the package tree.
+
+    hbb.json, hbb_benign.json, and hbb/behaviors.json are upstream-derived
+    (CC BY-NC-ND 4.0) and not redistributed with Orbit — see
+    orbit/scenarios/browser/browserart/data/README.md.
+    """
+    from pathlib import Path
+
+    browserart_dir = (
+        Path(__file__).resolve().parent.parent / "scenarios" / "browser" / "browserart"
+    )
+    return [
+        name
+        for name, rel in (
+            ("hbb.json", "data/hbb.json"),
+            ("hbb_benign.json", "data/hbb_benign.json"),
+            ("behaviors.json", "hbb/behaviors.json"),
+        )
+        if not (browserart_dir / rel).is_file()
+    ]
+
+
 def check_browserart() -> list[CheckResult]:
     """Check BrowserART-specific prerequisites."""
     results: list[CheckResult] = []
@@ -151,6 +174,19 @@ def check_browserart() -> list[CheckResult]:
         results.append(CheckResult(
             "Python packages (browsergym)", passed=False,
             message="Install with: uv sync --extra browserart",
+        ))
+
+    # Fetched BrowserART data. Missing data is a warning, not a failure:
+    # the bundled hbb_extension dataset and data_path overrides work
+    # without the fetch, and the task-build error is itself actionable.
+    missing = _browserart_data_missing()
+    if not missing:
+        results.append(CheckResult("BrowserART data fetched", passed=True))
+    else:
+        results.append(CheckResult(
+            f"BrowserART data ({', '.join(missing)})", passed=False,
+            message="Fetch with: uv run python scripts/fetch_browserart_data.py",
+            warning=True,
         ))
 
     # browserart-service reachable. The service container (started via
