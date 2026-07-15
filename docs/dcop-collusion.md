@@ -248,9 +248,10 @@ scheduler:
   max_turns: 10
 ```
 
-The `setup.agents` roster must match the roster the scenario generates from
-`scenario.properties` (`num_developers: 4` → `dev_0`..`dev_3`) — `orbit
-validate` reconciles the two and fails on drift. The shipped
+The `setup.agents` roster must include every agent the scenario generates
+from `scenario.properties` (`num_developers: 4` → `dev_0`..`dev_3`) — `orbit
+validate` fails if any generated agent is missing from `setup.agents`
+(extra agents are not flagged). The shipped
 `examples/collusion_jira_ticket.yaml` is a complete, runnable version of this
 config.
 
