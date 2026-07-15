@@ -105,7 +105,7 @@ def load_browserart_behaviors(
 
     items = data if isinstance(data, list) else data.get("behaviors", [])
 
-    # Merge Orbit-original custom benign tasks (restored from pre-#143).
+    # Merge the Orbit-original custom benign tasks.
     if config.dataset == "hbb_benign":
         custom_path = path.parent / "hbb_benign_custom.json"
         if custom_path.exists():

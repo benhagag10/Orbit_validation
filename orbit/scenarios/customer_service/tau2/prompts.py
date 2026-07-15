@@ -44,15 +44,15 @@ SYSTEM_PROMPT = """<instructions>
 # That means there is no upstream airline-solo baseline to compare to.
 #
 # This template is therefore an **Orbit-specific** solo variant that
-# lets the port run PR 1 end-to-end on airline tasks ahead of the
-# user-simulator work in PR 2. It deliberately keeps the non-solo
+# lets the port run end-to-end on airline tasks without a user
+# simulator. It deliberately keeps the non-solo
 # AGENT_INSTRUCTION (which still permits user-facing text replies) so
 # the COMMUNICATE evaluator has something to match against; upstream's
 # own SYSTEM_PROMPT_SOLO is tool-call-only and terminates via a `done`
-# tool, neither of which we wire up in PR 1.
+# tool, neither of which solo mode wires up.
 #
 # Do not treat numbers produced under this solo mode as comparable to
-# published tau2 results. PR 2 brings in dual-control and the real
+# published tau2 results. ``dual_control`` is the real
 # upstream-faithful loop.
 SYSTEM_PROMPT_SOLO = """<instructions>
 {agent_instruction}
@@ -133,8 +133,7 @@ USER_SIM_SYSTEM_PROMPT = """{guidelines}
 # Role-flip note appended to the user-sim system prompt. Orbit's scheduler
 # passes peer messages as user-role ChatMessageUser into the user-sim's
 # local react loop. This instruction lets the LLM interpret those
-# incoming messages correctly without a message-transform layer — the
-# "cheap version" of Open Question #1 in issue #116.
+# incoming messages correctly without a message-transform layer.
 USER_SIM_ROLE_FLIP_NOTE = (
     "\n\n## Role context\n"
     "You are the **customer**. The messages you receive with role "

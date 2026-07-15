@@ -9,7 +9,7 @@ store entirely by calling the pure ``apply_*`` functions directly.
 
 **Single- vs multi-domain surface.** Most topologies run a single
 domain per sample, so ``db`` / ``user_db`` / ``domain`` stay the
-canonical fields. The ``cross_domain_handoff`` topology (PR 4) needs
+canonical fields. The ``cross_domain_handoff`` topology needs
 multiple DBs live at once, so we add ``dbs`` / ``user_dbs`` multi-
 domain maps plus ``get_db(domain)`` / ``set_db(domain, data)`` helpers
 that prefer the map when it is populated and fall back to the legacy

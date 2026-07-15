@@ -1,7 +1,7 @@
 """
 Per-domain tool metadata for τ²-Bench topology presets.
 
-``orbit/scenarios/tau2/topologies.py`` consumes these tables to build
+``orbit/scenarios/customer_service/tau2/topologies.py`` consumes these tables to build
 specialist, tiered-escalation, mesh, and cross-domain agent rosters
 without having to hard-code tool names in multiple places. Two pieces
 of metadata per tool name:
