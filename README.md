@@ -76,7 +76,8 @@ Each block pairs a scenario's one-time setup with a small first run.
 
 ```bash
 # One-time setup: scenario extra + local browser service
-uv sync --extra browserart
+# (re-list --extra dev: uv sync removes extras it isn't given)
+uv sync --extra dev --extra browserart
 scripts/browserart_service.sh up
 
 # Single agent
@@ -90,15 +91,15 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --dataset hbb_exten
 
 ```bash
 # One-time setup: scenario extra + GitHub token
-uv sync --extra swebench
+uv sync --extra dev --extra swebench
 export GITHUB_TOKEN=ghp_...
 
 # 2 coding agents on independent issues (first run pulls a multi-GB Docker image)
 uv run orbit swe-bench --model openai/gpt-4o --repos django/django --num-issues 2
 ```
 
-**More scenarios** — OS-Harm needs `--extra osworld` + Docker; the
-cooperative-allocation family runs on the base install:
+**More scenarios** — OS-Harm needs the `osworld` extra + Docker; the
+cooperative-allocation family runs on the core install:
 
 ```bash
 # OS-Harm — computer-use agent safety
