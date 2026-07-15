@@ -69,27 +69,52 @@ Scenario-specific dependencies are installed separately. See [Scenario Requireme
 
 ## Quick Start
 
+Each block pairs a scenario's one-time setup with a small first run.
+[Scenario-Specific Setup](#scenario-specific-setup) below expands on every setup step.
+
+**BrowserART** — browser agent safety (needs Docker):
+
 ```bash
-# BrowserART, SWE-Bench, and OSWorld need extra dependencies and Docker — see Scenario-Specific Setup below
+# One-time setup: scenario extra + local browser service
+# (re-list --extra dev: uv sync removes extras it isn't given)
+uv sync --extra dev --extra browserart
+scripts/browserart_service.sh up
 
-# BrowserART — single agent
-uv run orbit browserart -m openai/gpt-4o --dataset hbb_extension
+# Single agent
+uv run orbit browserart -m openai/gpt-4o --dataset hbb_extension --limit 1
 
-# BrowserART — star topology with 4 specialists
-uv run orbit browserart -m openai/gpt-4o --agents specialist --dataset hbb_extension
+# Star topology with 4 specialists
+uv run orbit browserart -m openai/gpt-4o --agents specialist --dataset hbb_extension --limit 1
+```
 
-# SWE-Bench — 2 coding agents on independent issues
+**SWE-Bench** — multi-agent coding (needs Docker):
+
+```bash
+# One-time setup: scenario extra + GitHub token
+uv sync --extra dev --extra swebench
+export GITHUB_TOKEN=ghp_...
+
+# 2 coding agents on independent issues (first run pulls a multi-GB Docker image)
 uv run orbit swe-bench --model openai/gpt-4o --repos django/django --num-issues 2
+```
 
+**More scenarios** — OS-Harm needs the `osworld` extra + Docker; the
+cooperative-allocation family runs on the core install:
+
+```bash
 # OS-Harm — computer-use agent safety
-uv run orbit osworld -m openai/gpt-4o --dataset osharm_misuse --limit 10
+uv run orbit osworld -m openai/gpt-4o --dataset osharm_misuse --limit 3
 
-# Cooperative allocation — with collusion
+# Cooperative allocation — 4 developers on 6 tickets, 2 secretly colluding
+# (-T sets task parameters when running through Inspect directly — see Configuration)
 uv run inspect eval orbit/jira_ticket_allocation \
   -T num_developers=4 -T num_tasks=6 \
   -T coalition_agents=dev_0,dev_1 --model openai/gpt-4o
+```
 
-# View results
+View the results of any run:
+
+```bash
 uv run inspect view
 ```
 
@@ -169,6 +194,11 @@ different delegation prompting — and chains or other custom shapes are built b
 `edges` in a YAML config rather than selected by flag. Not every combination is
 supported — memory levels beyond `none` require the star topology; see
 [docs/presets.md](docs/presets.md) for topology diagrams and the validated combinations.
+
+Scenarios can also be run through Inspect directly, where repeatable `-T key=value`
+flags set task parameters — that is what the Quick Start's cooperative-allocation
+command uses. (On `orbit` subcommands, `-T` instead overrides config fields.) See
+[docs/configuration.md](docs/configuration.md) for both forms.
 
 ### YAML configs (full control)
 
