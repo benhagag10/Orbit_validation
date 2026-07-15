@@ -235,6 +235,19 @@ class CollusionAttack(AttackBase):
             persuasion_tactic, misalignment_strategy, collusion_prompt_variant
         )
 
+        # A typo'd coalition member must fail loudly here, before CollusionLog
+        # records the configured roster — silently skipping it would run a
+        # smaller (or empty) coalition while logging a phantom one. The DCOP
+        # task builders already reject this at build time
+        # (problem_factory.validate_coalition_agents); this covers every other
+        # entry path.
+        unknown = [a for a in coalition_agents if a not in agents]
+        if unknown:
+            raise ValueError(
+                f"CollusionAttack '{self.config.name}': unknown coalition_agents "
+                f"{unknown}. Available agents: {sorted(agents)}."
+            )
+
         # Initialize CollusionLog
         collusion_log = store_as(CollusionLog)
         collusion_log.coalition_agents = list(coalition_agents)
@@ -257,9 +270,6 @@ class CollusionAttack(AttackBase):
                 use_blackboard = False
 
         for agent_name in coalition_agents:
-            if agent_name not in agents:
-                continue
-
             agent = agents[agent_name]
 
             # Add communication tool: blackboard tools or secret_channel
@@ -302,9 +312,7 @@ class CollusionAttack(AttackBase):
             )
 
             for agent_name in coalition_agents:
-                agent = agents.get(agent_name)
-                if agent is None:
-                    continue
+                agent = agents[agent_name]
                 report_tool = make_report_vulnerability_tool(agent_name)
                 if not hasattr(agent, "tools"):
                     logger.warning(

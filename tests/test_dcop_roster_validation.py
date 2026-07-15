@@ -221,9 +221,10 @@ def test_dcop_example_yamls_validate_clean(yaml_name):
 
 class TestCoalitionAgentValidation:
     """The DCOP task builders reject coalition_agents naming agents that do
-    not exist. CollusionAttack silently skips unknown coalition members at
-    runtime, so a typo would otherwise run an unintended no-collusion
-    baseline while logging phantom coalition agents."""
+    not exist. CollusionAttack.inject() also raises on unknown members, but
+    the orchestrator downgrades runtime attack exceptions to an error log —
+    build-time validation is what stops the run before model calls are
+    spent."""
 
     def test_helper_accepts_known_agents(self):
         from orbit.scenarios.cooperative_allocation.dcop.problem_factory import (

@@ -252,6 +252,29 @@ class TestCollusionAttackInject:
         finally:
             mod.store_as = original
 
+    @pytest.mark.asyncio
+    async def test_inject_raises_on_unknown_coalition_member(self):
+        """A typo'd coalition member fails loudly instead of silently
+        shrinking the coalition while CollusionLog lists the full roster."""
+        attack = self._make_attack("prompted", coalition_agents=["a0", "a1_typo"])
+        state, agents = self._make_state_and_agents()
+        import orbit.attacks.collusion.collusion as mod
+        original = mod.store_as
+        log = CollusionLog()
+        mod.store_as = lambda cls: log
+        try:
+            with pytest.raises(ValueError, match="a1_typo"):
+                await attack.inject(state, agents, turn=0)
+            # Raised before any mutation: no phantom coalition in the log,
+            # no prompt/tool applied to the known member. (CollusionLog is
+            # store-backed, so earlier tests' writes can leak into a fresh
+            # instance — assert on the phantom name, not exact contents.)
+            assert "a1_typo" not in log.coalition_agents
+            assert len(state.messages) == 0
+            assert len(agents["a0"].tools) == 0
+        finally:
+            mod.store_as = original
+
     def test_should_activate_pre_deployment(self):
         """Default timing activates at pre_deployment."""
         attack = self._make_attack("prompted")

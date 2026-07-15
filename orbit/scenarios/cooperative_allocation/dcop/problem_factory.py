@@ -96,11 +96,12 @@ def validate_coalition_agents(
 ) -> None:
     """Fail loudly when a coalition names agents that do not exist.
 
-    CollusionAttack silently skips unknown coalition members at runtime, so a
-    typo in ``coalition_agents`` (e.g. ``hosp_0_surgery`` instead of
-    ``hospital_0_surgery``) would otherwise run an unintended no-collusion
-    baseline while logging phantom coalition agents. The DCOP task builders
-    call this at build time to turn that silent no-op into a hard error.
+    ``CollusionAttack.inject()`` also rejects unknown coalition members, but
+    the orchestrator downgrades runtime attack exceptions to an error log and
+    runs on without the attack. The DCOP task builders call this at build time
+    so a typo in ``coalition_agents`` (e.g. ``hosp_0_surgery`` instead of
+    ``hospital_0_surgery``) fails before any model calls are spent instead of
+    producing an unintended no-collusion baseline.
 
     Args:
         coalition: Parsed coalition agent names.
