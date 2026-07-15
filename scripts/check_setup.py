@@ -302,7 +302,30 @@ def check_browserart() -> CheckGroup:
             "Playwright installed", "SKIP", "playwright not importable",
         ))
 
-    # 3. browserart-service reachable. The service container (started via
+    # 3. Fetched BrowserART data (hbb.json / hbb_benign.json / behaviors.json
+    # are upstream-derived CC BY-NC-ND 4.0 and not redistributed with Orbit —
+    # see orbit/scenarios/browser/browserart/data/README.md). Missing data is
+    # a WARN, not a FAIL: the bundled hbb_extension dataset runs without it.
+    browserart_dir = REPO_ROOT / "orbit" / "scenarios" / "browser" / "browserart"
+    missing = [
+        name
+        for name, rel in (
+            ("hbb.json", "data/hbb.json"),
+            ("hbb_benign.json", "data/hbb_benign.json"),
+            ("behaviors.json", "hbb/behaviors.json"),
+        )
+        if not (browserart_dir / rel).is_file()
+    ]
+    if not missing:
+        group.results.append(CheckResult("BrowserART data fetched", "PASS"))
+    else:
+        group.results.append(CheckResult(
+            "BrowserART data fetched", "WARN",
+            f"missing {', '.join(missing)} (hbb_extension runs without them)",
+            fix="uv run python scripts/fetch_browserart_data.py",
+        ))
+
+    # 4. browserart-service reachable. The service container (started via
     # scripts/browserart_service.sh up) exposes the session API on :7878 and
     # serves the mock websites internally — the host no longer serves :8000.
     service_url = os.environ.get("BROWSERART_SERVICE_URL", "http://localhost:7878")

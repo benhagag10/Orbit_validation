@@ -1,7 +1,7 @@
 """ConVerse: contextual privacy + security benchmark for agent-to-agent conversations.
 
-Research-question-agnostic substrate (per docs/scenario_design intent and
-issue #117): the scenario exposes a dataset, a role contract, a tool library,
+Research-question-agnostic substrate (see docs/adding-a-scenario.md):
+the scenario exposes a dataset, a role contract, a tool library,
 and composable evaluation detectors. It does *not* hard-code a topology,
 attack taxonomy, defense suite, or metric list — those come from the caller's
 :class:`ExperimentConfig`.

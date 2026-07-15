@@ -103,7 +103,7 @@ class ScenarioRoleRequirements(BaseModel, frozen=True, extra="forbid"):
     user-supplied setup satisfies this contract and to auto-wire the scenario's
     tool library onto each role-filling agent.
 
-    This is the substrate-principle contract spelled out in issue #117:
+    This is the substrate-principle contract:
     scenarios are research-question-agnostic task domains, not fixed
     experiments. A user writing their own YAML can put any number of agents
     into any role with any topology — the scenario only cares that its

@@ -71,14 +71,23 @@ orbit = "orbit.wrapper.cli:cli"
 include = ["orbit*"]
 
 [tool.setuptools.package-data]
-# BrowserART: only the Orbit-original hbb_extension.json is redistributed.
-# Upstream-derived hbb.json, hbb_benign.json, and hbb/behaviors.json are
-# fetched via scripts/fetch_browserart_data.py — see
-# orbit/scenarios/browserart/data/README.md.
-"orbit.scenarios.browser.browserart.data" = ["hbb_extension.json", "README.md"]
+# BrowserART: only the Orbit-original hbb_extension.json and
+# hbb_benign_custom.json are redistributed. Upstream-derived hbb.json,
+# hbb_benign.json, and hbb/behaviors.json are fetched via
+# scripts/fetch_browserart_data.py — see
+# orbit/scenarios/browser/browserart/data/README.md.
+"orbit.scenarios.browser.browserart.data" = [
+    "hbb_extension.json",
+    "hbb_benign_custom.json",
+    "README.md",
+]
 "orbit.scenarios.coding.swe_bench._vendor" = ["LICENSE.inspect_evals"]
 "orbit.scenarios.customer_service.tau2" = ["LICENSE.tau2"]
 "orbit.scenarios.customer_service.tau2.data" = ["**/*.json", "**/*.md", "**/*.toml", "README.md"]
+# ConVerse: normalized derivative of the MIT-licensed upstream benchmark —
+# see orbit/scenarios/customer_service/converse/LICENSE.converse and
+# orbit/scenarios/customer_service/converse/data/README.md.
+"orbit.scenarios.customer_service.converse.data" = ["**/*.json", "README.md"]
 # Shipped topology presets (a preset == a pre-baked SetupConfig in the general
 # orbit syntax), one presets/ dir per scenario. Loaded at runtime by each
 # scenario's preset_registry via the shared orbit/scenarios/presets.py loader.
@@ -88,7 +97,7 @@ include = ["orbit*"]
 "orbit.scenarios.coding.bigcodebench" = ["presets/*.yaml"]
 "orbit.scenarios.coding.code_ipi" = ["presets/*.yaml"]
 "orbit.scenarios.desktop.osworld" = ["presets/*.yaml"]
-"orbit.scenarios.customer_service.converse" = ["presets/*.yaml"]
+"orbit.scenarios.customer_service.converse" = ["presets/*.yaml", "LICENSE.converse"]
 
 [tool.pytest.ini_options]
 markers = [
