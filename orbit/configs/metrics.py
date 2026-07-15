@@ -44,7 +44,7 @@ class MetricsConfig(BaseModel, frozen=True, extra="forbid"):
     channel_activity: bool = True
     """Secret channel message count."""
 
-    # Multi-agent evaluation metrics (Tier 1: C_i → PD → ER → AS)
+    # Multi-agent evaluation metrics (C_i → PD → ER → AS)
     propagation_depth: bool = True
     """Average per-agent compromise score (PD = mean(C_i))."""
 
