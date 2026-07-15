@@ -268,6 +268,7 @@ See [Scenario Requirements](docs/scenarios.md) for full per-scenario setup.
 - [Scenarios](docs/scenarios.md) — per-scenario setup and requirements
 - [Evaluation](docs/evaluation.md) — scorers, metrics, and construct validity
 - [Adding a New Scenario](docs/adding-a-scenario.md) — authoring guide for the scenario plugin kit
+- [Scripts](scripts/README.md) — setup, data-fetch, log-auditing, and sweep tooling
 
 ---
 
