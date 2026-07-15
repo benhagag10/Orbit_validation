@@ -127,6 +127,10 @@ These control how agents are connected in the network.
 
 Non-star topologies (`round_robin`, `delegation`) are only supported with `--agents specialist`.
 
+There is no `--topology chain`: chains and other custom shapes are defined by
+writing the agent `edges` in a YAML config instead of using a flag (see
+[`examples/chain_compromised_agent.yaml`](../examples/chain_compromised_agent.yaml)).
+
 ## Memory
 
 These control how much context each agent can see from previous turns. Only supported with `--agents specialist` and `--topology star`.

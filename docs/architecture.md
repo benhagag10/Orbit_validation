@@ -63,6 +63,8 @@ The `mas_orchestrator` `@solver` (`orbit/solvers/orchestrator.py`) is a single c
 - Turn order from the scheduling mode; completion via `SubmitRegistry`; peers see each other through observation summaries
 - Syncs per-agent messages back to the task state at the end
 
+In CLI-flag terms: `--agents single` and `--topology star` configurations build the `TopologyExecutor`, as do chain shapes written as YAML `edges`; the two mesh variants (`--topology round_robin` / `delegation`) configure `agent_groups` and build the `ScheduledExecutor`.
+
 Cross-cutting concerns (attacks, defenses, memory injection, halt conditions, metrics) are implemented once in the orchestrator and apply to both executors.
 
 ## Attack/Defense Protocol

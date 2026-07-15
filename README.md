@@ -35,7 +35,7 @@
   - **5 scenario families** — coding, desktop, browser, customer-service, and cooperative-allocation tasks
   - **4 threat types** — prompt injection, compromised agent, collusion, and misuse
   - **4 defense categories** — security prompting, monitors, guardian agents, and dual-LLM
-  - **Configurable topologies** — star, mesh, chain — with variable memory visibility and scheduling modes
+  - **Configurable topologies** — single agent, star, and mesh (round-robin or delegation variants), plus custom shapes like chains via YAML edges — with variable memory visibility and scheduling modes
 - **Extensibility, flexibility, hackability**, so you can easily build new scenarios and recombine existing ones
 
 <br>
@@ -164,8 +164,11 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology star --m
 | `--topology` | `star`, `round_robin`, `delegation` | Network structure |
 | `--memory` | `none`, `own_actions`, `own_reasoning`, `shared_actions`, `full` | Inter-agent visibility |
 
-Not every combination is supported — memory levels beyond `none` require the star
-topology; see [docs/presets.md](docs/presets.md) for the validated combinations.
+`round_robin` and `delegation` are the two mesh variants — same peer-to-peer structure,
+different delegation prompting — and chains or other custom shapes are built by writing
+`edges` in a YAML config rather than selected by flag. Not every combination is
+supported — memory levels beyond `none` require the star topology; see
+[docs/presets.md](docs/presets.md) for topology diagrams and the validated combinations.
 
 ### YAML configs (full control)
 

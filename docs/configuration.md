@@ -16,7 +16,7 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_ro
 |-----------|------|---------|-------------|
 | `-m, --model` | string | (required) | Model to evaluate |
 | `--agents` | choice | — | Agent type: `single`, `batch`, `specialist`, `step` |
-| `--topology` | choice | `star` | Network structure: `star`, `round_robin`, `delegation`. Requires `--agents` |
+| `--topology` | choice | `star` | Network structure: `star`, or the two mesh variants `round_robin` and `delegation`. Requires `--agents` |
 | `--memory` | choice | `none` | Memory sharing: `none`, `own_actions`, `own_reasoning`, `shared_actions`, `full`. Requires `--agents` |
 | `--instructions` | choice | `detailed` | Instruction detail: `detailed`, `relaxed`. Requires `--agents` |
 | `--preset` | string | — | Preset name (cannot be used with `--agents`) |
@@ -83,7 +83,7 @@ uv run inspect eval orbit/browserart_safety \
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `agents` | string | — | Agent type: `single`, `batch`, `specialist`, `step` |
-| `topology` | string | `star` | Network structure: `star`, `round_robin`, `delegation`. Requires `agents` |
+| `topology` | string | `star` | Network structure: `star`, or the two mesh variants `round_robin` and `delegation`. Requires `agents` |
 | `memory` | string | `none` | Memory sharing level. Requires `agents` |
 | `instructions` | string | `detailed` | Instruction detail: `detailed`, `relaxed`. Requires `agents` |
 | `preset` | string | — | Preset name (cannot be used with `agents`) |
@@ -630,7 +630,7 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_ro
 |--------|-------------|
 | `-m, --model TEXT` | Model to evaluate (required) |
 | `--agents CHOICE` | Agent type: `single`, `batch`, `specialist`, `step` |
-| `--topology CHOICE` | Network structure: `star`, `round_robin`, `delegation` (default: `star`; requires `--agents`) |
+| `--topology CHOICE` | Network structure: `star`, or the two mesh variants `round_robin` / `delegation` (default: `star`; requires `--agents`) |
 | `--memory CHOICE` | Memory level: `none`, `own_actions`, `own_reasoning`, `shared_actions`, `full` (requires `--agents`) |
 | `--instructions CHOICE` | Instruction detail: `detailed`, `relaxed` (requires `--agents`) |
 | `--preset TEXT` | Preset name (cannot be used with `--agents`) |
