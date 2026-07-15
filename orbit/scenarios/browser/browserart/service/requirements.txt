@@ -1,6 +1,6 @@
 # Runtime dependencies installed into the browserart-service Docker image.
 # Kept separate from the repo's pyproject so image rebuilds don't drag
-# the full inspect-mas dev stack.
+# the full Orbit dev stack.
 #
 # IMPORTANT: use ``browsergym-core`` rather than the ``browsergym``
 # metapackage — the metapackage pulls in browsergym-visualwebarena,

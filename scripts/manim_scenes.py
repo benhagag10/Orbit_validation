@@ -1,5 +1,5 @@
 """
-Manim scenes for InspectMAS demo video v2 — Framework-First Narrative.
+Manim scenes for Orbit demo video v2 — Framework-First Narrative.
 
 5 clips rendered at 1080p60 for embedding in Remotion via OffthreadVideo.
 
@@ -160,8 +160,8 @@ class SafetyCompositionDiagram(Scene):
         self.play(Transform(text1, text3), run_time=0.4)
         self.wait(0.3)
 
-        # ── "InspectMAS" appears ──
-        title = Text("InspectMAS", font_size=28, color=ACCENT_BLUE).next_to(text1, DOWN, buff=0.3)
+        # ── "Orbit" appears ──
+        title = Text("Orbit", font_size=28, color=ACCENT_BLUE).next_to(text1, DOWN, buff=0.3)
         subtitle = Text(
             "Systematic Multi-Agent Safety Testing",
             font_size=20, color=TEXT_SECONDARY,

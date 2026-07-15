@@ -212,7 +212,7 @@ uv run orbit run examples/swe_bench_multi_issue.yaml --model openai/gpt-4o
 | `repos` | string | — | Comma-separated repo filter (e.g. `django/django`) |
 | `seed` | int | — | Random seed for group sampling |
 | `scheduling_mode` | string | round_robin | Execution mode (`round_robin` or `superstep`) |
-| `topology` | string | star | Topology style (`star`, `round_robin`, `delegation`) |
+| `topology` | string | — | Topology style (`star`, `round_robin`, `delegation`). Used with `agents`; defaults to star |
 | `topology_file` | string | default | Custom topology YAML path (`default` uses the built-in template) |
 | `preset` | string | — | Topology/memory preset (see below) |
 | `attack_preset` | string | — | Attack preset (`self_replication`, `sabotage`, `codebase_injection`, `codebase_injection_targeted`, `codebase_injection_behavioral`, `aishellcheck`, `aishellcheck_category_sweep`, `compromised_agent`, `collusion_side_task`) |
@@ -343,7 +343,7 @@ uv run orbit run examples/osworld_osharm_basic.yaml --model openai/gpt-4o
 | `max_screenshots` | int | 1 | Max screenshots per turn for the computer tool |
 | `computer_timeout` | int | 180 | Timeout in seconds for the computer tool |
 | `preset` | string | — | Named topology/memory preset (e.g. `star_specialist`) |
-| `agents` | string | — | Agent type (`single`, `batch`, `specialist`, `step`) |
+| `agents` | string | — | Agent type (`single`, `batch`, `specialist`, `app_specialist`, `step`) |
 | `topology` | string | — | Network topology (`star`, `round_robin`, `delegation`) |
 | `memory` | string | — | Memory level (`none`, `own_actions`, `own_reasoning`, `shared_actions`, `full`) |
 | `defense_preset` | string | — | Defense preset name |

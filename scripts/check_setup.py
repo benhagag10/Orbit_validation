@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Standalone setup checker for InspectMAS — zero dependencies (stdlib only).
+"""Standalone setup checker for Orbit — zero dependencies (stdlib only).
 
 Usage:
     python scripts/check_setup.py                        # General checks
@@ -540,8 +540,8 @@ def render(groups: list[CheckGroup]) -> int:
     use_color = _supports_color()
 
     print()
-    print("InspectMAS Setup Check")
-    print("======================")
+    print("Orbit Setup Check")
+    print("=================")
 
     counts: dict[str, int] = {"PASS": 0, "FAIL": 0, "WARN": 0, "SKIP": 0}
 
@@ -589,7 +589,7 @@ SCENARIO_CHECKERS = {
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Check that your environment is ready for InspectMAS.",
+        description="Check that your environment is ready for Orbit.",
     )
     parser.add_argument(
         "--scenario", action="append", choices=list(SCENARIOS),
@@ -604,7 +604,7 @@ def main() -> int:
     # Verify we're in the repo root
     if not (REPO_ROOT / "pyproject.toml").is_file():
         print(f"Warning: pyproject.toml not found at {REPO_ROOT}", file=sys.stderr)
-        print("Run this script from the InspectMAS repo root.", file=sys.stderr)
+        print("Run this script from the Orbit repo root.", file=sys.stderr)
 
     groups: list[CheckGroup] = [check_general()]
 

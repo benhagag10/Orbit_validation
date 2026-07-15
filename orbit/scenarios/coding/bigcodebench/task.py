@@ -1,7 +1,7 @@
 """BigCodeBench task entry point.
 
 Registered with Inspect via ``_registry.py``. Builds a Task from the
-BigCodeBench dataset using the InspectMAS orchestrator, with the same
+BigCodeBench dataset using the Orbit orchestrator, with the same
 topology and preset surface as the ``redcode_gen`` scenario.
 
 Construction is unified through the scenario-agnostic builder

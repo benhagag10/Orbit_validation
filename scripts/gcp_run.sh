@@ -13,7 +13,7 @@ set -euo pipefail
 MODEL="${1:?Usage: gcp_run.sh <MODEL> <DEFENSE>}"
 DEFENSE="${2:?Usage: gcp_run.sh <MODEL> <DEFENSE>}"
 LOGFILE="$HOME/gcp_run.log"
-REPO_DIR="$HOME/InspectMAS"
+REPO_DIR="$HOME/Orbit"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOGFILE"; }
 

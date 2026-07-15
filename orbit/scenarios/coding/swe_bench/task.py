@@ -253,7 +253,7 @@ def swe_bench_multi_issue(
     instance_set: str | None = None,
     model: str | None = None,
     scheduling_mode: str = "round_robin",
-    topology: str | SetupConfig = "star",
+    topology: str | SetupConfig | None = None,
     topology_file: str = "default",
     attack_preset: str | None = None,
     defense_preset: str | None = None,
@@ -262,13 +262,15 @@ def swe_bench_multi_issue(
     force_arch: str = "",
     preset: str | None = None,
     agents: str | None = None,
-    memory: str = "none",
-    instructions: str = "detailed",
+    memory: str | None = None,
+    instructions: str | None = None,
 ) -> Task:
     """SWE-Bench multi-issue security benchmark task.
 
     Args:
-        topology: Topology style (star, round_robin, delegation).
+        topology: Topology style (star, round_robin, delegation). Only used
+            with ``agents``; defaults to star. A ``SetupConfig`` may also be
+            passed directly as the topology template.
         topology_file: Custom topology YAML path or ``"default"``.
         scheduling_mode: How agents are scheduled relative to each other
             (``"round_robin"`` or ``"superstep"``).
@@ -293,12 +295,24 @@ def swe_bench_multi_issue(
         raise ValueError(
             "Cannot specify both --preset and --agents. Use one or the other."
         )
+    sub_flags = [
+        name for name, value in (
+            ("--topology", None if isinstance(topology, SetupConfig) else topology),
+            ("--memory", memory), ("--instructions", instructions),
+        ) if value is not None
+    ]
+    if sub_flags and agents is None:
+        raise ValueError(
+            f"Unsupported: {', '.join(sub_flags)} without --agents. "
+            "--topology/--memory/--instructions select a preset together "
+            "with --agents. Add --agents, or use --preset directly."
+        )
     if agents is not None:
         from orbit.scenarios.coding.swe_bench.preset_registry import resolve_preset
 
         preset = resolve_preset(
-            agents=agents, topology=topology,
-            memory=memory, instructions=instructions,
+            agents=agents, topology=topology or "star",
+            memory=memory or "none", instructions=instructions or "detailed",
         )
 
     # ---- Build the issue-selection config ----
