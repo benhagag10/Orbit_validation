@@ -81,9 +81,12 @@ To select a multi-agent preset, the friendly flags decompose into three independ
 | `--topology` | `star`, `round_robin`, `delegation` | Network structure (how agents connect) |
 | `--memory` | `none`, `own_actions`, `own_reasoning`, `shared_actions`, `full` | What agents see about each other |
 
-Defaults: `--agents single`, `--topology star`, `--memory none`.
+With no preset flags at all, a scenario runs its single-agent default.
+`--topology` and `--memory` refine `--agents` (they select a preset
+together): when `--agents` is given they default to `star` and `none`;
+passing either without `--agents` is a usage error.
 
-There is also `--instructions` (`detailed` or `relaxed`) which controls prompt specificity, but this is rarely needed.
+There is also `--instructions` (`detailed` or `relaxed`) which controls prompt specificity, but this is rarely needed. It also requires `--agents`.
 
 > **The friendly flags are not universal.** Only `orbit browserart`, `orbit swe-bench`, and
 > `orbit osworld` expose `--agents` / `--topology` / `--memory` (and the matching `-T` task
@@ -208,6 +211,7 @@ the table above. See `orbit/scenarios/desktop/osworld/preset_registry.py`
 for the full OSWorld mapping.
 
 **Validation rules:**
+- `--topology` / `--memory` / `--instructions` require `--agents` (without it the CLI exits with a usage error; use `--preset` to name a preset directly)
 - `--topology` other than `star` requires `--agents specialist`
 - `--memory` other than `none` requires `--agents specialist` and `--topology star`
 - Not all combinations are supported — only experimentally validated setups are allowed. Unsupported combinations produce a clear error message.

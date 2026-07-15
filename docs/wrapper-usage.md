@@ -59,7 +59,7 @@ uv run orbit run examples/browserart_quick_test.yaml --model openai/gpt-4o
 # Dry-run (validate and summarize without running). Preflight environment
 # checks still run first and prompt on failure; skip them with the
 # --skip-preflight flag:
-uv run orbit --skip-preflight run examples/browserart_quick_test.yaml --model openai/gpt-4o --dry-run
+uv run orbit run examples/browserart_quick_test.yaml --model openai/gpt-4o --dry-run --skip-preflight
 
 # Override config values (top-level and nested Pydantic fields)
 uv run orbit run examples/browserart_quick_test.yaml -m openai/gpt-4o -T epochs=3
@@ -271,5 +271,6 @@ Notes:
   `-T` sets task parameters instead.)
 - `--dry-run` still runs the preflight environment checks first (and prompts
   on failure); combine with `--skip-preflight` for a purely offline check.
-- `-v, --verbose` and `--skip-preflight` work on every subcommand, at group
-  level (`orbit -v run …`) or after the subcommand (`orbit run … -v`).
+- `-v, --verbose` and `--skip-preflight` are accepted at group level before
+  any subcommand (`orbit -v run …`); `run`, `suite`, and the five scenario
+  runners also accept them after the subcommand (`orbit run … -v`).

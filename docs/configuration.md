@@ -16,9 +16,9 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_ro
 |-----------|------|---------|-------------|
 | `-m, --model` | string | (required) | Model to evaluate |
 | `--agents` | choice | — | Agent type: `single`, `batch`, `specialist`, `step` |
-| `--topology` | choice | `star` | Network structure: `star`, `round_robin`, `delegation` |
-| `--memory` | choice | `none` | Memory sharing: `none`, `own_actions`, `own_reasoning`, `shared_actions`, `full` |
-| `--instructions` | choice | `detailed` | Instruction detail: `detailed`, `relaxed` |
+| `--topology` | choice | `star` | Network structure: `star`, `round_robin`, `delegation`. Requires `--agents` |
+| `--memory` | choice | `none` | Memory sharing: `none`, `own_actions`, `own_reasoning`, `shared_actions`, `full`. Requires `--agents` |
+| `--instructions` | choice | `detailed` | Instruction detail: `detailed`, `relaxed`. Requires `--agents` |
 | `--preset` | string | — | Preset name (cannot be used with `--agents`) |
 | `--max-turns` | int | 15 | Max turns per behavior |
 | `--max-time-seconds` | float | 300 | Max seconds per behavior |
@@ -33,7 +33,9 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_ro
 | `--topology-file` | string | `default` | Custom topology YAML path, e.g. `examples/topologies/…` (advanced) |
 
 How the `--agents`/`--topology`/`--memory` combinations map to named presets
-is tabulated in [Presets](presets.md#parameter-mapping).
+is tabulated in [Presets](presets.md#parameter-mapping). `--topology`,
+`--memory`, and `--instructions` refine `--agents`; passing one without
+`--agents` is a usage error (use `--preset` to name a preset directly).
 
 Two behaviors worth knowing about:
 
@@ -81,9 +83,9 @@ uv run inspect eval orbit/browserart_safety \
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `agents` | string | — | Agent type: `single`, `batch`, `specialist`, `step` |
-| `topology` | string | `star` | Network structure: `star`, `round_robin`, `delegation` |
-| `memory` | string | `none` | Memory sharing level |
-| `instructions` | string | `detailed` | Instruction detail: `detailed`, `relaxed` |
+| `topology` | string | `star` | Network structure: `star`, `round_robin`, `delegation`. Requires `agents` |
+| `memory` | string | `none` | Memory sharing level. Requires `agents` |
+| `instructions` | string | `detailed` | Instruction detail: `detailed`, `relaxed`. Requires `agents` |
 | `preset` | string | — | Preset name (cannot be used with `agents`) |
 | `attack_preset` | string | — | Named attack bundle — the way to attach attacks on this path |
 | `defense_preset` | string | — | Named defense bundle — the way to attach defenses on this path |
@@ -610,10 +612,11 @@ scenario-by-scenario in [Scenarios](scenarios.md):
 | `orbit score` | Re-score an existing eval log without re-running (`orbit score --help`) |
 | `orbit verify-setup` | Verify a scenario's prerequisites: `browserart`, `swe-bench`, `osworld`, `bigcodebench`, `dcop`, or `all` |
 
-Two flags apply to every subcommand: `-v, --verbose` (verbose logging) and
-`--skip-preflight` (skip environment preflight checks). They are accepted
-both at group level (`orbit -v run …`) and after the subcommand
-(`orbit run … -v`).
+Two shared flags: `-v, --verbose` (verbose logging) and `--skip-preflight`
+(skip environment preflight checks). Every subcommand accepts them at group
+level (`orbit -v validate …`); the seven commands that run preflight checks —
+`run`, `suite`, and the five scenario runners — also accept them after the
+subcommand (`orbit run … -v`).
 
 ### `orbit browserart`
 
@@ -627,9 +630,9 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_ro
 |--------|-------------|
 | `-m, --model TEXT` | Model to evaluate (required) |
 | `--agents CHOICE` | Agent type: `single`, `batch`, `specialist`, `step` |
-| `--topology CHOICE` | Network structure: `star`, `round_robin`, `delegation` (default: `star`) |
-| `--memory CHOICE` | Memory level: `none`, `own_actions`, `own_reasoning`, `shared_actions`, `full` |
-| `--instructions CHOICE` | Instruction detail: `detailed`, `relaxed` |
+| `--topology CHOICE` | Network structure: `star`, `round_robin`, `delegation` (default: `star`; requires `--agents`) |
+| `--memory CHOICE` | Memory level: `none`, `own_actions`, `own_reasoning`, `shared_actions`, `full` (requires `--agents`) |
+| `--instructions CHOICE` | Instruction detail: `detailed`, `relaxed` (requires `--agents`) |
 | `--preset TEXT` | Preset name (cannot be used with `--agents`) |
 | `--max-turns INT` | Max agent turns (default: 15) |
 | `--max-time-seconds FLOAT` | Max time in seconds (default: 300) |
@@ -666,7 +669,7 @@ uv run orbit run <config.yaml> [OPTIONS]
 **Note:** `--dry-run` validates and summarizes the config without calling
 `eval()`, but the preflight environment checks still run first (and prompt
 interactively on failure). Skip them with
-`uv run orbit --skip-preflight run <config.yaml> --dry-run`.
+`uv run orbit run <config.yaml> --dry-run --skip-preflight`.
 
 ### `orbit suite`
 
