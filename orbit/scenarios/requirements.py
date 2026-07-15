@@ -11,14 +11,16 @@ This module is the *one* place that mapping lives. It is consumed by:
     into an actionable ``MissingScenarioDependencyError`` that names the exact
     ``uv sync --extra <name>`` command instead of a raw ``ModuleNotFoundError``
     or a silent fall-back to the generic single-sample path.
-  * :mod:`orbit.wrapper.preflight` (``orbit verify-setup``) and
-    ``scripts/check_setup.py`` — so the preflight tooling and the docs agree.
   * ``README.md`` / ``docs/scenarios.md`` — the per-scenario install matrix is
-    kept in sync with this table (a test asserts every registered scenario is
-    covered here).
+    kept in sync with this table (``tests/test_scenario_requirements.py``
+    asserts every registered scenario is covered here and that every ``extra``
+    exists in ``pyproject.toml``).
 
-Keep this table consistent with ``[project.optional-dependencies]`` in
-``pyproject.toml`` and with the install matrix in the docs.
+The preflight tooling (``orbit verify-setup`` / ``scripts/check_setup.py``)
+does *not* read this table — it hand-rolls richer per-scenario checks (service
+reachability, fetched data files, Docker daemon state). When adding a scenario,
+keep this table, ``[project.optional-dependencies]`` in ``pyproject.toml``, the
+docs install matrix, and the preflight checks consistent with each other.
 """
 
 from __future__ import annotations
