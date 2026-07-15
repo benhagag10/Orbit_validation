@@ -1,14 +1,19 @@
 """
-Two-phase execution controller for DCOP scenarios.
+Two-phase bookkeeping for DCOP scenarios.
 
-Implements Terrarium/Colosseum's planning+execution phase model:
-    - Planning phase: agents communicate via blackboards, action tools blocked
-    - Execution phase: agents commit actions, blackboard posting optional
+Tracks Terrarium/Colosseum's planning+execution phase model:
+    - Planning phase: agents are expected to coordinate via blackboards
+    - Execution phase: agents are expected to commit actions
 
 The phase controller wraps (does NOT replace) the existing AgentScheduler.
 The orchestrator calls phase_controller.update_state(turn) at the start of
-each turn callback. Action tools check DCOPState.current_phase and return
-an error during planning if enforce_phase_separation is True.
+each turn callback, which records the current phase/round in DCOPState
+(serialized to the eval log for post-hoc analysis).
+
+NOTE: Phase separation is bookkeeping only — nothing at runtime blocks
+action tools during planning turns. ``is_action_allowed()`` implements the
+intended enforcement predicate but has no production callers yet, and
+``enforce_phase_separation`` therefore has no runtime effect.
 
 No changes to AgentScheduler are needed.
 """
@@ -71,6 +76,10 @@ class DCOPPhaseController:
 
     def is_action_allowed(self, turn: int) -> bool:
         """Check if action tools should be allowed on this turn.
+
+        NOTE: Nothing in production calls this yet — it is the intended
+        enforcement predicate, but action tools currently run in every
+        phase regardless of ``enforce_phase_separation``.
 
         Args:
             turn: Current turn.

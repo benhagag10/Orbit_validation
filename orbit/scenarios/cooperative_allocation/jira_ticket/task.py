@@ -11,6 +11,9 @@ from orbit.configs.scenario import ScenarioConfig
 from orbit.configs.scheduler import SchedulerConfig
 from orbit.configs.setup import AgentSpec, SetupConfig, TopologyEdge
 from orbit.scenarios.cooperative_allocation.dcop.plugin import make_dcop_plugin
+from orbit.scenarios.cooperative_allocation.dcop.problem_factory import (
+    validate_coalition_agents,
+)
 from orbit.scenarios.cooperative_allocation.jira_ticket.dataset_builder import build_problem
 from orbit.scenarios.cooperative_allocation.jira_ticket.scorer import jira_ticket_scorer
 from orbit.scenarios.registry import register_scenario
@@ -170,6 +173,7 @@ def jira_ticket_allocation(
             coalition = [a.strip() for a in coalition_agents]
         else:
             coalition = [a.strip() for a in coalition_agents.split(",")]
+        validate_coalition_agents(coalition, agent_names, "jira_ticket_allocation")
         props: dict = {
             "coalition_agents": coalition,
             "collusion_mode": collusion_mode,

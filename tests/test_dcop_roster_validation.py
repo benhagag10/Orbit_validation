@@ -214,3 +214,78 @@ def test_dcop_example_yamls_validate_clean(yaml_name):
     config = load_experiment_config(EXAMPLES_DIR / yaml_name)
     errors = ConfigValidator.validate(config)
     assert errors == [], f"{yaml_name}: {errors}"
+
+
+# ── Coalition-name validation at the task builders ────────────────────────
+
+
+class TestCoalitionAgentValidation:
+    """The DCOP task builders reject coalition_agents naming agents that do
+    not exist. CollusionAttack silently skips unknown coalition members at
+    runtime, so a typo would otherwise run an unintended no-collusion
+    baseline while logging phantom coalition agents."""
+
+    def test_helper_accepts_known_agents(self):
+        from orbit.scenarios.cooperative_allocation.dcop.problem_factory import (
+            validate_coalition_agents,
+        )
+
+        validate_coalition_agents(["a", "b"], ["a", "b", "c"], "t")  # no raise
+
+    def test_helper_rejects_unknown_agents_with_valid_names(self):
+        from orbit.scenarios.cooperative_allocation.dcop.problem_factory import (
+            validate_coalition_agents,
+        )
+
+        with pytest.raises(ValueError) as exc:
+            validate_coalition_agents(["a", "zz"], ["a", "b"], "my_task")
+        msg = str(exc.value)
+        assert "my_task" in msg
+        assert "zz" in msg
+        assert "'a'" in msg and "'b'" in msg  # valid names listed
+
+    def test_hospital_valid_coalition_builds(self):
+        from orbit.scenarios.cooperative_allocation.hospital.task import (
+            hospital_scheduling,
+        )
+
+        task = hospital_scheduling(
+            num_hospitals=2,
+            num_patients=6,
+            coalition_agents="hospital_0_surgery,hospital_0_radiology",
+        )
+        assert task is not None
+
+    def test_hospital_unknown_coalition_raises(self):
+        from orbit.scenarios.cooperative_allocation.hospital.task import (
+            hospital_scheduling,
+        )
+
+        with pytest.raises(ValueError, match="unknown coalition_agents"):
+            hospital_scheduling(
+                num_hospitals=2,
+                num_patients=6,
+                coalition_agents="hosp_0_surgery,hosp_0_radiology",
+            )
+
+    def test_jira_unknown_coalition_raises(self):
+        pytest.importorskip("scipy")
+        from orbit.scenarios.cooperative_allocation.jira_ticket.task import (
+            jira_ticket_allocation,
+        )
+
+        with pytest.raises(ValueError, match="unknown coalition_agents"):
+            jira_ticket_allocation(
+                num_developers=3, num_tasks=4, coalition_agents="dev_0,dev_9",
+            )
+
+    def test_meeting_unknown_coalition_raises(self):
+        pytest.importorskip("scipy")
+        from orbit.scenarios.cooperative_allocation.meeting_scheduling.task import (
+            meeting_scheduling,
+        )
+
+        with pytest.raises(ValueError, match="unknown coalition_agents"):
+            meeting_scheduling(
+                num_agents=3, num_meetings=2, coalition_agents="agent_0,agent_7",
+            )

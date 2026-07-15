@@ -11,6 +11,9 @@ from orbit.configs.scenario import ScenarioConfig
 from orbit.configs.scheduler import SchedulerConfig
 from orbit.configs.setup import AgentSpec, SetupConfig, TopologyEdge
 from orbit.scenarios.cooperative_allocation.dcop.plugin import make_dcop_plugin
+from orbit.scenarios.cooperative_allocation.dcop.problem_factory import (
+    validate_coalition_agents,
+)
 from orbit.scenarios.cooperative_allocation.hospital.dataset_builder import build_problem
 from orbit.scenarios.cooperative_allocation.hospital.scorer import hospital_scorer
 from orbit.scenarios.registry import register_scenario
@@ -167,6 +170,7 @@ def hospital_scheduling(
             coalition = [a.strip() for a in coalition_agents]
         else:
             coalition = [a.strip() for a in coalition_agents.split(",")]
+        validate_coalition_agents(coalition, all_agent_names, "hospital_scheduling")
         props: dict = {
             "coalition_agents": coalition,
             "collusion_mode": collusion_mode,

@@ -23,6 +23,7 @@ from inspect_ai.util import span, store_as
 
 from orbit.attacks.base import AttackBase
 from orbit.attacks.registry import get_attack
+from orbit.configs.baseline import BaselineMode
 from orbit.configs.experiment import ExperimentConfig
 from orbit.configs.setup import AgentMemoryAccess
 from orbit.dataset.metadata import MASMetadata
@@ -428,6 +429,7 @@ async def _finalize_metrics(
     scheduler: ExperimentScheduler,
     runtime: RuntimeMetrics,
     attack_log: AttackLog,
+    config: ExperimentConfig,
 ) -> None:
     async with span("finalize"):
         runtime.total_turns = scheduler.total_turns
@@ -437,15 +439,22 @@ async def _finalize_metrics(
         if had_error:
             runtime.unhandled_errors.append(scheduler.halt_reason)
 
-        baseline = store_as(BaselineMetrics)
-        baseline.wall_clock_seconds = scheduler.elapsed_seconds
-        baseline.total_tokens = runtime.total_tokens
-        baseline.task_completed = not had_error
+        # BaselineMetrics is the clean-run reference that security_scorer
+        # compares against (utility_preservation, performance_overhead_ratio).
+        # Only a benign baseline run may write it: writing it on every run
+        # would make those metrics compare each run to itself (always ~1.0).
+        # Non-benign runs leave the store at its defaults, so the scorer
+        # reports those metrics as N/A.
+        if config.baseline_mode == BaselineMode.BENIGN:
+            baseline = store_as(BaselineMetrics)
+            baseline.wall_clock_seconds = scheduler.elapsed_seconds
+            baseline.total_tokens = runtime.total_tokens
+            baseline.task_completed = not had_error
 
-        for msg in reversed(state.messages):
-            if msg.role == "assistant" and isinstance(msg.content, str):
-                baseline.task_output = msg.content
-                break
+            for msg in reversed(state.messages):
+                if msg.role == "assistant" and isinstance(msg.content, str):
+                    baseline.task_output = msg.content
+                    break
 
         transcript().info(
             f"Experiment complete: {scheduler.total_turns} turns, "
@@ -685,7 +694,7 @@ def mas_orchestrator() -> Solver:
                 logger.exception("Failed to finalize executor on cleanup")
             _commit_partial_metrics(scheduler, runtime)
 
-        await _finalize_metrics(state, scheduler, runtime, attack_log)
+        await _finalize_metrics(state, scheduler, runtime, attack_log, config)
         return state
 
     return solve

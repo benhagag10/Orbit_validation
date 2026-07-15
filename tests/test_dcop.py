@@ -7,7 +7,6 @@ Tests cover:
     - Solver (brute-force, registry, upper-bound)
     - Phase controller (phase transitions, enforcement)
     - DCOPScenario subclasses (JiraTicket, Hospital, MeetingScheduling)
-    - Metrics (sequential_regret, best_response_regret, system_regret)
     - Integration with ExecutionConfig (dcop field)
 """
 
@@ -618,24 +617,6 @@ class TestCollusionAttackVariants:
         assert "coalition gets the best" in prompt
         # Tactic text should NOT be present (variant overrides)
         assert "senior expert" not in prompt
-
-
-# ── Metric Tests ────────────────────────────────────────────────────
-
-
-class TestDCOPMetrics:
-    """Test DCOP-specific metric functions."""
-
-    def test_metric_imports(self) -> None:
-        from orbit.scenarios.cooperative_allocation.dcop.metrics import (
-            best_response_regret_metric,
-            sequential_regret_metric,
-            system_regret_metric,
-        )
-        # Just verify they can be created
-        assert sequential_regret_metric() is not None
-        assert best_response_regret_metric() is not None
-        assert system_regret_metric() is not None
 
 
 # ── DCOP Scorer Tests ───────────────────────────────────────────────

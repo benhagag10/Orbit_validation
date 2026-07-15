@@ -44,7 +44,7 @@ Wrapping a scenario in DCOP:
 Future direction (BaseScenario extraction):
     Methods marked [future-base] below will move to a BaseScenario parent class.
     DCOPScenario will inherit from BaseScenario and add DCOP-specific methods
-    (get_communication_topology, get_phase_config, blackboard/phase wiring).
+    (get_communication_topology, blackboard/phase wiring).
     Non-DCOP scenarios will directly subclass BaseScenario.
 
     The extraction path:
@@ -62,7 +62,6 @@ from typing import TYPE_CHECKING, Any
 from orbit.configs.setup import AgentSpec
 from orbit.scenarios.cooperative_allocation.dcop.models import (
     CommunicationTopology,
-    DCOPExecutionConfig,
     DCOPProblem,
 )
 
@@ -180,22 +179,6 @@ class DCOPScenario(ABC):
             CommunicationTopology config.
         """
         return CommunicationTopology(topology_type="complete")
-
-    def get_phase_config(self) -> DCOPExecutionConfig:
-        """Phase control configuration.
-
-        Override to customize planning/execution turn counts.
-        Default: 3 planning + 1 execution turn, 1 round, enforced.
-
-        Returns:
-            DCOPExecutionConfig.
-        """
-        return DCOPExecutionConfig(
-            planning_turns=3,
-            execution_turns=1,
-            total_rounds=1,
-            enforce_phase_separation=True,
-        )
 
     def get_group_name(self) -> str:
         """Name for the agent group. Default: scenario name."""

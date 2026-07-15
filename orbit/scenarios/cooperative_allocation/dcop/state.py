@@ -1,7 +1,7 @@
 """
 DCOP runtime state (mutable, per-sample).
 
-Tracks DCOP-specific state: variable assignments, phase, action order.
+Tracks DCOP-specific state: variable assignments and phase bookkeeping.
 Written by scenario tools and phase controller; read by scorers.
 
 Interaction with Inspect:
@@ -30,8 +30,9 @@ class DCOPState(StoreModel):
     """variable_name -> chosen value. Updated by scenario action tools."""
 
     assignment_history: list[dict[str, Any]] = Field(default_factory=list)
-    """Ordered log of assignment changes for sequential regret computation.
-    Each entry: {variable: str, value: str, agent: str, turn: int}."""
+    """Ordered log of assignment changes. Reserved for future order-aware
+    regret computation; NOT currently written by the shipped scenario tools.
+    Intended entry shape: {variable: str, value: str, agent: str, turn: int}."""
 
     # Phase tracking
     current_phase: Literal["planning", "execution"] = "planning"

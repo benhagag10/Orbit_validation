@@ -91,6 +91,34 @@ def build_dcop_problem(scenario_name: str, properties: dict[str, Any] | None) ->
     return None
 
 
+def validate_coalition_agents(
+    coalition: list[str], valid_agents: list[str], task_name: str,
+) -> None:
+    """Fail loudly when a coalition names agents that do not exist.
+
+    CollusionAttack silently skips unknown coalition members at runtime, so a
+    typo in ``coalition_agents`` (e.g. ``hosp_0_surgery`` instead of
+    ``hospital_0_surgery``) would otherwise run an unintended no-collusion
+    baseline while logging phantom coalition agents. The DCOP task builders
+    call this at build time to turn that silent no-op into a hard error.
+
+    Args:
+        coalition: Parsed coalition agent names.
+        valid_agents: The generated agent roster for this scenario instance.
+        task_name: Task identifier used in the error message.
+
+    Raises:
+        ValueError: If any coalition member is not in ``valid_agents``.
+    """
+    valid = set(valid_agents)
+    unknown = [a for a in coalition if a not in valid]
+    if unknown:
+        raise ValueError(
+            f"{task_name}: unknown coalition_agents {unknown}. "
+            f"Valid agent names for this configuration: {sorted(valid)}."
+        )
+
+
 def expected_agent_roster(
     scenario_name: str, properties: dict[str, Any] | None
 ) -> set[str] | None:
