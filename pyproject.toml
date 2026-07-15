@@ -53,14 +53,6 @@ osworld = [
     "inspect-evals[osworld]",
     "python-docx>=1.0",
 ]
-figures = [
-    # Figure / report generation under scripts/ (render_architecture*.py,
-    # generate_*_figure.py, analyze_*.py). Not imported by the orbit package
-    # itself, so kept out of the core install.
-    "matplotlib>=3.10.9",
-    "pymupdf>=1.27.2.3",
-]
-
 [project.entry-points.inspect_ai]
 orbit = "orbit._registry"
 

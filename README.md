@@ -251,11 +251,6 @@ Running a scenario without its extra raises an actionable error naming the exact
 uv run orbit verify-setup browserart   # or: swe-bench, osworld, bigcodebench, dcop, all
 ```
 
-> **Figure/report scripts.** The figure-generation helpers under `scripts/` need
-> `uv sync --extra figures` (matplotlib + pymupdf). They are kept out of the
-> core install so the base stays lean — no scenario or reporting dependency
-> leaks into a default `uv sync --extra dev`.
-
 > **LangGraph bridge.** Agents declared with `framework: "langgraph"` in a
 > YAML agent spec are bridged via Inspect's `agent_bridge()` and need
 > `uv sync --extra langgraph` (langgraph + langchain-openai). The default
@@ -273,6 +268,7 @@ See [Scenario Requirements](docs/scenarios.md) for full per-scenario setup.
 - [Scenarios](docs/scenarios.md) — per-scenario setup and requirements
 - [Evaluation](docs/evaluation.md) — scorers, metrics, and construct validity
 - [Adding a New Scenario](docs/adding-a-scenario.md) — authoring guide for the scenario plugin kit
+- [Scripts](scripts/README.md) — setup, data-fetch, log-auditing, and sweep tooling
 
 ---
 

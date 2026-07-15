@@ -320,3 +320,39 @@ class TestExperimentalIsolation:
                 )
                 assert a.tools == b.tools, f"{level}: tools mismatch for {a.name}"
             assert len(setup.edges) == len(baseline.edges)
+
+
+class TestDefensePresets:
+    """Defense preset accessor (security_presets.get_defense_preset)."""
+
+    def test_dual_llm_loads(self):
+        from orbit.scenarios.browser.browserart.security_presets import get_defense_preset
+
+        configs = get_defense_preset("dual_llm")
+        assert len(configs) == 1
+        assert configs[0].defense_type == "dual_llm"
+
+    def test_dual_llm_model_override_set(self):
+        from orbit.scenarios.browser.browserart.security_presets import get_defense_preset
+
+        configs = get_defense_preset("dual_llm")
+        assert configs[0].model_override == "openai/gpt-4o-mini"
+
+    def test_dual_llm_registry_instantiation(self):
+        from orbit.defenses.base import DefenseBase
+        from orbit.defenses.registry import get_defense
+        from orbit.scenarios.browser.browserart.security_presets import get_defense_preset
+
+        configs = get_defense_preset("dual_llm")
+        defense = get_defense(configs[0])
+        assert isinstance(defense, DefenseBase)
+
+    def test_all_defense_presets_load(self):
+        from orbit.configs.defense import DefenseConfig
+        from orbit.scenarios.browser.browserart.security_presets import get_defense_preset
+
+        for name in ["system_prompt", "llm_monitor", "guardian", "dual_llm"]:
+            configs = get_defense_preset(name)
+            assert len(configs) >= 1, f"Preset {name} returned empty"
+            for c in configs:
+                assert isinstance(c, DefenseConfig)
