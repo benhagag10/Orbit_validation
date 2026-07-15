@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Standalone setup checker for InspectMAS — zero dependencies (stdlib only).
+"""Standalone setup checker for Orbit — zero dependencies (stdlib only).
 
 Usage:
     python scripts/check_setup.py                        # General checks
@@ -302,7 +302,30 @@ def check_browserart() -> CheckGroup:
             "Playwright installed", "SKIP", "playwright not importable",
         ))
 
-    # 3. browserart-service reachable. The service container (started via
+    # 3. Fetched BrowserART data (hbb.json / hbb_benign.json / behaviors.json
+    # are upstream-derived CC BY-NC-ND 4.0 and not redistributed with Orbit —
+    # see orbit/scenarios/browser/browserart/data/README.md). Missing data is
+    # a WARN, not a FAIL: the bundled hbb_extension dataset runs without it.
+    browserart_dir = REPO_ROOT / "orbit" / "scenarios" / "browser" / "browserart"
+    missing = [
+        name
+        for name, rel in (
+            ("hbb.json", "data/hbb.json"),
+            ("hbb_benign.json", "data/hbb_benign.json"),
+            ("behaviors.json", "hbb/behaviors.json"),
+        )
+        if not (browserart_dir / rel).is_file()
+    ]
+    if not missing:
+        group.results.append(CheckResult("BrowserART data fetched", "PASS"))
+    else:
+        group.results.append(CheckResult(
+            "BrowserART data fetched", "WARN",
+            f"missing {', '.join(missing)} (hbb_extension runs without them)",
+            fix="uv run python scripts/fetch_browserart_data.py",
+        ))
+
+    # 4. browserart-service reachable. The service container (started via
     # scripts/browserart_service.sh up) exposes the session API on :7878 and
     # serves the mock websites internally — the host no longer serves :8000.
     service_url = os.environ.get("BROWSERART_SERVICE_URL", "http://localhost:7878")
@@ -540,8 +563,8 @@ def render(groups: list[CheckGroup]) -> int:
     use_color = _supports_color()
 
     print()
-    print("InspectMAS Setup Check")
-    print("======================")
+    print("Orbit Setup Check")
+    print("=================")
 
     counts: dict[str, int] = {"PASS": 0, "FAIL": 0, "WARN": 0, "SKIP": 0}
 
@@ -589,7 +612,7 @@ SCENARIO_CHECKERS = {
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Check that your environment is ready for InspectMAS.",
+        description="Check that your environment is ready for Orbit.",
     )
     parser.add_argument(
         "--scenario", action="append", choices=list(SCENARIOS),
@@ -604,7 +627,7 @@ def main() -> int:
     # Verify we're in the repo root
     if not (REPO_ROOT / "pyproject.toml").is_file():
         print(f"Warning: pyproject.toml not found at {REPO_ROOT}", file=sys.stderr)
-        print("Run this script from the InspectMAS repo root.", file=sys.stderr)
+        print("Run this script from the Orbit repo root.", file=sys.stderr)
 
     groups: list[CheckGroup] = [check_general()]
 

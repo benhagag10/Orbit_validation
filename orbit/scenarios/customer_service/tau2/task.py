@@ -6,11 +6,11 @@ Inspect ``Sample`` per tau2 task and wires up the tau2 scorer on top
 of the generic security scorer.
 
 A single ``preset`` selector picks the topology and the
-execution mode it implies: ``preset='solo'`` (PR 1, Orbit-specific
+execution mode it implies: ``preset='solo'`` (Orbit-specific
 airline-only single-agent baseline) and ``preset='dual_control'``
-(PR 2, upstream-faithful user simulator ↔ assistant loop), plus the
-PR 4 multi-agent presets, against the airline, retail, and telecom
-domains.
+(upstream-faithful user simulator ↔ assistant loop), plus the
+Orbit-specific multi-agent presets, against the airline, retail,
+and telecom domains.
 """
 
 from __future__ import annotations
@@ -360,8 +360,8 @@ def tau2(
       is accepted (as an Orbit-specific baseline; upstream rejects
       airline solo mode).
     - ``domain='retail'`` — 114 order-management tasks, reward_basis
-      ``[DB, NL_ASSERTION]`` on 112/114 tasks. Exercises the LLM judge
-      ported in PR 2.
+      ``[DB, NL_ASSERTION]`` on 112/114 tasks. Exercises the
+      NL_ASSERTION LLM judge.
     - ``domain='telecom'`` — 20 tasks from ``tasks_small.json`` (the
       regression subset upstream uses for most paper numbers;
       ``tasks.json`` with 2285 tasks is not vendored — point

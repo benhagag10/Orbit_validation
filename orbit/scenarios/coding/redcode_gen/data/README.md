@@ -42,8 +42,9 @@ constant) and writes them into this directory.
 
 ```bash
 git clone https://github.com/AI-secure/RedCode.git
-orbit run examples/redcode_gen_basic.yaml \
-  -T data_path=/path/to/RedCode/dataset/RedCode-Gen
+uv run inspect eval orbit/redcode_gen \
+  -T data_path=/path/to/RedCode/dataset/RedCode-Gen \
+  --model openai/gpt-4o
 ```
 
 ## Upstream attribution

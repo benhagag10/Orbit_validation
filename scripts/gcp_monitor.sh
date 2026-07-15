@@ -10,7 +10,7 @@ set -uo pipefail
 MODEL="${1:?}"
 DEFENSE="${2:?}"
 LOGFILE="$HOME/gcp_monitor.log"
-REPO_DIR="$HOME/InspectMAS"
+REPO_DIR="$HOME/Orbit"
 STALL_THRESHOLD=1800  # 30 minutes
 CHECK_INTERVAL=60
 

@@ -7,7 +7,7 @@ so the agent starts the first turn with page context. The teardown
 solver releases the session back to the service when the orchestrator
 finishes.
 
-Wired into ``browserart_safety()`` for single-agent runs in PR 2 via
+Wired into ``browserart_safety()`` via
 ``chain(browserart_setup, mas_orchestrator, browserart_teardown)``.
 """
 

@@ -1,7 +1,7 @@
 """Config builder for BigCodeBench experiments.
 
 Converts a :class:`BigCodeBenchTask` plus topology template into an
-:class:`ExperimentConfig` compatible with the InspectMAS orchestrator.
+:class:`ExperimentConfig` compatible with the Orbit orchestrator.
 Mirrors ``redcode_gen.config_builder`` so scripts can switch between
 the two scenarios with minimal changes.
 """

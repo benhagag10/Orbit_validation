@@ -86,7 +86,7 @@ def load_redcode_gen_tasks(
             "    uv run python scripts/fetch_redcode_data.py\n"
             "or pass data_path=<dir> to a directory containing the 8 "
             "category subdirectories. See "
-            "orbit/scenarios/redcode_gen/data/README.md for details."
+            "orbit/scenarios/coding/redcode_gen/data/README.md for details."
         )
 
     for category_dir in category_dirs:

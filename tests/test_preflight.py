@@ -102,6 +102,35 @@ class TestCheckBrowserart:
             pkg_check = next(r for r in results if "browsergym" in r.name.lower())
             assert not pkg_check.passed
 
+    def test_data_check_present(self):
+        results = check_browserart()
+        assert any("BrowserART data" in r.name for r in results)
+
+    def test_data_fetched_passes(self):
+        with patch("orbit.wrapper.preflight._browserart_data_missing",
+                   return_value=[]):
+            results = check_browserart()
+            data_check = next(r for r in results if "BrowserART data" in r.name)
+            assert data_check.passed
+            assert not data_check.warning
+
+    def test_data_missing_warns_not_fails(self):
+        # Missing fetched data must be a warning (hbb_extension still runs),
+        # and the message must point at the fetch script.
+        with patch("orbit.wrapper.preflight._browserart_data_missing",
+                   return_value=["hbb.json", "hbb_benign.json", "behaviors.json"]):
+            results = check_browserart()
+            data_check = next(r for r in results if "BrowserART data" in r.name)
+            assert not data_check.passed
+            assert data_check.warning
+            assert "fetch_browserart_data.py" in data_check.message
+
+    def test_data_missing_reflects_package_tree(self):
+        from orbit.wrapper.preflight import _browserart_data_missing
+
+        missing = _browserart_data_missing()
+        assert set(missing) <= {"hbb.json", "hbb_benign.json", "behaviors.json"}
+
 
 class TestCheckSweBench:
     def test_returns_results(self):

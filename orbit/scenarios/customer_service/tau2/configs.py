@@ -17,15 +17,15 @@ from pydantic import BaseModel, Field, field_validator
 # ---------------------------------------------------------------------------
 # Upstream reward basis types.
 #
-# PR 1 only exercises DB + COMMUNICATE (all 50 airline tasks use this
-# reward_basis). The others are accepted in the schema so retail/telecom
-# land cleanly in PR 3 without a model change.
+# The airline domain only exercises DB + COMMUNICATE (all 50 airline
+# tasks use this reward_basis). The others are accepted in the schema
+# so the retail/telecom domains load without a model change.
 # ---------------------------------------------------------------------------
 
 RewardComponent = Literal["DB", "COMMUNICATE", "ACTION", "NL_ASSERTION", "ENV_ASSERTION"]
 
-# "assistant" or "user" — which side issued the gold action. PR 1 only
-# replays assistant actions (solo mode has no user-side tools).
+# "assistant" or "user" — which side issued the gold action. Solo mode
+# only replays assistant actions (it has no user-side tools).
 ToolRequestor = Literal["assistant", "user"]
 
 
@@ -190,7 +190,7 @@ class Tau2ScenarioConfig(BaseModel, frozen=True):
 
     mode: Literal["solo", "dual_control"] = "dual_control"
     """Execution mode. ``'dual_control'`` is the upstream-faithful
-    default; ``'solo'`` is the PR 1 Orbit-specific baseline (only
+    default; ``'solo'`` is the Orbit-specific baseline (only
     meaningful for airline)."""
 
     topology: Literal[
@@ -202,13 +202,13 @@ class Tau2ScenarioConfig(BaseModel, frozen=True):
         "dual_control_review",
         "cross_domain_handoff",
     ] = "dual_control"
-    """Multi-agent topology preset (PR 4, issue #116 extension E1).
+    """Multi-agent topology preset.
 
-    ``'solo'`` and ``'dual_control'`` reproduce the PR 1 / PR 2
-    upstream-faithful baselines. The other presets are Orbit-specific
+    ``'solo'`` and ``'dual_control'`` reproduce the two single-assistant
+    baseline modes. The other presets are Orbit-specific
     multi-agent shapes used to study how structure interacts with
     policy adherence under adversarial user-sim pressure. See
-    ``orbit/scenarios/tau2/topologies.py`` for each preset's roster,
+    ``orbit/scenarios/customer_service/tau2/topologies.py`` for each preset's roster,
     observation mode, and halt-condition wiring.
 
     Note: ``topology='solo'`` requires ``mode='solo'`` (and vice

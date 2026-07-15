@@ -110,10 +110,12 @@ If the upstream repo changes and we need to refresh:
 
 ```bash
 git clone https://github.com/amrgomaaelhady/ConVerse /tmp/converse-upstream
-uv run python scripts/build_converse_data.py \
-    --upstream /tmp/converse-upstream \
-    --out orbit/scenarios/converse/data
+uv run python scripts/build_converse_data.py --upstream /tmp/converse-upstream
 ```
+
+The script writes to this directory
+(`orbit/scenarios/customer_service/converse/data`) by default; pass
+`--out` only to write elsewhere.
 
 The script is deterministic — re-running it on the same upstream commit
 produces byte-identical output.
@@ -121,5 +123,9 @@ produces byte-identical output.
 ## License
 
 Upstream ConVerse is MIT licensed. This normalized derivative is redistributed
-under the same terms. See the upstream
-[LICENSE](https://github.com/amrgomaaelhady/ConVerse/blob/main/LICENSE) file.
+under the same terms — see [`../LICENSE.converse`](../LICENSE.converse), a
+verbatim copy of the upstream
+[LICENSE](https://github.com/amrgomaaelhady/ConVerse/blob/main/LICENSE) at the
+vendored commit. The converse scenario *code* is Orbit-original and
+Apache-2.0 with the rest of Orbit; only the data under this directory is a
+ConVerse derivative (see the repository-root `NOTICE`).

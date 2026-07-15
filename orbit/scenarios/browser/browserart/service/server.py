@@ -95,8 +95,8 @@ class _Session:
     one thread, so Playwright's dispatcher stays on the thread it
     bound to on the very first session. The price is that sessions
     are serialised: parallel samples on the service run one step at a
-    time. PR 2+ can revisit this (subprocess-per-session inside the
-    container, or migrate BrowserGym to Playwright async).
+    time. A future revision could lift this (subprocess-per-session
+    inside the container, or migrate BrowserGym to Playwright async).
     """
 
     def __init__(self, env: EnvHandle) -> None:

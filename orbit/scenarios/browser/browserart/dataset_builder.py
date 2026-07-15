@@ -32,7 +32,7 @@ def _resolve_data_path(config: BrowserARTScenarioConfig) -> Path:
 
     Resolution order:
     1. config.data_path (explicit override)
-    2. Bundled package data: orbit/scenarios/browserart/data/
+    2. Bundled package data: orbit/scenarios/browser/browserart/data/
     """
     filename = DATASET_FILES.get(config.dataset, "hbb.json")
 
@@ -79,7 +79,7 @@ def _resolve_data_path(config: BrowserARTScenarioConfig) -> Path:
         f"redistributable). Fetch it with:\n"
         f"    uv run python scripts/fetch_browserart_data.py\n"
         f"or pass data_path=<dir> to a directory that contains "
-        f"{filename}. See orbit/scenarios/browserart/data/README.md."
+        f"{filename}. See orbit/scenarios/browser/browserart/data/README.md."
     )
 
 
@@ -105,7 +105,7 @@ def load_browserart_behaviors(
 
     items = data if isinstance(data, list) else data.get("behaviors", [])
 
-    # Merge Orbit-original custom benign tasks (restored from pre-#143).
+    # Merge the Orbit-original custom benign tasks.
     if config.dataset == "hbb_benign":
         custom_path = path.parent / "hbb_benign_custom.json"
         if custom_path.exists():

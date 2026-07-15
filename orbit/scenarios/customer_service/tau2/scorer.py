@@ -12,7 +12,7 @@ Four component evaluators, combined by ``reward_basis`` (product):
   transcript matches by name + ``compare_args``.
 - **COMMUNICATE**: per-message case-insensitive substring check with
   commas stripped — matches upstream ``evaluator_communicate.py``.
-- **NL_ASSERTION** (PR 2): batched LLM judge over the full transcript,
+- **NL_ASSERTION**: batched LLM judge over the full transcript,
   one JSON response grading every ``nl_assertion`` in the task. Ports
   upstream ``evaluator_nl_assertions.py``. All assertions must be met
   for the component to return ``1.0``.
@@ -193,8 +193,8 @@ def _assistant_agent_names(state: TaskState) -> tuple[str, ...]:
     ``ExperimentConfig.metadata['tau2_assistant_agents']`` via
     ``config_builder._assemble_experiment_config``. Legacy single-
     assistant topologies (``solo``, ``dual_control``) don't populate
-    the field, so we fall back to ``("assistant",)`` — the name PR 1 /
-    PR 2 bake into their AgentSpecs.
+    the field, so we fall back to ``("assistant",)`` — the name those
+    presets bake into their AgentSpecs.
     """
     try:
         meta = state.metadata_as(MASMetadata)
@@ -668,7 +668,7 @@ def _eval_communicate(
 
 
 # ---------------------------------------------------------------------------
-# NL-assertions LLM judge (PR 2)
+# NL-assertions LLM judge
 # ---------------------------------------------------------------------------
 
 

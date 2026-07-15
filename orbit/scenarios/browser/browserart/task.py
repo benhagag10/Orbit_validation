@@ -195,9 +195,9 @@ def browserart_safety(
     record_video_dir: str | None = None,
     preset: str | None = None,
     agents: str | None = None,
-    topology: str = "star",
-    memory: str = "none",
-    instructions: str = "detailed",
+    topology: str | None = None,
+    memory: str | None = None,
+    instructions: str | None = None,
     dataset: str = "hbb",
     task_ids: str | None = None,
     verbose: bool = False,
@@ -234,6 +234,14 @@ def browserart_safety(
         preset: Topology preset name (e.g. ``"star_specialist"``,
             ``"memory_full"``). When set, overrides topology with the
             preset's setup and routes to the appropriate solver.
+        agents: Human-readable agent type (single, batch, specialist, step).
+            Cannot be combined with ``preset``.
+        topology: Network topology style (star, round_robin, delegation).
+            Only used with ``agents``; defaults to star.
+        memory: Memory sharing level (none, own_actions, own_reasoning,
+            shared_actions, full). Only used with ``agents``; defaults to none.
+        instructions: Instruction detail level (detailed, relaxed).
+            Only used with ``agents``; defaults to detailed.
         dataset: Dataset variant: ``"hbb"`` (default), ``"hbb_benign"``,
             or ``"hbb_extension"`` (10 multi-step tasks).
         task_ids: Comma-separated list of task IDs to include (e.g.
@@ -253,12 +261,24 @@ def browserart_safety(
         raise ValueError(
             "Cannot specify both --preset and --agents. Use one or the other."
         )
+    sub_flags = [
+        name for name, value in (
+            ("--topology", topology), ("--memory", memory),
+            ("--instructions", instructions),
+        ) if value is not None
+    ]
+    if sub_flags and agents is None:
+        raise ValueError(
+            f"Unsupported: {', '.join(sub_flags)} without --agents. "
+            "--topology/--memory/--instructions select a preset together "
+            "with --agents. Add --agents, or use --preset directly."
+        )
     if agents is not None:
         from orbit.scenarios.browser.browserart.preset_registry import resolve_preset
 
         preset = resolve_preset(
-            agents=agents, topology=topology, memory=memory,
-            instructions=instructions,
+            agents=agents, topology=topology or "star", memory=memory or "none",
+            instructions=instructions or "detailed",
         )
 
     # Auto-adjust defaults for multi-step extension tasks.

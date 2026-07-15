@@ -1,7 +1,8 @@
 """
 Per-task ``ExperimentConfig`` builder for τ²-Bench.
 
-Topology selection lives in ``orbit/scenarios/tau2/topologies.py``. This
+Topology selection lives in
+``orbit/scenarios/customer_service/tau2/topologies.py``. This
 module is a thin glue layer that:
 
 1. Asks the topology module for a :class:`TopologyPlan` (agent specs,
@@ -15,7 +16,7 @@ module is a thin glue layer that:
 The scenario config's ``mode`` and ``topology`` fields together pick
 the preset (see ``topologies.build_topology`` for the
 mode×topology compatibility rules). Historical ``mode='solo'`` /
-``mode='dual_control'`` runs stay byte-identical to PR 1 / PR 2/3
+``mode='dual_control'`` runs stay byte-identical to their pre-preset
 output because ``build_topology`` dispatches them to the ``solo`` /
 ``dual_control`` presets, which produce the same roster this module
 used to build inline.

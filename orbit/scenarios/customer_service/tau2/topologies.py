@@ -1,5 +1,5 @@
 """
-τ²-Bench topology presets (PR 4, issue #116 extension E1).
+τ²-Bench topology presets.
 
 Upstream τ²-Bench only runs a single assistant against a single user
 simulator. Orbit can drop the same task + policy + domain DB into any
@@ -18,10 +18,10 @@ The presets:
 
 - **solo** — one ``assistant`` agent with the full domain tool list.
   The ticket is rendered into its system prompt. No user simulator.
-  Matches PR 1 baseline.
+  The Orbit-specific single-agent baseline (airline only).
 - **dual_control** — upstream-faithful two-agent loop: user_sim and
   assistant with ``peer_messages`` observation and the tau2 stop-
-  sentinel halt condition. Matches PR 2 / PR 3 default.
+  sentinel halt condition. Matches upstream's default execution mode.
 - **supervisor_specialist** — triage agent (reads-only) + one
   specialist agent per WRITE-role bucket in the domain. Specialists
   receive reads *and* their own WRITE tools, but not
@@ -151,7 +151,7 @@ class TopologyPlan:
     (single agent, terminal submit()); every multi-agent preset uses
     ``interleaved`` so agents yield after one model call per turn and
     don't prematurely call submit() out of the rotation. This mirrors
-    the PR 2 live-smoke fix that made tau2 dual_control actually
+    the live-smoke fix that made tau2 dual_control actually
     alternate instead of degenerating to one-turn-each."""
 
     scheduler: SchedulerConfig | None = None
@@ -309,7 +309,7 @@ def _build_solo_plan(
     scenario_config: "Tau2ScenarioConfig",
     policy_text: str,
 ) -> TopologyPlan:
-    # Orbit solo mode is the PR 1 airline-only baseline — upstream
+    # Orbit solo mode is an airline-only baseline — upstream
     # rejects airline-solo too, so any other domain should raise
     # rather than silently producing a degenerate roster.
     if task.domain != "airline":
