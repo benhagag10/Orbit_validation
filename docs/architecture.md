@@ -63,7 +63,7 @@ The `mas_orchestrator` `@solver` (`orbit/solvers/orchestrator.py`) is a single c
 - Turn order from the scheduling mode; completion via `SubmitRegistry`; peers see each other through observation summaries
 - Syncs per-agent messages back to the task state at the end
 
-In CLI-flag terms: `--agents single` and `--topology star` configurations build the `TopologyExecutor`, as do chain shapes written as YAML `edges`; the two mesh variants (`--topology round_robin` / `delegation`) configure `agent_groups` and build the `ScheduledExecutor`.
+In CLI-flag terms the mapping is indirect: the flags select a scenario preset, and the preset decides whether to populate `agent_groups`. Typically `--agents single`, `--topology star`, and chain shapes written as YAML `edges` leave it empty (`TopologyExecutor`), while the mesh variants (`--topology round_robin` / `delegation`) populate it (`ScheduledExecutor`) -- but scenarios can diverge: osworld's tool-wired mesh presets stay on the `TopologyExecutor`, and swe_bench populates `agent_groups` per multi-issue group regardless of topology.
 
 Cross-cutting concerns (attacks, defenses, memory injection, halt conditions, metrics) are implemented once in the orchestrator and apply to both executors.
 
