@@ -202,7 +202,7 @@ def main() -> None:
             print(f"  Schema version: {validation_cache.schema_version}")
         else:
             print(f"\nNo shipped validation data found.")
-            print(f"Run: python scripts/validate_swe_bench_pools.py")
+            print(f"Regenerate: scripts/validate_all_pools.py then scripts/build_validated_pools_json.py")
 
     print()
 
