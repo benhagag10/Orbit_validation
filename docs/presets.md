@@ -37,7 +37,7 @@ preset is — the whole experiment in plain config syntax. Most other scenarios 
 directly from its YAML.)
 
 > **Note:** τ²-Bench builds its agent roster per task (tools depend on the sample), so it has no
-> preset YAMLs and its own preset vocabulary. `orbit tau2` takes only `--preset` — one of `solo`,
+> preset YAMLs and its own preset vocabulary. `orbit tau2` selects its multi-agent shape only via `--preset` — one of `solo`,
 > `dual_control`, `supervisor_specialist`, `tiered_escalation`, `mesh_committee`,
 > `dual_control_review`, `cross_domain_handoff` — and none of the `--agents` / `--topology` /
 > `--memory` flags described on this page.
