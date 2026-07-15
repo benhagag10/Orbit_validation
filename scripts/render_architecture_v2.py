@@ -1,4 +1,4 @@
-"""Render InspectMAS architecture as ASCII box-art — matching poster layout."""
+"""Render Orbit architecture as ASCII box-art — matching poster layout."""
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
@@ -9,7 +9,7 @@ PINK = "#f07090"
 FONT = "Courier New"
 
 ASCII_ART = r"""
-       $ uv run inspectmas browserart --model openai/gpt-4o \
+       $ uv run orbit browserart --model openai/gpt-4o \
              --agents specialist --topology star --memory full
 
 
