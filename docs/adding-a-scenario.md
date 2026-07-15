@@ -722,9 +722,9 @@ uv run inspect list tasks orbit          # your @task should appear
 
 **Offline validation** — `orbit validate` and `orbit run --dry-run` both run
 the shared shorthand-resolution pipeline plus `ConfigValidator`, entirely
-offline. (`--skip-preflight` is a flag on the `orbit` group itself, so it goes
-*before* `run`. You can validate a shipped preset YAML directly — presets are
-runnable configs.)
+offline. (`--skip-preflight` is accepted both on the `orbit` group and after
+`run` — either placement works. You can validate a shipped preset YAML
+directly — presets are runnable configs.)
 
 ```bash
 uv run orbit validate examples/myscenario.yaml
