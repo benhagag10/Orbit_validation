@@ -356,7 +356,61 @@ def _parse_config_overrides(raw: tuple[str, ...]) -> dict[str, str] | None:
     return overrides
 
 
-@click.group()
+class SectionedGroup(click.Group):
+    """A ``click.Group`` whose ``--help`` lists commands in two sections.
+
+    Framework commands (run, validate, ...) and direct scenario runners
+    (browserart, swe-bench, ...) are different kinds of entry point, so the
+    help page separates them. A command opts into the scenario section at its
+    own declaration site — ``@cli.command("browserart", section="scenario")`` —
+    everything else lands under the core section.
+    """
+
+    _SECTION_TITLES = {
+        "core": "Core commands",
+        "scenario": "Scenario commands (no YAML needed)",
+    }
+
+    def command(self, *args, **kwargs):  # noqa: ANN002, ANN003, ANN201
+        section = kwargs.pop("section", "core")
+        parent = super().command(*args, **kwargs)
+        if isinstance(parent, click.Command):  # bare @cli.command usage
+            parent.section = section
+            return parent
+
+        def decorator(fn):  # noqa: ANN001, ANN202
+            cmd = parent(fn)
+            cmd.section = section
+            return cmd
+
+        return decorator
+
+    def format_commands(
+        self, ctx: click.Context, formatter: click.HelpFormatter
+    ) -> None:
+        sections: dict[str, list[tuple[str, click.Command]]] = {
+            key: [] for key in self._SECTION_TITLES
+        }
+        for name in self.list_commands(ctx):
+            cmd = self.get_command(ctx, name)
+            if cmd is None or cmd.hidden:
+                continue
+            section = getattr(cmd, "section", "core")
+            sections.setdefault(section, []).append((name, cmd))
+        widest = max(
+            (len(name) for cmds in sections.values() for name, _ in cmds),
+            default=0,
+        )
+        limit = formatter.width - 6 - widest
+        for key, cmds in sections.items():
+            if not cmds:
+                continue
+            rows = [(name, cmd.get_short_help_str(limit)) for name, cmd in cmds]
+            with formatter.section(self._SECTION_TITLES.get(key, key.title())):
+                formatter.write_dl(rows)
+
+
+@click.group(cls=SectionedGroup)
 @click.version_option()
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging.")
 @click.option("--skip-preflight", is_flag=True, help="Skip preflight checks.")
@@ -544,7 +598,7 @@ def suite_cmd(
         sys.exit(1)
 
 
-@cli.command("browserart")
+@cli.command("browserart", section="scenario")
 @click.option("--task-id", type=int, default=None, help="Single task ID to run.")
 @click.option("--dataset", type=click.Choice(["hbb", "hbb_benign", "hbb_extension"]),
               default="hbb", help="Dataset to use.")
@@ -597,7 +651,7 @@ def browserart_cmd(
     score: bool | None,
     config_overrides_raw: tuple[str, ...],
 ) -> None:
-    """Run a BrowserART eval directly (no YAML config needed).
+    """Run a BrowserART eval directly.
 
     Examples:
 
@@ -661,7 +715,7 @@ def browserart_cmd(
         sys.exit(1)
 
 
-@cli.command("swe-bench")
+@cli.command("swe-bench", section="scenario")
 @click.option("--repos", default=None, help="Comma-separated repo filter (e.g. django/django).")
 @click.option("--num-issues", type=int, default=2, help="Number of issues per group.")
 @click.option("--seed", type=int, default=None,
@@ -718,7 +772,7 @@ def swe_bench_cmd(
     score: bool | None,
     config_overrides_raw: tuple[str, ...],
 ) -> None:
-    """Run a SWE-Bench multi-issue eval directly (no YAML config needed).
+    """Run a SWE-Bench multi-issue eval directly.
 
     Examples:
 
@@ -785,7 +839,7 @@ def swe_bench_cmd(
         sys.exit(1)
 
 
-@cli.command("osworld")
+@cli.command("osworld", section="scenario")
 @click.option("--model", "-m", required=True, help="Model to evaluate.")
 @click.option("--dataset", type=click.Choice(
     ["osharm", "osharm_misuse", "osharm_injection", "osharm_misbehavior",
@@ -876,7 +930,7 @@ def osworld_cmd(
     score: bool | None,
     config_overrides_raw: tuple[str, ...],
 ) -> None:
-    """Run an OSWorld / OS-Harm eval directly (no YAML config needed).
+    """Run an OSWorld / OS-Harm eval directly.
 
     Use --dataset osharm* for safety evaluation, or --dataset osworld/osworld_small
     for benign benchmark evaluation.
@@ -966,7 +1020,7 @@ def osworld_cmd(
         sys.exit(1)
 
 
-@cli.command("redcode-gen")
+@cli.command("redcode-gen", section="scenario")
 @click.option("--model", "-m", required=True, help="Model to evaluate.")
 @click.option("--categories", default=None,
               help="Comma-separated malware categories (e.g. spyware,ransomware).")
@@ -1024,7 +1078,7 @@ def redcode_gen_cmd(
     score: bool | None,
     config_overrides_raw: tuple[str, ...],
 ) -> None:
-    """Run a RedCode-Gen eval directly (no YAML config needed).
+    """Run a RedCode-Gen eval directly.
 
     Examples:
 
@@ -1075,7 +1129,7 @@ def redcode_gen_cmd(
         sys.exit(1)
 
 
-@cli.command("tau2")
+@cli.command("tau2", section="scenario")
 @click.option("--model", "-m", required=True, help="Model to evaluate.")
 @click.option("--domain", type=click.Choice(["airline", "retail", "telecom"]),
               default="airline",
@@ -1142,7 +1196,7 @@ def tau2_cmd(
     score: bool | None,
     config_overrides_raw: tuple[str, ...],
 ) -> None:
-    """Run a τ²-Bench eval directly (no YAML config needed).
+    """Run a τ²-Bench eval directly.
 
     Examples:
 
