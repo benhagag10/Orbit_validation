@@ -8,7 +8,7 @@ The core install — `uv sync` — runs most scenarios as-is. Only four scenario
 
 | Scenario | Family | Pip extra | System / runtime | Data step | Verify |
 |----------|--------|-----------|------------------|-----------|--------|
-| BrowserART | Browser | `uv sync --extra browserart` | Docker (browserart-service), Playwright/Chromium | `scripts/fetch_browserart_data.py` | `uv run orbit verify-setup browserart` |
+| BrowserART | Browser | `uv sync --extra browserart` | Docker (browserart-service), Playwright/Chromium | auto (first run) — or pre-fetch: `scripts/fetch_browserart_data.py` | `uv run orbit verify-setup browserart` |
 | SWE-Bench | Coding | `uv sync --extra swebench` | Docker, `GITHUB_TOKEN` | auto (runtime) | `uv run orbit verify-setup swe-bench` |
 | BigCodeBench | Coding | `uv sync --extra bigcodebench` | Docker (sandbox) | auto (HuggingFace) | `uv run orbit verify-setup bigcodebench` |
 | RedCode-Gen | Coding | core (no extra) | Docker (sandbox) | `scripts/fetch_redcode_data.py` | — |
@@ -39,9 +39,9 @@ Tests whether browser agents refuse harmful instructions (phishing pages, malici
 uv sync --extra browserart
 ```
 
-This installs the host-side packages — [BrowserGym](https://github.com/ServiceNow/BrowserGym) (browser automation), `starlette`, and the `anthropic` SDK.
+This installs the host-side packages — [browsergym-core](https://github.com/ServiceNow/BrowserGym) (browser automation) and `starlette`.
 
-**Fetch the dataset.** Only Orbit's original `hbb_extension.json` is redistributed; the upstream HarmBench-Browser behaviors are fetched locally (not redistributed):
+**Dataset.** Only Orbit's original `hbb_extension.json` is redistributed; the upstream HarmBench-Browser behaviors are downloaded locally from upstream (not redistributed). This happens **automatically on the first run** that needs them (set `ORBIT_AUTOFETCH=0` to disable). For offline environments, pre-fetch with:
 
 ```bash
 uv run python scripts/fetch_browserart_data.py

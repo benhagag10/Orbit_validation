@@ -308,7 +308,8 @@ def check_browserart() -> CheckGroup:
     # 3. Fetched BrowserART data (hbb.json / hbb_benign.json / behaviors.json
     # are upstream-derived CC BY-NC-ND 4.0 and not redistributed with Orbit —
     # see orbit/scenarios/browser/browserart/data/README.md). Missing data is
-    # a WARN, not a FAIL: the bundled hbb_extension dataset runs without it.
+    # a WARN, not a FAIL: it is auto-fetched on first use (ORBIT_AUTOFETCH=0
+    # disables) and the bundled hbb_extension dataset runs without it.
     browserart_dir = REPO_ROOT / "orbit" / "scenarios" / "browser" / "browserart"
     missing = [
         name
@@ -324,7 +325,8 @@ def check_browserart() -> CheckGroup:
     else:
         group.results.append(CheckResult(
             "BrowserART data fetched", "WARN",
-            f"missing {', '.join(missing)} (hbb_extension runs without them)",
+            f"missing {', '.join(missing)} (auto-fetched on first use; "
+            f"hbb_extension runs without them)",
             fix="uv run python scripts/fetch_browserart_data.py",
         ))
 

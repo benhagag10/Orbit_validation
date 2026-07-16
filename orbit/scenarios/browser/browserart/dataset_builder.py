@@ -66,14 +66,17 @@ def _resolve_data_path(config: BrowserARTScenarioConfig) -> Path:
     # hbb_extension.json is Orbit-original (Apache-2.0) and is always
     # bundled. The other BrowserART datasets are upstream-derived
     # (CC BY-NC-ND 4.0 per upstream LICENSE file) and are not
-    # redistributed — users must fetch them with the helper script.
+    # redistributed — they are auto-fetched from upstream on first use
+    # (disable with ORBIT_AUTOFETCH=0) or fetched manually with the
+    # helper script.
     if filename == "hbb_extension.json":
         raise FileNotFoundError(
             f"BrowserART dataset '{filename}' not found at {module_dir}. "
             "This is Orbit-original content that should be bundled with "
             "the package; re-install Orbit to recover."
         )
-    raise FileNotFoundError(
+
+    not_vendored_msg = (
         f"BrowserART dataset '{filename}' is not vendored in Orbit "
         f"(upstream scaleapi/browser-art is CC BY-NC-ND 4.0 and is not "
         f"redistributable). Fetch it with:\n"
@@ -81,6 +84,22 @@ def _resolve_data_path(config: BrowserARTScenarioConfig) -> Path:
         f"or pass data_path=<dir> to a directory that contains "
         f"{filename}. See orbit/scenarios/browser/browserart/data/README.md."
     )
+
+    from orbit.scenarios.browser.browserart import fetch
+
+    if not fetch.autofetch_enabled():
+        raise FileNotFoundError(
+            not_vendored_msg + "\n(Auto-fetch is disabled via ORBIT_AUTOFETCH.)"
+        )
+    try:
+        fetch.ensure_browserart_data()
+    except fetch.BrowserARTFetchError as exc:
+        raise FileNotFoundError(
+            not_vendored_msg + f"\n(Auto-fetch was attempted and failed: {exc})"
+        ) from exc
+    if module_dir.exists():
+        return module_dir
+    raise FileNotFoundError(not_vendored_msg)
 
 
 def load_browserart_behaviors(
