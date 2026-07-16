@@ -91,7 +91,7 @@ SCENARIO_REQUIREMENTS: dict[str, ScenarioRequirements] = {
     "browserart": ScenarioRequirements(
         scenario="browserart",
         extra="browserart",
-        packages=("browsergym", "starlette"),
+        packages=("browsergym.core", "starlette"),
         needs_docker=True,  # browserart-service container
         other_system=(
             "browserart-service (scripts/browserart_service.sh up); the "

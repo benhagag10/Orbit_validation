@@ -167,12 +167,14 @@ def check_browserart() -> list[CheckResult]:
     """Check BrowserART-specific prerequisites."""
     results: list[CheckResult] = []
 
-    # browsergym importable
-    if find_spec("browsergym") is not None:
-        results.append(CheckResult("Python packages (browsergym)", passed=True))
+    # browsergym-core importable (the extra installs core, not the metapackage;
+    # the bare "browsergym" name is a namespace package any browsergym-* dist
+    # satisfies, so probe the submodule hbb/ actually imports)
+    if find_spec("browsergym.core") is not None:
+        results.append(CheckResult("Python packages (browsergym-core)", passed=True))
     else:
         results.append(CheckResult(
-            "Python packages (browsergym)", passed=False,
+            "Python packages (browsergym-core)", passed=False,
             message="Install with: uv sync --extra browserart",
         ))
 
