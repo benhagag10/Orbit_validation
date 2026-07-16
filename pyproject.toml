@@ -34,9 +34,17 @@ langgraph = [
     "langsmith",
 ]
 browserart = [
-    "browsergym>=0.10.0",
+    # browsergym-core, NOT the browsergym metapackage: the metapackage drags
+    # in torch/CUDA/transformers (~180 packages, multiple GB) via its
+    # webarena/assistantbench subpackages, none of which Orbit imports. Core
+    # is all hbb/ needs and matches the service image (service/requirements.txt).
+    # Capped <0.14: browsergym-core 0.14.x pins playwright==1.44, whose exact
+    # greenlet==3.0.3 pin has no Python 3.13 wheels and fails to build there;
+    # 0.13.x uses playwright~=1.39, so the floor below can pull a 3.13-capable
+    # greenlet. (The service container keeps 0.14.x — it runs on Python 3.11.)
+    "browsergym-core>=0.10.0,<0.14",
+    "playwright>=1.48",
     "starlette>=0.46",
-    "anthropic>=0.30",
 ]
 swebench = [
     "swebench>=3.0",

@@ -257,20 +257,23 @@ def check_general() -> CheckGroup:
 def check_browserart() -> CheckGroup:
     group = CheckGroup("BrowserART")
 
-    # 1. browsergym importable + version
-    if _can_import("browsergym"):
-        ver = _module_version("browsergym") or "unknown"
+    # 1. browsergym-core importable + version. Probe the ``browsergym.core``
+    # submodule (not the bare namespace package, which any browsergym-* dist
+    # satisfies) and take the version from the browsergym-core distribution —
+    # the extra installs core, not the torch-dragging metapackage.
+    if _can_import("browsergym.core"):
+        ver = _module_version("browsergym_core") or "unknown"
         v_tuple = _parse_version_tuple(ver) if ver != "unknown" else (0,)
         if v_tuple >= (0, 10):
-            group.results.append(CheckResult("browsergym installed", "PASS", ver))
+            group.results.append(CheckResult("browsergym-core installed", "PASS", ver))
         else:
             group.results.append(CheckResult(
-                "browsergym >= 0.10", "FAIL", f"found {ver}",
+                "browsergym-core >= 0.10", "FAIL", f"found {ver}",
                 fix="uv sync --extra browserart",
             ))
     else:
         group.results.append(CheckResult(
-            "browsergym installed", "FAIL",
+            "browsergym-core installed", "FAIL",
             fix="uv sync --extra browserart",
         ))
 
