@@ -52,8 +52,8 @@ We found that multi-agent security lacks a standardized toolkit for experimentat
 - An LLM API key (any provider supported by [Inspect AI](https://inspect.aisi.org.uk/models.html))
 
 ```bash
-# Install
-uv sync --extra dev
+# Install (dev tools included by default)
+uv sync
 
 # Set your API key(s)
 export OPENAI_API_KEY=sk-...          # or ANTHROPIC_API_KEY, GOOGLE_API_KEY, etc.
@@ -76,8 +76,8 @@ Each block pairs a scenario's one-time setup with a small first run.
 
 ```bash
 # One-time setup: scenario extra + local browser service
-# (re-list --extra dev: uv sync removes extras it isn't given)
-uv sync --extra dev --extra browserart
+# (uv sync removes extras it isn't given — re-list any other scenario extras you use)
+uv sync --extra browserart
 scripts/browserart_service.sh up
 
 # Single agent
@@ -91,7 +91,7 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --dataset hbb_exten
 
 ```bash
 # One-time setup: scenario extra + GitHub token
-uv sync --extra dev --extra swebench
+uv sync --extra swebench
 export GITHUB_TOKEN=ghp_...
 
 # 2 coding agents on independent issues (first run pulls a multi-GB Docker image)
@@ -265,10 +265,10 @@ orbit/
 
 ## Scenario-Specific Setup
 
-The core install (`uv sync --extra dev`) runs most scenarios as-is. Four scenarios
+The core install (`uv sync`) runs most scenarios as-is. Four scenarios
 need an additional pip extra (a fifth, JiraTicket, needs `--extra dcop`, which the
-`dev` install already includes); several also need Docker and/or a one-time data fetch.
-Install only what the scenarios you actually run require.
+core install already includes via the default dev group); several also need Docker
+and/or a one-time data fetch. Install only what the scenarios you actually run require.
 
 | Scenario | Family | Install | System / runtime | Data step |
 |----------|--------|---------|------------------|-----------|
@@ -280,7 +280,7 @@ Install only what the scenarios you actually run require.
 | OSWorld / OS-Harm | Desktop | `uv sync --extra osworld` | Docker | auto (HuggingFace) |
 | &tau;&sup2;-Bench | Customer Service | core | — | vendored |
 | ConVerse | Customer Service | core | — | vendored |
-| JiraTicket | Cooperative Allocation | `uv sync --extra dcop` (included in `--extra dev`) | — | generated |
+| JiraTicket | Cooperative Allocation | `uv sync --extra dcop` (included in the default install) | — | generated |
 | Hospital | Cooperative Allocation | core | — | generated |
 | MeetSched | Cooperative Allocation | core | — | generated |
 

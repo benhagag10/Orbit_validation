@@ -2686,11 +2686,6 @@ browserart = [
 dcop = [
     { name = "scipy" },
 ]
-dev = [
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "scipy" },
-]
 langgraph = [
     { name = "langchain-openai" },
     { name = "langgraph" },
@@ -2703,6 +2698,13 @@ osworld = [
 swebench = [
     { name = "docker" },
     { name = "swebench" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "orbit", extra = ["dcop"] },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
 ]
 
 [package.metadata]
@@ -2720,17 +2722,21 @@ requires-dist = [
     { name = "langgraph", marker = "extra == 'langgraph'" },
     { name = "langsmith", marker = "extra == 'langgraph'" },
     { name = "openai", specifier = ">=1.0" },
-    { name = "orbit", extras = ["dcop"], marker = "extra == 'dev'" },
     { name = "pydantic", specifier = ">=2.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21" },
     { name = "python-docx", marker = "extra == 'osworld'", specifier = ">=1.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "scipy", marker = "extra == 'dcop'", specifier = ">=1.11" },
     { name = "starlette", marker = "extra == 'browserart'", specifier = ">=0.46" },
     { name = "swebench", marker = "extra == 'swebench'", specifier = ">=3.0" },
 ]
-provides-extras = ["dev", "langgraph", "browserart", "swebench", "bigcodebench", "dcop", "osworld"]
+provides-extras = ["langgraph", "browserart", "swebench", "bigcodebench", "dcop", "osworld"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "orbit", extras = ["dcop"] },
+    { name = "pytest", specifier = ">=7.0" },
+    { name = "pytest-asyncio", specifier = ">=0.21" },
+]
 
 [[package]]
 name = "orjson"

@@ -65,6 +65,19 @@ def test_install_command_shape() -> None:
     assert jira is not None and jira.install_command == "uv sync --extra dcop"
     hospital = R.requirements_for("hospital")
     assert hospital is not None and hospital.extra is None
+    assert hospital.install_command == "uv sync"
+
+
+def test_dev_group_is_a_default_dependency_group() -> None:
+    # Plain `uv sync` must be a complete first setup: dev tooling lives in the
+    # PEP 735 `dev` dependency group (installed by uv by default), and it must
+    # keep pulling in orbit[dcop] so DCOP tests don't silently skip.
+    data = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())
+    dev = data.get("dependency-groups", {}).get("dev", [])
+    assert any(req.startswith("pytest") for req in dev)
+    assert "orbit[dcop]" in dev
+    # And `dev` must NOT be an extra anymore — extras are for scenarios.
+    assert "dev" not in _pyproject_extras()
 
 
 def test_missing_extra_message_actionable(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -11,7 +11,7 @@ All three produce the same Inspect eval logs viewable with `inspect view`.
 ## Installation
 
 ```bash
-uv sync --extra dev
+uv sync
 ```
 
 The examples in this document additionally need their scenario's own setup:

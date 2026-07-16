@@ -20,7 +20,7 @@
 # Expect ~2-3 minutes runtime and ~400K tokens.
 #
 # Prerequisites:
-#   uv sync --extra dev
+#   uv sync
 #
 # Usage:
 #   ./examples/run_single_extension_task.sh

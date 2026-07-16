@@ -18,9 +18,9 @@ from typing import Any
 import pytest
 
 # The service module imports starlette at module load. starlette ships
-# in the ``browserart`` extra only, so CI runs that install just
-# ``--extra dev`` must skip this file entirely. importorskip must run
-# BEFORE the service-module import below.
+# in the ``browserart`` extra only, so CI runs on the default install
+# (plain ``uv sync``, no browserart extra) must skip this file entirely.
+# importorskip must run BEFORE the service-module import below.
 pytest.importorskip(
     "starlette",
     reason="starlette is only installed with the browserart extra",

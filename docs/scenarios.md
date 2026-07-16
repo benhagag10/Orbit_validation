@@ -2,7 +2,7 @@
 
 Each scenario has its own dependencies. You only need to install the ones for the experiments you want to run. If a dependency is missing, you'll get a clear error message telling you exactly what to install (the exact `uv sync --extra <name>` command).
 
-The core install — `uv sync --extra dev` — runs most scenarios as-is. Only four scenarios need an additional pip extra (a fifth, JiraTicket, needs the `dcop` extra, which the `dev` install already includes). The table below is the single source of truth; it mirrors `[project.optional-dependencies]` in `pyproject.toml` and the central map in `orbit/scenarios/requirements.py`.
+The core install — `uv sync` — runs most scenarios as-is. Only four scenarios need an additional pip extra (a fifth, JiraTicket, needs the `dcop` extra, which the default install already includes via the `dev` dependency group). The table below is the single source of truth; it mirrors `[project.optional-dependencies]` in `pyproject.toml` and the central map in `orbit/scenarios/requirements.py`.
 
 ## Install matrix
 
@@ -16,7 +16,7 @@ The core install — `uv sync --extra dev` — runs most scenarios as-is. Only f
 | OSWorld / OS-Harm | Desktop | `uv sync --extra osworld` | Docker | auto (HuggingFace) | `uv run orbit verify-setup osworld` |
 | &tau;&sup2;-Bench | Customer Service | core (no extra) | — | vendored | — |
 | ConVerse | Customer Service | core (no extra) | — | vendored | — |
-| JiraTicket | Cooperative Allocation | `uv sync --extra dcop` (included in `--extra dev`) | — | generated | `uv run orbit verify-setup dcop` |
+| JiraTicket | Cooperative Allocation | `uv sync --extra dcop` (included in the default install) | — | generated | `uv run orbit verify-setup dcop` |
 | Hospital | Cooperative Allocation | core (no extra) | — | generated | — |
 | MeetSched | Cooperative Allocation | core (no extra) | — | generated | — |
 
@@ -427,7 +427,7 @@ Running JiraTicket without SciPy raises: `Scenario 'jira_ticket' needs the optio
 
 ## Core-install scenarios
 
-These scenarios run on the base install (`uv sync --extra dev`) — no extra to install. Some need Docker (a code sandbox) and/or a one-time data fetch.
+These scenarios run on the base install (`uv sync`) — no extra to install. Some need Docker (a code sandbox) and/or a one-time data fetch.
 
 ### RedCode-Gen (Coding Agent)
 
