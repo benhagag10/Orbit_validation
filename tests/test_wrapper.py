@@ -306,6 +306,22 @@ class TestCLI:
         assert result.exit_code == 0
         assert "Orbit" in result.output
 
+    def test_help_separates_core_and_scenario_commands(self, runner: CliRunner):
+        # The group help lists framework commands and direct scenario runners
+        # under separate headers, each command in its own section.
+        from orbit.wrapper.cli import cli
+
+        result = runner.invoke(cli, ["--help"])
+        assert result.exit_code == 0
+        out = result.output
+        core_at = out.index("Core commands:")
+        scenario_at = out.index("Scenario commands (no YAML needed):")
+        assert core_at < scenario_at
+        for name in ("run", "suite", "score", "validate", "verify-setup"):
+            assert core_at < out.index(f"\n  {name} ") < scenario_at
+        for name in ("browserart", "swe-bench", "osworld", "redcode-gen", "tau2"):
+            assert out.index(f"\n  {name} ") > scenario_at
+
     def test_run_help_exits_0(self, runner: CliRunner):
         from orbit.wrapper.cli import cli
 

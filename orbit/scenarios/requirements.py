@@ -68,7 +68,7 @@ class ScenarioRequirements:
         """The ``uv sync`` command that installs this scenario's Python deps."""
         if self.extra:
             return f"uv sync --extra {self.extra}"
-        return "uv sync --extra dev"
+        return "uv sync"
 
     def missing_packages(self) -> list[str]:
         """Subset of ``packages`` that are not importable in this environment."""

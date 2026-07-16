@@ -227,7 +227,7 @@ def check_general() -> CheckGroup:
     # 8. Core deps resolvable (skip if uv missing)
     if uv_ver and (REPO_ROOT / "pyproject.toml").is_file():
         try:
-            r = _run(["uv", "sync", "--dry-run", "--extra", "dev"], timeout=30)
+            r = _run(["uv", "sync", "--dry-run"], timeout=30)
             if r.returncode == 0:
                 group.results.append(CheckResult("Core deps resolvable (uv sync --dry-run)", "PASS"))
             else:
@@ -235,7 +235,7 @@ def check_general() -> CheckGroup:
                 msg = stderr[-1] if stderr else "uv sync failed"
                 group.results.append(CheckResult(
                     "Core deps resolvable", "FAIL", msg[:120],
-                    fix="Run: uv sync --extra dev",
+                    fix="Run: uv sync",
                 ))
         except subprocess.TimeoutExpired:
             group.results.append(CheckResult(
