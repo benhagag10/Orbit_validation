@@ -273,15 +273,17 @@ class TestTopologyExecutor:
         await wrapped("state-2")  # deduped, order preserved
         assert executor._invoked == ["worker"]
 
-    def test_built_agents_are_observed_and_keep_registry_name(self, multi_agent_setup):
-        """The observer wrapper must not disturb agent registry names:
-        handoff() derives its transfer_to_<name> tool name from them, and
-        agent_handoff resolves the sub-agent name the same way."""
-        from inspect_ai._util.registry import registry_unqualified_name
+    def test_built_agents_are_observed_and_keep_tool_name(self, multi_agent_setup):
+        """The observer wrapper must not disturb agent naming: handoff()
+        derives its transfer_to_<name> tool name via agent_tool_name(),
+        which since inspect-ai 0.3.247 prefers the display name that
+        agent_with(name=...) sets (registry identity is no longer
+        overridden), so assert the exact name handoff() would use."""
+        from inspect_ai.agent._as_tool import agent_tool_name
         from orbit.execution.topology_executor import TopologyExecutor
         executor = TopologyExecutor(multi_agent_setup)
         for name, agent in executor.agents.items():
-            assert registry_unqualified_name(agent) == name
+            assert agent_tool_name(agent) == name
 
     def test_attribute_only_records_from_start_index(self, single_agent_setup):
         from orbit.execution.topology_executor import TopologyExecutor
