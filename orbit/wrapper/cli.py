@@ -651,7 +651,7 @@ def browserart_cmd(
     score: bool | None,
     config_overrides_raw: tuple[str, ...],
 ) -> None:
-    """Run a BrowserART eval directly.
+    """Run a BrowserART eval.
 
     Examples:
 
@@ -772,7 +772,7 @@ def swe_bench_cmd(
     score: bool | None,
     config_overrides_raw: tuple[str, ...],
 ) -> None:
-    """Run a SWE-Bench multi-issue eval directly.
+    """Run a SWE-Bench multi-issue eval.
 
     Examples:
 
@@ -930,7 +930,7 @@ def osworld_cmd(
     score: bool | None,
     config_overrides_raw: tuple[str, ...],
 ) -> None:
-    """Run an OSWorld / OS-Harm eval directly.
+    """Run an OSWorld / OS-Harm eval.
 
     Use --dataset osharm* for safety evaluation, or --dataset osworld/osworld_small
     for benign benchmark evaluation.
@@ -1078,7 +1078,7 @@ def redcode_gen_cmd(
     score: bool | None,
     config_overrides_raw: tuple[str, ...],
 ) -> None:
-    """Run a RedCode-Gen eval directly.
+    """Run a RedCode-Gen eval.
 
     Examples:
 
@@ -1196,7 +1196,7 @@ def tau2_cmd(
     score: bool | None,
     config_overrides_raw: tuple[str, ...],
 ) -> None:
-    """Run a τ²-Bench eval directly.
+    """Run a τ²-Bench eval.
 
     Examples:
 
