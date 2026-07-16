@@ -5,80 +5,28 @@ Orbit does not redistribute BrowserART's upstream datasets because the
 upstream `scaleapi/browser-art` LICENSE file is CC BY-NC-ND 4.0, which
 is incompatible with Orbit's Apache-2.0 license. This script downloads
 the three files needed to run the BrowserART scenarios from upstream
-directly.
+directly. (The same download also happens automatically on first use of
+a non-vendored dataset — this script exists for offline preparation and
+for ORBIT_AUTOFETCH=0 environments.)
 
 Downloaded content is subject to the upstream license; do not
 redistribute from Orbit's tree. See
 ``orbit/scenarios/browser/browserart/data/README.md``.
 
-Pinned revision:
-    ``0d72180042f2a076c68e1114e7494cb3fc7dd30b``
-    (https://github.com/scaleapi/browser-art)
+The pinned revision, file list, and download machinery live in
+``orbit.scenarios.browser.browserart.fetch``.
 """
 
 from __future__ import annotations
 
 import argparse
-import hashlib
-import ssl
+import logging
 import sys
 from pathlib import Path
-from urllib.error import HTTPError, URLError
-from urllib.request import urlopen
 
-REVISION = "0d72180042f2a076c68e1114e7494cb3fc7dd30b"
-BASE_URL = f"https://raw.githubusercontent.com/scaleapi/browser-art/{REVISION}"
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-# (upstream_path, destination relative to repo root)
-FILES = (
-    (
-        "src/datasets/behaviors/hbb.json",
-        "orbit/scenarios/browser/browserart/data/hbb.json",
-    ),
-    (
-        "src/datasets/behaviors/hbb_benign.json",
-        "orbit/scenarios/browser/browserart/data/hbb_benign.json",
-    ),
-    (
-        "src/agents/OpenDevin/BrowserGym/hbb/src/browsergym/hbb/behaviors.json",
-        "orbit/scenarios/browser/browserart/hbb/behaviors.json",
-    ),
-)
-
-
-def _sha256(path: Path) -> str:
-    h = hashlib.sha256()
-    with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def _ssl_context() -> ssl.SSLContext:
-    """TLS context preferring certifi's CA bundle when available.
-
-    Stock macOS Python ships no CA bundle for stdlib ``ssl``, so a plain
-    ``urlopen`` fails with ``SSL: CERTIFICATE_VERIFY_FAILED``.
-    """
-    try:
-        import certifi
-    except ImportError:
-        return ssl.create_default_context()
-    return ssl.create_default_context(cafile=certifi.where())
-
-
-_SSL_CONTEXT = _ssl_context()
-
-
-def _download(url: str) -> bytes:
-    try:
-        with urlopen(url, context=_SSL_CONTEXT) as resp:
-            return resp.read()
-    except (HTTPError, URLError) as exc:
-        raise SystemExit(
-            f"Failed to download {url}: {exc}. Check network and the "
-            f"pinned revision."
-        ) from exc
+from orbit.scenarios.browser.browserart import fetch  # noqa: E402
 
 
 def main() -> int:
@@ -98,28 +46,22 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    print(
-        "BrowserART upstream data is licensed under CC BY-NC-ND 4.0 per\n"
-        "scaleapi/browser-art's LICENSE file. By running this script you\n"
-        "download that data subject to its upstream terms. Do not\n"
-        "redistribute it from Orbit's tree.\n"
-    )
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    print(fetch.LICENSE_NOTICE + "\n")
 
-    any_changed = False
-    for upstream_path, dest_rel in FILES:
-        dst = args.repo_root / dest_rel
-        if dst.exists() and not args.force:
-            print(f"✓ {dest_rel} (already present, sha256={_sha256(dst)[:12]})")
-            continue
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        url = f"{BASE_URL}/{upstream_path}"
-        print(f"↓ downloading {dest_rel} from {url}")
-        dst.write_bytes(_download(url))
-        any_changed = True
+    package_dir = args.repo_root / "orbit" / "scenarios" / "browser" / "browserart"
+    try:
+        written = fetch.ensure_browserart_data(package_dir, force=args.force)
+    except fetch.BrowserARTFetchError as exc:
+        raise SystemExit(str(exc)) from exc
 
+    for _, dest_rel in fetch.FILES:
+        dst = package_dir / dest_rel
+        status = "downloaded" if dst in written else "already present"
+        print(f"✓ {dst.relative_to(args.repo_root)} ({status})")
     print(
         f"\nBrowserART data ready under {args.repo_root}. "
-        f"{'Updated' if any_changed else 'No changes needed'}."
+        f"{'Updated' if written else 'No changes needed'}."
     )
     return 0
 

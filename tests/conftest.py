@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
+import os
+
 import pytest
+
+# Keep the suite hermetic: never let a test that hits a missing-dataset path
+# trigger a real upstream download. Tests of the auto-fetch behavior itself
+# re-enable this with monkeypatch and a mocked downloader.
+os.environ.setdefault("ORBIT_AUTOFETCH", "0")
 
 from orbit.configs.attack import AttackConfig
 from orbit.configs.defense import DefenseConfig

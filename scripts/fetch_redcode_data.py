@@ -1,95 +1,32 @@
 #!/usr/bin/env python3
 """Fetch RedCode-Gen upstream data at a pinned commit.
 
-Orbit does not redistribute the RedCode-Gen malware-stub dataset
-because the upstream ``AI-secure/RedCode`` repository has no LICENSE
-file. This script downloads the 160 Python function stubs (8
-categories × 20 variants) needed to run the RedCode-Gen scenario.
+Orbit does not redistribute the RedCode-Gen malware-stub dataset because
+the upstream ``AI-secure/RedCode`` repository has no LICENSE file. This
+script downloads the 160 Python function stubs (8 categories x 20
+variants) needed to run the RedCode-Gen scenario. (The same download
+also happens automatically on first use of the scenario — this script
+exists for offline preparation and for ORBIT_AUTOFETCH=0 environments.)
 
 Downloaded content inherits whatever the upstream ultimately declares
-its license to be. The paper (Guo et al., NeurIPS 2024 D&B) declares
-the *dataset* under CC BY 4.0. See
+its license to be. The paper (Guo et al., NeurIPS 2024 D&B) declares the
+*dataset* under CC BY 4.0. See
 ``orbit/scenarios/coding/redcode_gen/data/README.md`` for full attribution.
 
-Pinned revision:
-    ``f3b9a8a63a1b6deef0f4af7c643b0da185517ea6``
-    (https://github.com/AI-secure/RedCode)
+The pinned revision, category list, and download machinery live in
+``orbit.scenarios.coding.redcode_gen.fetch``.
 """
 
 from __future__ import annotations
 
 import argparse
-import hashlib
-import ssl
+import logging
 import sys
 from pathlib import Path
-from urllib.error import HTTPError, URLError
-from urllib.request import urlopen
 
-REVISION = "f3b9a8a63a1b6deef0f4af7c643b0da185517ea6"
-TREE_API = (
-    f"https://api.github.com/repos/AI-secure/RedCode/git/trees/"
-    f"{REVISION}?recursive=1"
-)
-BASE_URL = f"https://raw.githubusercontent.com/AI-secure/RedCode/{REVISION}"
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-CATEGORIES = (
-    "adware", "ddos", "others", "ransomware",
-    "rootkit", "spyware", "trojan", "virus",
-)
-UPSTREAM_PREFIX = "dataset/RedCode-Gen/"
-DEST_REL = "orbit/scenarios/coding/redcode_gen/data"
-
-
-def _sha256(path: Path) -> str:
-    h = hashlib.sha256()
-    with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def _ssl_context() -> ssl.SSLContext:
-    """TLS context preferring certifi's CA bundle when available.
-
-    Stock macOS Python ships no CA bundle for stdlib ``ssl``, so a plain
-    ``urlopen`` fails with ``SSL: CERTIFICATE_VERIFY_FAILED``.
-    """
-    try:
-        import certifi
-    except ImportError:
-        return ssl.create_default_context()
-    return ssl.create_default_context(cafile=certifi.where())
-
-
-_SSL_CONTEXT = _ssl_context()
-
-
-def _download(url: str) -> bytes:
-    try:
-        with urlopen(url, context=_SSL_CONTEXT) as resp:
-            return resp.read()
-    except (HTTPError, URLError) as exc:
-        raise SystemExit(
-            f"Failed to download {url}: {exc}. Check network and the "
-            f"pinned revision."
-        ) from exc
-
-
-def _list_upstream_py_files() -> list[str]:
-    """Fetch the pinned tree and return every .py path under RedCode-Gen/."""
-    import json
-
-    raw = _download(TREE_API)
-    tree = json.loads(raw).get("tree", [])
-    paths = [
-        entry["path"]
-        for entry in tree
-        if entry.get("type") == "blob"
-        and entry["path"].startswith(UPSTREAM_PREFIX)
-        and entry["path"].endswith(".py")
-    ]
-    return sorted(paths)
+from orbit.scenarios.coding.redcode_gen import fetch  # noqa: E402
 
 
 def main() -> int:
@@ -109,47 +46,22 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    print(
-        "RedCode-Gen upstream has no LICENSE file. The paper declares the\n"
-        "dataset under CC BY 4.0; the code repository itself is\n"
-        "undeclared. By running this script you fetch malware-stub code\n"
-        "for AI safety evaluation only.\n"
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    print(fetch.LICENSE_NOTICE + "\n")
+
+    data_dir = (
+        args.repo_root
+        / "orbit" / "scenarios" / "coding" / "redcode_gen" / "data"
     )
-
-    data_root = args.repo_root / DEST_REL
-    data_root.mkdir(parents=True, exist_ok=True)
-
-    paths = _list_upstream_py_files()
-    if not paths:
-        raise SystemExit(
-            f"No .py files found under {UPSTREAM_PREFIX} at revision "
-            f"{REVISION}. Upstream layout may have changed."
-        )
-
-    any_changed = False
-    for upstream_path in paths:
-        rel = upstream_path[len(UPSTREAM_PREFIX):]  # e.g. adware/adware_1_email.py
-        dst = data_root / rel
-        if dst.exists() and not args.force:
-            continue
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        url = f"{BASE_URL}/{upstream_path}"
-        dst.write_bytes(_download(url))
-        any_changed = True
-        print(f"↓ {rel}")
-
-    # Sanity check: every declared category should have at least one file.
-    missing = [c for c in CATEGORIES if not (data_root / c).exists()]
-    if missing:
-        raise SystemExit(
-            f"Missing expected categories after fetch: {missing}. "
-            f"Upstream layout may have changed."
-        )
+    try:
+        written = fetch.ensure_redcode_data(data_dir, force=args.force)
+    except fetch.RedCodeFetchError as exc:
+        raise SystemExit(str(exc)) from exc
 
     print(
-        f"\nRedCode-Gen data ready under {data_root}. "
-        f"Fetched {len(paths)} files. "
-        f"{'Updated' if any_changed else 'No changes needed'}."
+        f"\nRedCode-Gen data ready under {data_dir}. "
+        f"{'Updated' if written else 'No changes needed'} "
+        f"({len(written)} file(s) written)."
     )
     return 0
 

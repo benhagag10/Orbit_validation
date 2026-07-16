@@ -79,7 +79,7 @@ def load_redcode_gen_tasks(
     ) if data_path.exists() else []
 
     if not category_dirs:
-        raise FileNotFoundError(
+        not_vendored_msg = (
             f"RedCode-Gen data not found under {data_path}. Orbit does not "
             "redistribute RedCode-Gen (upstream AI-secure/RedCode has no "
             "LICENSE file). Fetch it with:\n"
@@ -88,6 +88,28 @@ def load_redcode_gen_tasks(
             "category subdirectories. See "
             "orbit/scenarios/coding/redcode_gen/data/README.md for details."
         )
+        # Auto-fetch on first use unless disabled or the user pointed us at an
+        # explicit (still-empty) data_path — in that case honor their choice.
+        from orbit.scenarios.coding.redcode_gen import fetch
+
+        if config.data_path is not None or not fetch.autofetch_enabled():
+            if config.data_path is None:
+                not_vendored_msg += (
+                    "\n(Auto-fetch is disabled via ORBIT_AUTOFETCH.)"
+                )
+            raise FileNotFoundError(not_vendored_msg)
+        try:
+            fetch.ensure_redcode_data()
+        except fetch.RedCodeFetchError as exc:
+            raise FileNotFoundError(
+                not_vendored_msg + f"\n(Auto-fetch was attempted and failed: {exc})"
+            ) from exc
+        category_dirs = sorted(
+            p for p in data_path.iterdir()
+            if p.is_dir() and p.name in EXPECTED_CATEGORIES
+        ) if data_path.exists() else []
+        if not category_dirs:
+            raise FileNotFoundError(not_vendored_msg)
 
     for category_dir in category_dirs:
         category = category_dir.name

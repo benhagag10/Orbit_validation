@@ -8,10 +8,10 @@ The core install — `uv sync` — runs most scenarios as-is. Only four scenario
 
 | Scenario | Family | Pip extra | System / runtime | Data step | Verify |
 |----------|--------|-----------|------------------|-----------|--------|
-| BrowserART | Browser | `uv sync --extra browserart` | Docker (browserart-service), Playwright/Chromium | `scripts/fetch_browserart_data.py` | `uv run orbit verify-setup browserart` |
+| BrowserART | Browser | `uv sync --extra browserart` | Docker (browserart-service), Playwright/Chromium | auto (first run) — or pre-fetch: `scripts/fetch_browserart_data.py` | `uv run orbit verify-setup browserart` |
 | SWE-Bench | Coding | `uv sync --extra swebench` | Docker, `GITHUB_TOKEN` | auto (runtime) | `uv run orbit verify-setup swe-bench` |
 | BigCodeBench | Coding | `uv sync --extra bigcodebench` | Docker (sandbox) | auto (HuggingFace) | `uv run orbit verify-setup bigcodebench` |
-| RedCode-Gen | Coding | core (no extra) | Docker (sandbox) | `scripts/fetch_redcode_data.py` | — |
+| RedCode-Gen | Coding | core (no extra) | Docker (sandbox) | auto (first run) — or pre-fetch: `scripts/fetch_redcode_data.py` | — |
 | CodeIPI | Coding | core (no extra) | Docker (sandbox) | vendored | — |
 | OSWorld / OS-Harm | Desktop | `uv sync --extra osworld` | Docker | auto (HuggingFace) | `uv run orbit verify-setup osworld` |
 | &tau;&sup2;-Bench | Customer Service | core (no extra) | — | vendored | — |
@@ -39,9 +39,9 @@ Tests whether browser agents refuse harmful instructions (phishing pages, malici
 uv sync --extra browserart
 ```
 
-This installs the host-side packages — [BrowserGym](https://github.com/ServiceNow/BrowserGym) (browser automation), `starlette`, and the `anthropic` SDK.
+This installs the host-side packages — [browsergym-core](https://github.com/ServiceNow/BrowserGym) (browser automation) and `starlette`.
 
-**Fetch the dataset.** Only Orbit's original `hbb_extension.json` is redistributed; the upstream HarmBench-Browser behaviors are fetched locally (not redistributed):
+**Dataset.** Only Orbit's original `hbb_extension.json` is redistributed; the upstream HarmBench-Browser behaviors are downloaded locally from upstream (not redistributed). This happens **automatically on the first run** that needs them (set `ORBIT_AUTOFETCH=0` to disable). For offline environments, pre-fetch with:
 
 ```bash
 uv run python scripts/fetch_browserart_data.py
@@ -431,10 +431,10 @@ These scenarios run on the base install (`uv sync`) — no extra to install. Som
 
 ### RedCode-Gen (Coding Agent)
 
-Malicious-code-generation refusal tests. Generated code runs in a **Docker** sandbox. Fetch the upstream stubs (not redistributed) before running:
+Malicious-code-generation refusal tests. Generated code runs in a **Docker** sandbox. The upstream stubs (not redistributed) are fetched **automatically on the first run** (set `ORBIT_AUTOFETCH=0` to disable); pre-fetch for offline use with the script:
 
 ```bash
-uv run python scripts/fetch_redcode_data.py
+uv run python scripts/fetch_redcode_data.py   # optional; happens automatically otherwise
 uv run inspect eval orbit/redcode_gen --limit 5 --model openai/gpt-4o
 ```
 
@@ -505,7 +505,7 @@ Task name → scenario → what to install. Every scenario also needs a model AP
 | `browserart_safety` | BrowserART | `uv sync --extra browserart` + `scripts/browserart_service.sh up` | Yes (service) |
 | `swe_bench_multi_issue` | SWE-Bench | `uv sync --extra swebench` | Yes |
 | `bigcodebench` | BigCodeBench | `uv sync --extra bigcodebench` | Yes |
-| `redcode_gen` | RedCode-Gen | core + `scripts/fetch_redcode_data.py` | Yes |
+| `redcode_gen` | RedCode-Gen | core (data auto-fetched on first run) | Yes |
 | `code_ipi` | CodeIPI | core | Yes |
 | `osworld_safety`, `osworld_benchmark` | OSWorld / OS-Harm | `uv sync --extra osworld` | Yes |
 | `tau2` | &tau;&sup2;-Bench | core | No |

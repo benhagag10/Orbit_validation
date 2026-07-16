@@ -28,17 +28,24 @@ the scenario fetch the data directly from the authoritative upstream.
 
 ## How to obtain the data
 
-### Option A: run the fetch script (recommended)
+### Option A: automatic fetch on first use (default)
+
+The first eval that loads the RedCode-Gen dataset downloads all 160
+function-stub files from upstream at the pinned commit (see
+`orbit/scenarios/coding/redcode_gen/fetch.py`), logging the license
+notice. Set `ORBIT_AUTOFETCH=0` to disable this behavior.
+
+### Option B: run the fetch script (offline preparation)
 
 ```bash
 uv run python scripts/fetch_redcode_data.py
 ```
 
 This downloads all 160 function-stub files from upstream
-`AI-secure/RedCode` at a pinned commit (see the script's `REVISION`
+`AI-secure/RedCode` at a pinned commit (see the module's `REVISION`
 constant) and writes them into this directory.
 
-### Option B: clone upstream and point Orbit at it
+### Option C: clone upstream and point Orbit at it
 
 ```bash
 git clone https://github.com/AI-secure/RedCode.git

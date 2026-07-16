@@ -34,7 +34,14 @@ themselves from its authoritative source.
 
 ## How to obtain the data
 
-### Option A: run the fetch script (recommended)
+### Option A: automatic fetch on first use (default)
+
+The first eval that needs a non-vendored dataset downloads the three
+files from upstream at the same pinned commit (see
+`orbit/scenarios/browser/browserart/fetch.py`), logging the license
+notice. Set `ORBIT_AUTOFETCH=0` to disable this behavior.
+
+### Option B: run the fetch script (offline preparation)
 
 ```bash
 uv run python scripts/fetch_browserart_data.py
@@ -47,7 +54,7 @@ and `hbb_benign.json` are written into this directory;
 The downloads are subject to the upstream CC BY-NC-ND 4.0 license —
 do not redistribute them.
 
-### Option B: clone upstream and point Orbit at it
+### Option C: clone upstream and point Orbit at it
 
 ```bash
 git clone https://github.com/scaleapi/browser-art.git

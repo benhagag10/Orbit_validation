@@ -97,6 +97,8 @@ SCENARIO_REQUIREMENTS: dict[str, ScenarioRequirements] = {
             "browserart-service (scripts/browserart_service.sh up); the "
             "container bundles Playwright/Chromium and the mock websites",
         ),
+        # Runs automatically on first use (ORBIT_AUTOFETCH=0 disables);
+        # the script remains the offline-preparation path.
         data_step="uv run python scripts/fetch_browserart_data.py",
         verify="browserart",
     ),
@@ -137,6 +139,8 @@ SCENARIO_REQUIREMENTS: dict[str, ScenarioRequirements] = {
         scenario="redcode_gen",
         extra=None,
         needs_docker=True,  # generated code executed in a Docker sandbox
+        # Runs automatically on first use (ORBIT_AUTOFETCH=0 disables);
+        # the script remains the offline-preparation path.
         data_step="uv run python scripts/fetch_redcode_data.py",
     ),
     "code_ipi": ScenarioRequirements(
