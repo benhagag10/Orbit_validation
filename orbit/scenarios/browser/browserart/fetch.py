@@ -27,6 +27,20 @@ from urllib.request import urlopen
 
 logger = logging.getLogger(__name__)
 
+#: Environment variable gating the automatic first-use fetch.
+AUTOFETCH_ENV = "ORBIT_AUTOFETCH"
+
+
+def autofetch_enabled() -> bool:
+    """Whether missing data may be fetched automatically on first use.
+
+    Controlled by the ``ORBIT_AUTOFETCH`` environment variable; any of
+    ``0/false/no/off`` (case-insensitive) disables it. Defaults to enabled.
+    """
+    return os.environ.get(AUTOFETCH_ENV, "1").strip().lower() not in {
+        "0", "false", "no", "off",
+    }
+
 REVISION = "0d72180042f2a076c68e1114e7494cb3fc7dd30b"
 BASE_URL = f"https://raw.githubusercontent.com/scaleapi/browser-art/{REVISION}"
 
@@ -53,16 +67,6 @@ LICENSE_NOTICE = (
 
 class BrowserARTFetchError(Exception):
     """A BrowserART upstream download failed (network, HTTP, or write error)."""
-
-
-def autofetch_enabled() -> bool:
-    """Whether missing data may be fetched automatically on first use.
-
-    Controlled by the ``ORBIT_AUTOFETCH`` environment variable; any of
-    ``0/false/no/off`` (case-insensitive) disables it. Defaults to enabled.
-    """
-    value = os.environ.get("ORBIT_AUTOFETCH", "1").strip().lower()
-    return value not in {"0", "false", "no", "off"}
 
 
 def _ssl_context() -> ssl.SSLContext:

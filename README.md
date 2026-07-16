@@ -275,7 +275,7 @@ and/or a one-time data fetch. Install only what the scenarios you actually run r
 | BrowserART | Browser | `uv sync --extra browserart` | Docker (browserart-service), Playwright/Chromium | auto (first run) — or pre-fetch: `scripts/fetch_browserart_data.py` |
 | SWE-Bench | Coding | `uv sync --extra swebench` | Docker, `GITHUB_TOKEN` | auto (runtime) |
 | BigCodeBench | Coding | `uv sync --extra bigcodebench` | Docker (sandbox) | auto (HuggingFace) |
-| RedCode-Gen | Coding | core | Docker (sandbox) | `scripts/fetch_redcode_data.py` |
+| RedCode-Gen | Coding | core | Docker (sandbox) | auto (first run) — or pre-fetch: `scripts/fetch_redcode_data.py` |
 | CodeIPI | Coding | core | Docker (sandbox) | vendored |
 | OSWorld / OS-Harm | Desktop | `uv sync --extra osworld` | Docker | auto (HuggingFace) |
 | &tau;&sup2;-Bench | Customer Service | core | — | vendored |
