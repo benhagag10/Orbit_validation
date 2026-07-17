@@ -47,12 +47,17 @@ This installs the host-side packages — [browsergym-core](https://github.com/Se
 uv run python scripts/fetch_browserart_data.py
 ```
 
-### Start the browserart-service
+### The browserart-service
 
 BrowserART runs the browser inside a persistent `browserart-service` Docker
 container. The container bundles BrowserGym, Playwright/Chromium, **and** the
 mock target websites (email, social media, forms) served internally — you do
-**not** serve any websites on the host. Start it once per host:
+**not** serve any websites on the host.
+
+The service is **started automatically on the first run** when it isn't already
+reachable (the first build can take a few minutes); set `ORBIT_AUTOSTART_SERVICE=0`
+to disable that, and a remote `BROWSERART_SERVICE_URL` is always left to you. To
+start it yourself ahead of time (once per host):
 
 ```bash
 scripts/browserart_service.sh up

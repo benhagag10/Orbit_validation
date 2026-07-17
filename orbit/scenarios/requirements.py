@@ -94,8 +94,10 @@ SCENARIO_REQUIREMENTS: dict[str, ScenarioRequirements] = {
         packages=("browsergym.core", "starlette"),
         needs_docker=True,  # browserart-service container
         other_system=(
-            "browserart-service (scripts/browserart_service.sh up); the "
-            "container bundles Playwright/Chromium and the mock websites",
+            "browserart-service (auto-started on first run, or "
+            "scripts/browserart_service.sh up; ORBIT_AUTOSTART_SERVICE=0 "
+            "disables); the container bundles Playwright/Chromium and the mock "
+            "websites",
         ),
         # Runs automatically on first use (ORBIT_AUTOFETCH=0 disables);
         # the script remains the offline-preparation path.

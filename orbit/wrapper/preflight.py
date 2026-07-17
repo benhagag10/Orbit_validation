@@ -197,22 +197,31 @@ def check_browserart() -> list[CheckResult]:
             warning=True,
         ))
 
-    # browserart-service reachable. The service container (started via
-    # `scripts/browserart_service.sh up`) exposes the session API on :7878 and
-    # serves the mock websites internally — the host no longer serves :8000.
-    import urllib.request
+    # browserart-service reachable. The service container exposes the session
+    # API on :7878 and serves the mock websites internally (the host no longer
+    # serves :8000). It is auto-started on first use when it's not already up
+    # (ORBIT_AUTOSTART_SERVICE=0 disables); a remote BROWSERART_SERVICE_URL is
+    # left to the operator.
+    from orbit.scenarios.browser.browserart import service_control
 
-    service_url = os.environ.get("BROWSERART_SERVICE_URL", "http://localhost:7878")
-    try:
-        urllib.request.urlopen(  # noqa: S310
-            f"{service_url.rstrip('/')}/healthz", timeout=3,
-        )
-        results.append(CheckResult(f"browserart-service ({service_url})", passed=True))
-    except Exception:
+    url = service_control.service_url()
+    if service_control.ensure_service(url):
+        results.append(CheckResult(f"browserart-service ({url})", passed=True))
+    else:
+        if not service_control.is_local_url(url):
+            msg = f"Not reachable at {url} — start that remote service yourself"
+        elif not service_control.autostart_enabled():
+            msg = (
+                "Not reachable — start it with: scripts/browserart_service.sh up "
+                "(or unset ORBIT_AUTOSTART_SERVICE to auto-start)"
+            )
+        else:
+            msg = (
+                "Not reachable and auto-start failed (needs Docker) — start it "
+                "with: scripts/browserart_service.sh up"
+            )
         results.append(CheckResult(
-            f"browserart-service ({service_url})", passed=False,
-            message="Not reachable — start it with: scripts/browserart_service.sh up",
-            warning=True,
+            f"browserart-service ({url})", passed=False, message=msg, warning=True,
         ))
 
     return results
