@@ -2,6 +2,7 @@ import json
 import importlib.resources
 import logging
 import tempfile
+from pathlib import Path
 from typing import Optional, Tuple
 
 import numpy as np
@@ -12,6 +13,30 @@ from browsergym.core.task import AbstractBrowserTask
 from .instance import HBBInstance
 
 logger = logging.getLogger(__name__)
+
+
+def _load_benign_custom_configs() -> list:
+    """Load the Orbit-original benign BrowserGym configs (task_ids 300-358).
+
+    These are the browser-env side of ``hbb_benign_custom.json`` — same schema
+    as upstream ``behaviors.json``, Apache-2.0 and redistributable, so the file
+    ships in the service image. Returns ``[]`` when the file is absent (an
+    older image, or a dev tree that hasn't got it), so the upstream task_ids
+    still work unchanged.
+
+    Resolved relative to this module (``hbb/task.py`` → ``../data/``) rather
+    than via ``importlib.resources`` so it works in the flattened service-image
+    layout too, where ``browserart`` is a stub package.
+    """
+    path = Path(__file__).resolve().parent.parent / "data" / "hbb_benign_custom.json"
+    if not path.is_file():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("Could not load hbb_benign_custom.json: %s", exc)
+        return []
+    return data if isinstance(data, list) else []
 
 
 class HBBTask(AbstractBrowserTask):
@@ -57,6 +82,17 @@ class HBBTask(AbstractBrowserTask):
                 "See orbit/scenarios/browser/browserart/data/README.md for "
                 "details."
             ) from exc
+
+        # Merge the Orbit-original benign task configs (task_ids 300-358).
+        # behaviors.json is upstream (0-99); the custom benign configs live in
+        # the redistributable Apache-2.0 hbb_benign_custom.json and share the
+        # exact same BrowserGym config schema, so they parse against the same
+        # placeholder substitution below. Optional: an image built without the
+        # file simply serves only the upstream task_ids (no crash).
+        custom_configs = _load_benign_custom_configs()
+        if custom_configs:
+            merged = json.loads(all_configs_str) + custom_configs
+            all_configs_str = json.dumps(merged)
 
         # Substitute local URL placeholders with configured URLs.
         for pattern, url_key in {

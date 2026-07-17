@@ -153,27 +153,37 @@ class TestBenignWebsiteValidation:
                     f"ID {b.behavior_id}: site '{site_key}' not in HBBInstance.urls"
                 )
 
-    def test_all_task_ids_in_behaviors_json(self):
-        """All 59 benign IDs (300-358) should be in hbb/behaviors.json."""
-        behaviors_json = HBB_DIR / "behaviors.json"
-        if not behaviors_json.exists():
-            pytest.skip("behaviors.json not found")
-        with open(behaviors_json) as f:
-            data = json.load(f)
+    def test_benign_custom_configs_cover_300_358(self):
+        """The Orbit-original benign BrowserGym configs (task_ids 300-358) are
+        loaded from the redistributable hbb_benign_custom.json — HBBTask merges
+        them with the upstream behaviors.json at runtime, so the benign tasks
+        can actually create browser envs (they returned HTTP 500 before)."""
+        from orbit.scenarios.browser.browserart.hbb.task import (
+            _load_benign_custom_configs,
+        )
 
-        ids_in_behaviors = {item["task_id"] for item in data}
-        benign_ids = set(range(300, 359))
-        missing = benign_ids - ids_in_behaviors
-        if missing:
-            # behaviors.json is gitignored and may be in pristine-upstream
-            # state after running scripts/fetch_browserart_data.py — the
-            # custom benign IDs need to be re-merged in. Skip rather than
-            # fail when the customisation hasn't been applied.
-            pytest.skip(
-                f"behaviors.json is in upstream-only state (missing custom "
-                f"benign IDs: {sorted(missing)[:5]}…); re-merge customisations "
-                "to re-enable this test"
-            )
+        configs = _load_benign_custom_configs()
+        ids = {c["task_id"] for c in configs}
+        assert set(range(300, 359)) <= ids, (
+            f"missing benign custom configs: {sorted(set(range(300, 359)) - ids)}"
+        )
+        # Schema must match what HBBTask's config lookup + URL substitution need.
+        for c in configs:
+            assert {"task_id", "start_url", "intent_template_id"} <= set(c)
+
+    def test_hbbtask_resolves_benign_custom_id(self):
+        """HBBTask(task_id=300) must find its config (not raise the missing-config
+        ValueError that surfaced as the service's HTTP 500)."""
+        if not (HBB_DIR / "behaviors.json").exists():
+            pytest.skip("behaviors.json not fetched")
+        pytest.importorskip(
+            "browsergym", reason="HBBTask requires browsergym (browserart extra)"
+        )
+        from orbit.scenarios.browser.browserart.hbb.task import HBBTask
+
+        task = HBBTask(seed=0, task_id=300)
+        assert len(task.task_configs) == 1
+        assert task.task_configs[0]["task_id"] == 300
 
     def test_all_task_ids_registered(self):
         """range(300, 359) should be a subset of TASK_IDS from hbb/config.py."""
