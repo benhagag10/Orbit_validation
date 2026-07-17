@@ -83,10 +83,10 @@ uv sync --extra browserart
 #   scripts/browserart_service.sh up && uv run python scripts/fetch_browserart_data.py
 
 # Single agent
-uv run orbit browserart -m openai/gpt-4o --dataset hbb_extension --limit 1
+uv run orbit browserart -m openai/gpt-4o --limit 1
 
 # Star topology with 4 specialists
-uv run orbit browserart -m openai/gpt-4o --agents specialist --dataset hbb_extension --limit 1
+uv run orbit browserart -m openai/gpt-4o --agents specialist --limit 1
 ```
 
 **SWE-Bench** — multi-agent coding (needs Docker):

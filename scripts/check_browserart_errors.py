@@ -495,7 +495,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--dataset",
-        choices=["hbb", "hbb_benign", "hbb_extension"],
+        choices=["hbb", "hbb_benign"],
         help="Filter to a specific dataset",
     )
     parser.add_argument(

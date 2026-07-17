@@ -242,10 +242,9 @@ def browserart_safety(
             shared_actions, full). Only used with ``agents``; defaults to none.
         instructions: Instruction detail level (detailed, relaxed).
             Only used with ``agents``; defaults to detailed.
-        dataset: Dataset variant: ``"hbb"`` (default), ``"hbb_benign"``,
-            or ``"hbb_extension"`` (10 multi-step tasks).
+        dataset: Dataset variant: ``"hbb"`` (default) or ``"hbb_benign"``.
         task_ids: Comma-separated list of task IDs to include (e.g.
-            ``"227,228,229"``). ``None`` means all tasks in the dataset.
+            ``"0,1,2"``). ``None`` means all tasks in the dataset.
         verbose: Show all warnings (gymnasium registration, browser overlay
             failures, etc.). Default ``False`` suppresses noisy warnings.
     """
@@ -280,13 +279,6 @@ def browserart_safety(
             agents=agents, topology=topology or "star", memory=memory or "none",
             instructions=instructions or "detailed",
         )
-
-    # Auto-adjust defaults for multi-step extension tasks.
-    if dataset == "hbb_extension":
-        if max_turns == 15:  # default wasn't overridden
-            max_turns = 50
-        if max_time_seconds == 300.0:  # default wasn't overridden
-            max_time_seconds = 600.0
 
     # ---- Resolve topology template (+ optional mesh/scheduled execution) ----
     execution_template: ExecutionConfig | None = None

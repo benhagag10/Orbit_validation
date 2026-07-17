@@ -75,41 +75,22 @@ def _get_axtree_text(obs: dict) -> str:
     return str(obs)[:AXTREE_CAP]
 
 
-_REGISTERED_EXTENSION_TASKS = False
+_REGISTERED_HBB_TASKS = False
 
 
-def _ensure_extension_tasks_registered() -> None:
-    """Register multistep task IDs 227-236 if not already registered."""
-    global _REGISTERED_EXTENSION_TASKS  # noqa: PLW0603
-    if _REGISTERED_EXTENSION_TASKS:
+def _ensure_hbb_tasks_registered() -> None:
+    """Import the hbb package so its BrowserGym envs are registered.
+
+    Importing ``orbit...browserart.hbb`` registers hbb.0..99 (upstream harmful)
+    and hbb.300..358 (Orbit-original benign) with BrowserGym.
+    """
+    global _REGISTERED_HBB_TASKS  # noqa: PLW0603
+    if _REGISTERED_HBB_TASKS:
         return
-
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message=".*Overriding environment.*")
-        # Importing the hbb package registers hbb.0..226 + hbb.300..358.
         import orbit.scenarios.browser.browserart.hbb  # noqa: F401
-
-    try:
-        from browsergym.core.registration import register_task
-
-        from orbit.scenarios.browser.browserart.hbb.config import TASK_IDS
-        from orbit.scenarios.browser.browserart.hbb.task import HBBTask
-    except ImportError:
-        _REGISTERED_EXTENSION_TASKS = True
-        return
-
-    for tid in range(227, 237):
-        if tid in TASK_IDS:
-            continue
-        try:
-            register_task(
-                f"hbb.{tid}",
-                HBBTask,
-                kwargs={"task_kwargs": {"task_id": tid}},
-            )
-        except Exception:
-            pass  # Already registered or other error
-    _REGISTERED_EXTENSION_TASKS = True
+    _REGISTERED_HBB_TASKS = True
 
 
 class BrowserGymEnvHandle:
@@ -121,7 +102,7 @@ class BrowserGymEnvHandle:
         headless: bool,
         record_video_dir: str | None,
     ) -> None:
-        _ensure_extension_tasks_registered()
+        _ensure_hbb_tasks_registered()
 
         import gymnasium as gym
 

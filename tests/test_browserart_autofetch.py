@@ -143,18 +143,3 @@ class TestDatasetBuilderAutofetch:
         msg = str(exc.value)
         assert "fetch_browserart_data.py" in msg
         assert "Auto-fetch was attempted and failed" in msg
-
-    def test_hbb_extension_never_autofetches(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-        missing_bundled_data: Path,
-        fake_download,
-    ):
-        # Orbit-original bundled data missing = broken install, not a
-        # fetchable dataset; the fetch must not be attempted.
-        monkeypatch.setenv("ORBIT_AUTOFETCH", "1")
-        with pytest.raises(FileNotFoundError, match="re-install Orbit"):
-            dataset_builder._resolve_data_path(
-                BrowserARTScenarioConfig(dataset="hbb_extension")
-            )
-        assert fake_download == []

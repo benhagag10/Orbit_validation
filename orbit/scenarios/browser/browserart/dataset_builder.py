@@ -23,7 +23,6 @@ logger = logging.getLogger(__name__)
 DATASET_FILES = {
     "hbb": "hbb.json",
     "hbb_benign": "hbb_benign.json",
-    "hbb_extension": "hbb_extension.json",
 }
 
 
@@ -63,19 +62,10 @@ def _resolve_data_path(config: BrowserARTScenarioConfig) -> Path:
     if module_dir.exists():
         return module_dir
 
-    # hbb_extension.json is Orbit-original (Apache-2.0) and is always
-    # bundled. The other BrowserART datasets are upstream-derived
-    # (CC BY-NC-ND 4.0 per upstream LICENSE file) and are not
-    # redistributed — they are auto-fetched from upstream on first use
-    # (disable with ORBIT_AUTOFETCH=0) or fetched manually with the
-    # helper script.
-    if filename == "hbb_extension.json":
-        raise FileNotFoundError(
-            f"BrowserART dataset '{filename}' not found at {module_dir}. "
-            "This is Orbit-original content that should be bundled with "
-            "the package; re-install Orbit to recover."
-        )
-
+    # The BrowserART datasets are upstream-derived (CC BY-NC-ND 4.0 per upstream
+    # LICENSE file) and are not redistributed — they are auto-fetched from
+    # upstream on first use (disable with ORBIT_AUTOFETCH=0) or fetched manually
+    # with the helper script.
     not_vendored_msg = (
         f"BrowserART dataset '{filename}' is not vendored in Orbit "
         f"(upstream scaleapi/browser-art is CC BY-NC-ND 4.0 and is not "

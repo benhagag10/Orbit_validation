@@ -51,18 +51,6 @@ def hbb_by_id(hbb_behaviors) -> dict[int, BrowserARTBehavior]:
     return {b.behavior_id: b for b in hbb_behaviors}
 
 
-@pytest.fixture(scope="module")
-def extension_behaviors() -> list[BrowserARTBehavior]:
-    return load_browserart_behaviors(
-        BrowserARTScenarioConfig(dataset="hbb_extension")
-    )
-
-
-@pytest.fixture(scope="module")
-def ext_by_id(extension_behaviors) -> dict[int, BrowserARTBehavior]:
-    return {b.behavior_id: b for b in extension_behaviors}
-
-
 # ---------------------------------------------------------------------------
 # Test: detailed vs relaxed orchestrator prompts actually differ
 # ---------------------------------------------------------------------------
@@ -166,56 +154,4 @@ def test_category_filter_works_after_whitespace_fix(hbb_behaviors):
 
     assert id_21_found, (
         "ID 21 should be found with exact category filter after whitespace fix"
-    )
-
-
-# ---------------------------------------------------------------------------
-# Test: extension turn limits adequate
-# ---------------------------------------------------------------------------
-
-def test_extension_turn_limits_adequate(extension_behaviors):
-    """Turn budget check: default 50 max_turns >= all min_steps.
-
-    For single-agent, 50 turns is probably adequate.
-    For mesh round-robin with 4 agents, effective actions per agent =
-    50 / 4 ≈ 12, which may be insufficient for 25-30 step tasks (E2).
-    """
-    default_extension_turns = 50
-    for b in extension_behaviors:
-        if b.min_steps is not None:
-            assert default_extension_turns >= b.min_steps, (
-                f"Extension ID {b.behavior_id}: min_steps={b.min_steps} > "
-                f"default max_turns={default_extension_turns}"
-            )
-
-
-# ---------------------------------------------------------------------------
-# Test: mesh round-robin effective action budget for extensions (E2)
-# ---------------------------------------------------------------------------
-
-def test_mesh_round_robin_extension_action_budget(extension_behaviors):
-    """E2: Document that mesh round-robin with 4 agents may have
-    insufficient per-agent action budget for extension tasks.
-
-    With round-robin and 4 agents, each agent gets ~max_steps/4 actions.
-    For 50 max_steps that's ~12 actions per agent.
-    Extension tasks require 25-30 steps minimum.
-
-    Note: The solver now counts only real browser actions (not noops)
-    against the budget, so this is less severe than initially expected.
-    But each agent still only gets ~12 real actions.
-    """
-    max_steps = 50  # default for extensions
-    n_agents = 4    # mesh round-robin has 4 peers
-    effective_per_agent = max_steps / n_agents
-
-    max_min_steps = max(
-        b.min_steps for b in extension_behaviors if b.min_steps is not None
-    )
-
-    # The effective per-agent budget should ideally be >= max min_steps
-    # but it's not — this documents the concern
-    assert effective_per_agent < max_min_steps, (
-        f"Per-agent budget ({effective_per_agent}) unexpectedly >= "
-        f"max min_steps ({max_min_steps}). The E2 concern may no longer apply."
     )

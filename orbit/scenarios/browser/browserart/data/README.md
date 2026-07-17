@@ -2,10 +2,6 @@
 
 ## What Orbit ships in this directory
 
-- **`hbb_extension.json`** — *Orbit-original* content. A set of
-  multi-step BrowserART behaviours authored in-house (all entries
-  tagged `"source": "Original-MultiStep"`). Licensed under Apache-2.0
-  with the rest of Orbit (see `/LICENSE`).
 - **`hbb_benign_custom.json`** — *Orbit-original* content. 59 benign
   task entries authored in-house, merged into the `hbb_benign` dataset
   at load time by `dataset_builder.py`. Licensed under Apache-2.0 with
