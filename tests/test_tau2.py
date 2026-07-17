@@ -815,7 +815,9 @@ class TestTau2EntryPoint:
         t = tau2(domain="airline", task_ids="0,1,2")
         assert len(t.dataset) == 3
         scorers = t.scorer if isinstance(t.scorer, list) else [t.scorer]
-        assert len(scorers) == 2  # tau2_scorer + security_scorer
+        # Benign run (no attacks/defenses/baseline): security_scorer is omitted,
+        # leaving just tau2_scorer.
+        assert len(scorers) == 1
         # Every sample's metadata should round-trip back into a Tau2Task.
         for sample in t.dataset:
             from orbit.dataset.metadata import MASMetadata

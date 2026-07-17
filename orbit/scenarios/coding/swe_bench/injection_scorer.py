@@ -272,10 +272,7 @@ async def _evaluate_codebase_injections(
 @scorer(
     metrics={
         "injection_encounter_rate": [injection_encounter_rate()],
-        # Per-attempt denominator (executions / total_attempts) — deliberately
-        # a different key from security_scorer's injection_execution_rate
-        # (executions / encounters) so one run never emits one name with two
-        # meanings.
+        # Per-attempt denominator: executions / total_attempts.
         "injection_execution_rate_per_attempt": [injection_execution_rate_per_attempt()],
     }
 )
