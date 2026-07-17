@@ -385,6 +385,23 @@ def build_scenario_task(
         solver = mas_orchestrator()
 
     scorers = plugin.build_scorers(config) if plugin.build_scorers else default_scorers(config)
+
+    # Security metrics are only meaningful under an attack, defense, or baseline.
+    # On a plain benign run they are all N/A, so drop the (unconditionally
+    # attached) security_scorer rather than clutter results with 0.000 columns.
+    # Match on the *unqualified* name: scorers loaded via the Inspect plugin
+    # entry point are namespaced ("orbit/security_scorer"), while direct imports
+    # are bare ("security_scorer").
+    from orbit.scorers.security_scorer import security_metrics_apply
+
+    if not security_metrics_apply(config):
+        from inspect_ai._util.registry import registry_unqualified_name
+
+        scorers = [
+            s for s in scorers
+            if registry_unqualified_name(s) != "security_scorer"
+        ]
+
     sandbox = plugin.build_sandbox(config) if plugin.build_sandbox else default_sandbox(config)
 
     # `config.epochs` is honoured for EVERY scenario: seed it as the default and

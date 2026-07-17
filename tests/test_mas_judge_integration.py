@@ -408,17 +408,16 @@ class TestScenario5_ExperimentAggregation:
         from orbit.scorers.metrics import (
             _extract_metric_values,
             injection_encounter_rate,
-            injection_execution_rate,
         )
 
         # Simulate scores with the new key name
         scores = [
-            Score(value={"injection_success_rate": 0.4, "injection_execution_rate": 0.2}),
-            Score(value={"injection_success_rate": 0.6, "injection_execution_rate": 0.3}),
+            Score(value={"injection_success_rate": 0.4, "injection_encounter_rate": 0.2}),
+            Score(value={"injection_success_rate": 0.6, "injection_encounter_rate": 0.3}),
         ]
 
         isr_values = _extract_metric_values(scores, "injection_success_rate")
-        ier_values = _extract_metric_values(scores, "injection_execution_rate")
+        ier_values = _extract_metric_values(scores, "injection_encounter_rate")
 
         assert isr_values == [0.4, 0.6]
         assert ier_values == [0.2, 0.3]
@@ -427,13 +426,13 @@ class TestScenario5_ExperimentAggregation:
         asr_values = _extract_metric_values(scores, "asr")
         assert asr_values == []
 
-        ier_fn = injection_execution_rate()
+        ier_fn = injection_encounter_rate()
         ier_avg = ier_fn(scores)
         assert ier_avg == pytest.approx(0.25)
 
         print("\n=== Scenario 5b: Security Scorer Key Rename ===")
         print(f"  injection_success_rate values: {isr_values} → avg = {sum(isr_values)/len(isr_values):.2f}")
-        print(f"  injection_execution_rate values: {ier_values} → avg = {ier_avg:.2f}")
+        print(f"  injection_encounter_rate values: {ier_values} → avg = {ier_avg:.2f}")
         print(f"  Old 'asr' key: {asr_values} (empty — correctly renamed)")
 
 

@@ -1109,3 +1109,97 @@ class TestOSWorldStageClassification:
             )
         assert score.metadata["planning_refusal"] is True
         assert score.metadata["osworld_threat_category"] == threat_category
+
+
+class TestSecurityScorerAttachment:
+    """security_metrics_apply gating + the builder's conditional attachment.
+
+    Security metrics all derive from an attack, a defense, or a benign
+    baseline, so security_scorer is dropped on plain benign runs (issue: the
+    N/A-column clutter) and kept otherwise. The builder matches on the
+    *unqualified* registry name because plugin-loaded scorers are namespaced
+    ("orbit/security_scorer") while direct imports are bare.
+    """
+
+    def _config(self, *, attacks=(), defenses=(), baseline="NONE"):
+        from orbit.configs.baseline import BaselineMode
+        from orbit.configs.experiment import ExperimentConfig
+        from orbit.configs.scenario import ScenarioConfig
+
+        return ExperimentConfig(
+            name="t",
+            scenario=ScenarioConfig(name="redcode_gen", description="d"),
+            attacks=list(attacks),
+            defenses=list(defenses),
+            baseline_mode=BaselineMode[baseline],
+        )
+
+    def test_apply_false_on_benign(self):
+        from orbit.scorers.security_scorer import security_metrics_apply
+
+        assert security_metrics_apply(self._config()) is False
+
+    def test_apply_true_with_attack_defense_or_baseline(self):
+        from orbit.configs.attack import AttackConfig
+        from orbit.configs.defense import DefenseConfig
+        from orbit.scorers.security_scorer import security_metrics_apply
+
+        assert security_metrics_apply(
+            self._config(attacks=[AttackConfig(name="a", attack_type="injection")])
+        )
+        assert security_metrics_apply(
+            self._config(
+                defenses=[DefenseConfig(name="d", defense_type="security_prompt")]
+            )
+        )
+        assert security_metrics_apply(self._config(baseline="BENIGN"))
+
+    def test_security_scorer_registry_name_is_unqualified(self):
+        # The builder's filter depends on this being the bare name.
+        from inspect_ai._util.registry import registry_unqualified_name
+
+        from orbit.scorers.security_scorer import security_scorer
+
+        assert registry_unqualified_name(security_scorer()) == "security_scorer"
+
+    def test_benign_task_drops_security_scorer(self):
+        from inspect_ai._util.registry import registry_unqualified_name
+
+        from orbit.scenarios.coding.redcode_gen.task import redcode_gen
+
+        t = redcode_gen()
+        names = [
+            registry_unqualified_name(s)
+            for s in (t.scorer if isinstance(t.scorer, list) else [t.scorer])
+        ]
+        assert "security_scorer" not in names
+        assert "redcode_gen_scorer" in names
+
+    def test_attack_task_keeps_security_scorer(self):
+        from inspect_ai._util.registry import registry_unqualified_name
+
+        from orbit.scenarios.coding.redcode_gen.task import redcode_gen
+
+        t = redcode_gen(attack_preset="jailbreak")
+        names = [
+            registry_unqualified_name(s)
+            for s in (t.scorer if isinstance(t.scorer, list) else [t.scorer])
+        ]
+        assert "security_scorer" in names
+
+    def test_injection_execution_rate_removed_from_security_scorer(self):
+        from inspect_ai._util.registry import registry_info
+
+        from orbit.scorers.security_scorer import security_scorer
+
+        metrics = registry_info(security_scorer()).metadata.get("metrics", {})
+        keys = list(metrics.keys()) if isinstance(metrics, dict) else []
+        assert "injection_execution_rate" not in keys
+        assert "injection_success_rate" in keys
+
+    def test_injection_execution_rate_metric_gone(self):
+        import orbit.scorers.metrics as m
+
+        assert not hasattr(m, "injection_execution_rate")
+        # the per-attempt variant remains (swe_bench)
+        assert hasattr(m, "injection_execution_rate_per_attempt")
