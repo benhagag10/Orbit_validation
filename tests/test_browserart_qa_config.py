@@ -4,7 +4,7 @@ BrowserART QA — Layer 1: Config construction & validation.
 Parametrized across (behavior × preset × attack/defense) to verify that
 every combination produces a valid ExperimentConfig with correct metadata.
 
-Total: (10 HBB + 10 extension) × 13 presets × 8 combos = 2,080 cases.
+Total: 10 HBB × 13 presets × 8 combos = 1,040 cases.
 """
 
 from __future__ import annotations
@@ -40,7 +40,6 @@ from tests.conftest_browserart_qa import (
     CANONICAL_PRESETS,
     PRESET_AGENT_COUNT,
     PRESET_TOPOLOGY_TYPE,
-    EXTENSION_IDS,
     PRESET_COMBOS,
     SELECTED_HBB_IDS,
     build_config_for_test,
@@ -57,16 +56,8 @@ def hbb_behaviors() -> list[BrowserARTBehavior]:
     return load_browserart_behaviors(BrowserARTScenarioConfig(dataset="hbb"))
 
 @pytest.fixture(scope="module")
-def extension_behaviors() -> list[BrowserARTBehavior]:
-    return load_browserart_behaviors(BrowserARTScenarioConfig(dataset="hbb_extension"))
-
-@pytest.fixture(scope="module")
 def hbb_by_id(hbb_behaviors) -> dict[int, BrowserARTBehavior]:
     return {b.behavior_id: b for b in hbb_behaviors}
-
-@pytest.fixture(scope="module")
-def ext_by_id(extension_behaviors) -> dict[int, BrowserARTBehavior]:
-    return {b.behavior_id: b for b in extension_behaviors}
 
 
 # ---------------------------------------------------------------------------
@@ -88,18 +79,6 @@ def _combo_id(combo):
 def test_hbb_config_builds_without_error(behavior_id, preset, combo, hbb_by_id):
     """Every HBB (behavior × preset × attack/defense) produces a valid config."""
     behavior = hbb_by_id[behavior_id]
-    attack_name, defense_name = combo
-    config = build_config_for_test(behavior, preset, attack_name, defense_name)
-    assert isinstance(config, ExperimentConfig)
-    assert config.name.startswith("browserart_")
-
-
-@pytest.mark.parametrize("behavior_id", EXTENSION_IDS, ids=[f"ext_{i}" for i in EXTENSION_IDS])
-@pytest.mark.parametrize("preset", CANONICAL_PRESETS)
-@pytest.mark.parametrize("combo", PRESET_COMBOS, ids=[_combo_id(c) for c in PRESET_COMBOS])
-def test_extension_config_builds_without_error(behavior_id, preset, combo, ext_by_id):
-    """Every extension (behavior × preset × attack/defense) produces a valid config."""
-    behavior = ext_by_id[behavior_id]
     attack_name, defense_name = combo
     config = build_config_for_test(behavior, preset, attack_name, defense_name)
     assert isinstance(config, ExperimentConfig)
@@ -188,30 +167,3 @@ def test_preset_type_in_metadata(preset, hbb_by_id):
     assert setup.properties["preset_type"] == preset
     # Also propagated to metadata
     assert md.get("browserart_resolved_preset") == preset
-
-
-# ---------------------------------------------------------------------------
-# Test: extension metadata flags
-# ---------------------------------------------------------------------------
-
-@pytest.mark.parametrize("behavior_id", EXTENSION_IDS[:3])
-def test_extension_metadata_flags(behavior_id, ext_by_id):
-    """Extension configs have multi_step=True and correct min_steps."""
-    behavior = ext_by_id[behavior_id]
-    config = build_config_for_test(behavior, "single_agent")
-    md = config.metadata
-    assert md["browserart_multi_step"] is True
-    assert md["browserart_min_steps"] is not None
-    assert md["browserart_min_steps"] >= 25
-
-
-# ---------------------------------------------------------------------------
-# Test: extension dataset source
-# ---------------------------------------------------------------------------
-
-@pytest.mark.parametrize("behavior_id", EXTENSION_IDS[:3])
-def test_extension_dataset_source(behavior_id, ext_by_id):
-    """Extension configs show Orbit-Extension as dataset source."""
-    behavior = ext_by_id[behavior_id]
-    config = build_config_for_test(behavior, "single_agent")
-    assert config.metadata["browserart_dataset_source"] == "Orbit-Extension"

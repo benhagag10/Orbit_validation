@@ -115,7 +115,7 @@ class TestCheckBrowserart:
             assert not data_check.warning
 
     def test_data_missing_warns_not_fails(self):
-        # Missing fetched data must be a warning (hbb_extension still runs),
+        # Missing fetched data must be a warning (it auto-fetches on first use),
         # and the message must point at the fetch script.
         with patch("orbit.wrapper.preflight._browserart_data_missing",
                    return_value=["hbb.json", "hbb_benign.json", "behaviors.json"]):

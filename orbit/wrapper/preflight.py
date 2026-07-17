@@ -180,9 +180,8 @@ def check_browserart() -> list[CheckResult]:
 
     # Fetched BrowserART data. Missing data is a warning, not a failure:
     # missing files are auto-fetched from upstream on first use (unless
-    # ORBIT_AUTOFETCH=0), the bundled hbb_extension dataset and data_path
-    # overrides work without the fetch, and the task-build error is itself
-    # actionable.
+    # ORBIT_AUTOFETCH=0), a data_path override works without the fetch, and the
+    # task-build error is itself actionable.
     missing = _browserart_data_missing()
     if not missing:
         results.append(CheckResult("BrowserART data fetched", passed=True))

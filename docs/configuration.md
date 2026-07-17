@@ -25,7 +25,7 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_ro
 | `--categories` | string | — | Filter by behavior category (e.g. `"content/phishing"`) |
 | `--limit` | int | all | Limit number of behaviors (Inspect passthrough) |
 | `--task-id` | int | — | Run a single task by ID (passed to the task as `task_ids`) |
-| `--dataset` | choice | `hbb` | `hbb`, `hbb_benign` (benign-baseline variant), or `hbb_extension` |
+| `--dataset` | choice | `hbb` | `hbb` or `hbb_benign` (benign-baseline variant) |
 | `--data-path` | string | — | Override path to the dataset JSON file |
 | `--headless / --no-headless` | bool | true | Run browser headlessly |
 | `--record-video-dir` | string | — | Save browser recordings to this directory |
@@ -37,12 +37,8 @@ is tabulated in [Presets](presets.md#parameter-mapping). `--topology`,
 `--memory`, and `--instructions` refine `--agents`; passing one without
 `--agents` is a usage error (use `--preset` to name a preset directly).
 
-Two behaviors worth knowing about:
+One behavior worth knowing about:
 
-- **`hbb_extension` auto-adjusts turn limits.** The extension tasks are
-  multi-step, so with `--dataset hbb_extension` the defaults become
-  `--max-turns 50` and `--max-time-seconds 600`. Passing any non-default
-  value disables the adjustment for that flag.
 - **Category filtering is silent exact-match** on the full
   `semantic_category` string, and valid values depend on the dataset
   (`content/phishing` exists in `hbb`; the extension dataset uses e.g.
@@ -89,11 +85,11 @@ uv run inspect eval orbit/browserart_safety \
 | `preset` | string | — | Preset name (cannot be used with `agents`) |
 | `attack_preset` | string | — | Named attack bundle — the way to attach attacks on this path |
 | `defense_preset` | string | — | Named defense bundle — the way to attach defenses on this path |
-| `max_turns` | int | 15 | Max turns per behavior (auto-adjusts to 50 for `hbb_extension`) |
-| `max_time_seconds` | float | 300 | Max seconds per behavior (auto-adjusts to 600 for `hbb_extension`) |
+| `max_turns` | int | 15 | Max turns per behavior |
+| `max_time_seconds` | float | 300 | Max seconds per behavior |
 | `categories` | string | — | Filter by behavior category (silent exact match, e.g. `"content/phishing"`) |
-| `dataset` | string | `hbb` | Dataset variant: `hbb`, `hbb_benign`, or `hbb_extension` |
-| `task_ids` | string | — | Comma-separated task IDs (e.g. `"227,228"`); the CLI's `--task-id` maps to this |
+| `dataset` | string | `hbb` | Dataset variant: `hbb` or `hbb_benign` |
+| `task_ids` | string | — | Comma-separated task IDs (e.g. `"0,1,2"`); the CLI's `--task-id` maps to this |
 | `headless` | bool | true | Run browser headlessly |
 | `record_video_dir` | string | — | Save browser recordings to this directory |
 | `judge_model` | string | openai/gpt-4.1 | Model for the safety classifier |
@@ -639,7 +635,7 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_ro
 | `--categories TEXT` | Filter by category (comma-separated) |
 | `--limit INT` | Limit number of behaviors (Inspect passthrough) |
 | `--task-id INT` | Single task ID to run |
-| `--dataset CHOICE` | `hbb`, `hbb_benign` (benign baseline), or `hbb_extension` |
+| `--dataset CHOICE` | `hbb` or `hbb_benign` (benign baseline) |
 | `--data-path TEXT` | Custom data file path |
 | `--headless / --no-headless` | Run browser headlessly (default: on) |
 | `--record-video-dir PATH` | Directory for video recordings |

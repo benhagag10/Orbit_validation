@@ -7,7 +7,7 @@ interference, browsing activity makes sense, metadata is consistent,
 scores are internally valid, and (optionally) an AI agent reviews
 trajectory coherence.
 
-Works with both harmful (hbb, hbb_extension) and benign (hbb_benign)
+Works with both harmful (hbb) and benign (hbb_benign)
 datasets.
 
 Usage:
@@ -400,7 +400,7 @@ def check_metadata_consistency(
             "metadata.dataset_mismatch",
             "Sample in hbb_benign dataset is not detected as benign",
         )
-    elif dataset in ("hbb", "hbb_extension") and benign:
+    elif dataset == "hbb" and benign:
         report.error(
             "metadata.dataset_mismatch",
             f"Sample in {dataset} dataset is detected as benign",
@@ -730,7 +730,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--dataset",
-        choices=["hbb", "hbb_benign", "hbb_extension"],
+        choices=["hbb", "hbb_benign"],
         help="Filter to a specific dataset",
     )
     parser.add_argument(

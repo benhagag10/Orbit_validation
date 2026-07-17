@@ -39,9 +39,6 @@ from orbit.scenarios.browser.browserart.security_presets import (
 
 SELECTED_HBB_IDS = [0, 8, 21, 28, 43, 51, 57, 62, 86, 97]
 
-# Extension sample IDs (all 10)
-EXTENSION_IDS = list(range(227, 237))
-
 # ---------------------------------------------------------------------------
 # 13 canonical presets
 # ---------------------------------------------------------------------------
@@ -209,14 +206,6 @@ def hbb_behaviors() -> list[BrowserARTBehavior]:
 
 
 @pytest.fixture(scope="session")
-def extension_behaviors() -> list[BrowserARTBehavior]:
-    """Load all extension behaviors."""
-    return load_browserart_behaviors(
-        BrowserARTScenarioConfig(dataset="hbb_extension")
-    )
-
-
-@pytest.fixture(scope="session")
 def selected_hbb_behaviors(hbb_behaviors) -> list[BrowserARTBehavior]:
     """Return only the 10 selected HBB behaviors."""
     by_id = {b.behavior_id: b for b in hbb_behaviors}
@@ -225,7 +214,7 @@ def selected_hbb_behaviors(hbb_behaviors) -> list[BrowserARTBehavior]:
 
 @pytest.fixture(scope="session")
 def all_selected_behaviors(
-    selected_hbb_behaviors, extension_behaviors
+    selected_hbb_behaviors,
 ) -> list[BrowserARTBehavior]:
-    """All 20 behaviors (10 HBB + 10 extension)."""
-    return selected_hbb_behaviors + list(extension_behaviors)
+    """The 10 selected HBB behaviors."""
+    return list(selected_hbb_behaviors)

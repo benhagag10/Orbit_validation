@@ -494,7 +494,9 @@ class TestTaskConstruction:
 
         task = browserart_safety(task_ids="0")
         assert task.scorer is not None
-        assert len(task.scorer) == 2  # browserart_scorer + security_scorer
+        # Benign run (no attack/defense/baseline): security_scorer is omitted,
+        # leaving just browserart_scorer.
+        assert len(task.scorer) == 1
 
     def test_task_has_solver(self):
         from orbit.scenarios.browser.browserart.task import browserart_safety

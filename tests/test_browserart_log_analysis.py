@@ -156,31 +156,6 @@ class TestBrowserartLogHeaders:
                 f"{eval_path.name}: header missing eval.model"
             )
 
-    def test_extension_runs_have_correct_task_args(self):
-        """Extension dataset runs (hbb_extension) with status=success should
-        have dataset=hbb_extension and a positive max_turns."""
-        found_any = False
-        for eval_path in BROWSERART_EVALS:
-            header = _read_header(eval_path)
-            if header is None:
-                continue
-            if header.get("status") != "success":
-                continue
-            eval_section = header.get("eval", {})
-            task_args = eval_section.get("task_args", {})
-            dataset = task_args.get("dataset")
-            if dataset != "hbb_extension":
-                continue
-            found_any = True
-            max_turns = task_args.get("max_turns")
-            if max_turns is not None:
-                assert max_turns > 0, (
-                    f"{eval_path.name}: extension run has max_turns={max_turns}, "
-                    f"expected > 0"
-                )
-        if not found_any:
-            pytest.skip("No successful hbb_extension runs found")
-
     def test_samples_have_browserart_scorer(self):
         """Header's scorers list should include 'browserart_scorer'."""
         for eval_path in BROWSERART_EVALS:
@@ -326,39 +301,13 @@ class TestBrowserartScores:
 
 
 # ---------------------------------------------------------------------------
-# TestExtensionLogDetails
+# TestSecurityScorerLogDetails
 # ---------------------------------------------------------------------------
 
 
 @no_browserart_logs
-class TestExtensionLogDetails:
-    """Detailed checks for hbb_extension runs."""
-
-    def test_extension_sample_ids_in_range(self):
-        """Extension dataset samples should have IDs matching browserart_2XX
-        (i.e. IDs in the 200+ range, typically 227-236)."""
-        pattern = re.compile(r"^browserart_2\d{2}$")
-        found_any = False
-        for eval_path in BROWSERART_EVALS:
-            header = _read_header(eval_path)
-            if header is None:
-                continue
-            eval_section = header.get("eval", {})
-            task_args = eval_section.get("task_args", {})
-            if task_args.get("dataset") != "hbb_extension":
-                continue
-            dataset_info = eval_section.get("dataset", {})
-            sample_ids = dataset_info.get("sample_ids", [])
-            if not sample_ids:
-                continue
-            found_any = True
-            for sid in sample_ids:
-                assert pattern.match(str(sid)), (
-                    f"{eval_path.name}: extension sample ID '{sid}' does not "
-                    f"match expected pattern browserart_2XX"
-                )
-        if not found_any:
-            pytest.skip("No hbb_extension runs with sample_ids found")
+class TestSecurityScorerLogDetails:
+    """Detailed security_scorer checks across browserart runs."""
 
     def test_no_defense_false_positive_zero(self):
         """Runs without a defense_preset should have false_positive_rate == 0.0

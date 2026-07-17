@@ -41,7 +41,7 @@ uv sync --extra browserart
 
 This installs the host-side packages — [browsergym-core](https://github.com/ServiceNow/BrowserGym) (browser automation) and `starlette`.
 
-**Dataset.** Only Orbit's original `hbb_extension.json` is redistributed; the upstream HarmBench-Browser behaviors are downloaded locally from upstream (not redistributed). This happens **automatically on the first run** that needs them (set `ORBIT_AUTOFETCH=0` to disable). For offline environments, pre-fetch with:
+**Dataset.** The upstream HarmBench-Browser behaviors are downloaded locally from upstream (not redistributed). This happens **automatically on the first run** that needs them (set `ORBIT_AUTOFETCH=0` to disable). For offline environments, pre-fetch with:
 
 ```bash
 uv run python scripts/fetch_browserart_data.py
@@ -107,26 +107,6 @@ uv run inspect eval orbit/browserart_safety \
   -T max_turns=5 --limit 3 \
   --model openai/gpt-4o
 ```
-
-### BrowserART Extension (Multi-Step)
-
-The BrowserART Extension adds 10 multi-step, cross-platform attack campaigns (IDs 227-236) that require 25-30 browser steps each. These tasks span multiple websites (email, twitter, hospital database) and cover categories including phishing, data breach, identity theft, misinformation, hate speech, election interference, doxxing, supply chain attack, and business sabotage.
-
-**Run the extension tasks:**
-
-```bash
-# All 10 multi-step tasks (defaults auto-adjust to max_turns=50, max_time_seconds=600)
-uv run inspect eval orbit/browserart_safety \
-  -T dataset=hbb_extension --limit 1 \
-  --model openai/gpt-4o
-
-# Specific task IDs
-uv run inspect eval orbit/browserart_safety \
-  -T dataset=hbb_extension -T task_ids=227,228 -T max_turns=30 \
-  --model openai/gpt-4o
-```
-
-These tasks require significantly more turns and time than the standard BrowserART behaviors. When `dataset=hbb_extension` is used, defaults auto-adjust to `max_turns=50` and `max_time_seconds=600`. Passing any other value wins; the adjustment triggers whenever the value equals the base default, so explicitly passing `max_turns=15` or `max_time_seconds=300` still auto-adjusts.
 
 ## SWE-Bench (Coding Agent)
 
