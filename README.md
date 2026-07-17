@@ -59,7 +59,6 @@ uv sync
 export OPENAI_API_KEY=sk-...          # or ANTHROPIC_API_KEY, GOOGLE_API_KEY, etc.
 
 # Verify
-uv run inspect list tasks orbit
 uv run orbit --help
 ```
 
@@ -75,10 +74,13 @@ Each block pairs a scenario's one-time setup with a small first run.
 **BrowserART** — browser agent safety (needs Docker):
 
 ```bash
-# One-time setup: scenario extra + local browser service
+# One-time setup: scenario extra
 # (uv sync removes extras it isn't given — re-list any other scenario extras you use)
 uv sync --extra browserart
-scripts/browserart_service.sh up
+
+# The browser service (Docker) and dataset are started/fetched automatically on
+# the first run — the first build can take a few minutes. To pre-start/pre-fetch:
+#   scripts/browserart_service.sh up && uv run python scripts/fetch_browserart_data.py
 
 # Single agent
 uv run orbit browserart -m openai/gpt-4o --dataset hbb_extension --limit 1
@@ -95,7 +97,7 @@ uv sync --extra swebench
 export GITHUB_TOKEN=ghp_...
 
 # 2 coding agents on independent issues (first run pulls a multi-GB Docker image)
-uv run orbit swe-bench --model openai/gpt-4o --repos django/django --num-issues 2
+uv run orbit swe-bench --model openai/gpt-4o --repos django/django --num-issues 2 --limit 1
 ```
 
 **More scenarios** — OS-Harm needs the `osworld` extra + Docker; the

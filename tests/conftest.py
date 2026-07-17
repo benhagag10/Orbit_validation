@@ -7,9 +7,11 @@ import os
 import pytest
 
 # Keep the suite hermetic: never let a test that hits a missing-dataset path
-# trigger a real upstream download. Tests of the auto-fetch behavior itself
-# re-enable this with monkeypatch and a mocked downloader.
+# trigger a real upstream download, and never let a preflight check spin up the
+# browserart-service Docker container. Tests of those behaviors re-enable them
+# with monkeypatch and mocked downloaders/subprocess.
 os.environ.setdefault("ORBIT_AUTOFETCH", "0")
+os.environ.setdefault("ORBIT_AUTOSTART_SERVICE", "0")
 
 from orbit.configs.attack import AttackConfig
 from orbit.configs.defense import DefenseConfig
