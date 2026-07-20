@@ -28,13 +28,12 @@ from orbit.wrapper.yaml_loader import load_experiment_config
 
 EXAMPLES_DIR = Path(__file__).parent.parent / "examples"
 
-# DCOP example configs whose roster is generated from scenario.properties.
+# Shipped DCOP example configs whose roster is generated from scenario.properties.
+# (The curated examples/ ships one flagship DCOP config; the roster-from-properties
+# logic for hospital/jira/meeting is covered exhaustively by the programmatic tests
+# above, so this guard only needs to cover what actually ships.)
 DCOP_EXAMPLE_YAMLS = [
-    "collusion_hospital.yaml",
     "collusion_jira_ticket.yaml",
-    "collusion_meeting_scheduling.yaml",
-    "jira_ticket_baseline.yaml",
-    "jira_ticket_channel_only.yaml",
 ]
 
 
