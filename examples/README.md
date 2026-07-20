@@ -17,7 +17,8 @@ it, and how to vary it. Start with `simple_no_sandbox.yaml`.
 
 1. **Per-scenario CLI flags** — quickest for exploration:
    ```bash
-   uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin --memory full
+   uv run orbit browserart -m openai/gpt-4o --agents specialist --topology star --memory full
+   uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin   # mesh; --memory needs star
    uv run orbit redcode-gen --model openai/gpt-4o --preset star_specialist
    ```
 2. **Inspect `eval` with `-T` params** — direct Inspect access:
