@@ -6,10 +6,7 @@ There are two supported ways to run experiments:
    (e.g. `orbit browserart`, `orbit swe-bench`), no YAML needed
 2. **`orbit run`** -- run experiments from YAML config files (full control)
 
-Both produce the same Inspect eval logs viewable with `inspect view`. (Orbit
-tasks are standard Inspect tasks, so direct runs with
-`inspect eval orbit/<task> -T ...` also work — but the two `orbit` paths above
-are the supported ones.)
+Both produce the same Inspect eval logs viewable with `inspect view`.
 
 ## Installation
 
