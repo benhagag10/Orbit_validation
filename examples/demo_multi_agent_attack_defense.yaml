@@ -10,7 +10,8 @@
 #
 # Vary the topology/memory: browserart ships a 17-preset family at
 #   orbit/scenarios/browser/browserart/presets/   (single_agent, star_specialist, mesh_delegation, memory_full, …)
-# or use the CLI: uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin --memory full
+# or use the CLI: uv run orbit browserart -m openai/gpt-4o --agents specialist --topology star --memory full
+#   (--memory sharing is only supported with --topology star; use --topology round_robin for a mesh without shared memory)
 
 name: "demo_attack_defense"
 description: "Multi-agent with indirect injection attack and prompt vaccination defense"
