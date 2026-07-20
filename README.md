@@ -56,8 +56,13 @@ We found that multi-agent security lacks a standardized toolkit for experimentat
 cd orbit
 uv sync
 
-# Set your API key(s)
+# Set your API key(s) — the `export` keyword matters: without it the key is a
+# shell-local variable that `uv run` subprocesses do NOT inherit.
 export OPENAI_API_KEY=sk-...          # or ANTHROPIC_API_KEY, GOOGLE_API_KEY, etc.
+
+# ...or put the keys in a .env file at the repo root (no `export`), which Orbit
+# and Inspect load automatically — handy for a fresh clone (.env is gitignored):
+#   echo 'OPENAI_API_KEY=sk-...' >> .env
 
 # Verify
 uv run orbit --help
