@@ -172,7 +172,7 @@ class ScenarioPlugin:
 
     build_task_kwargs: Callable[[ExperimentConfig], dict[str, Any]] | None = None
     """Return extra keyword arguments for ``Task(...)`` — e.g.
-    ``{"message_limit": 60}`` (browserart), ``{"epochs": Epochs(...)}`` (tau2),
+    ``{"message_limit": 60 * n_agents}`` (browserart), ``{"epochs": Epochs(...)}`` (tau2),
     or ``{"max_messages": ..., "epochs": ...}`` (the generic benchmark).
     Default: ``{}``."""
 

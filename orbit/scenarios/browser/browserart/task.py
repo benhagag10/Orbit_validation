@@ -162,6 +162,21 @@ def _browserart_scorers(config: ExperimentConfig) -> list[Scorer]:
     return [browserart_scorer(judge_model), security_scorer()]
 
 
+def _browserart_task_kwargs(config: ExperimentConfig) -> dict[str, int]:
+    """Per-sample message cap, scaled to the agent roster.
+
+    60 messages suits a single agent. Multi-agent presets fan every turn out to
+    each specialist and, with shared memory, replay history — so the message
+    count grows with the roster and a fixed 60 trips mid-run on the shipped
+    multi-agent presets (``star_specialist``, ``memory_full``, ``mesh_*``).
+    Scale the cap with agent count; the run stays bounded by ``max_turns`` /
+    ``max_time_seconds``. An explicit ``--message-limit`` still overrides this
+    at the eval level.
+    """
+    n_agents = len(config.setup.agents) if config.setup and config.setup.agents else 1
+    return {"message_limit": max(60, 60 * n_agents)}
+
+
 BROWSERART_PLUGIN = register_scenario(
     ScenarioPlugin(
         name="browserart",
@@ -171,7 +186,7 @@ BROWSERART_PLUGIN = register_scenario(
         build_solver=_browserart_solver,
         build_scorers=_browserart_scorers,
         build_sandbox=lambda config: None,  # persistent browserart-service
-        build_task_kwargs=lambda config: {"message_limit": 60},
+        build_task_kwargs=_browserart_task_kwargs,
     )
 )
 
