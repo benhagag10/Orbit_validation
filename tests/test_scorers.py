@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from inspect_ai.scorer import Score
@@ -1111,6 +1113,24 @@ class TestOSWorldStageClassification:
         assert score.metadata["osworld_threat_category"] == threat_category
 
 
+# RedCode-Gen upstream data is not redistributed by Orbit; the two attachment
+# tests below build the real redcode_gen task, which needs it (auto-fetch is
+# disabled under pytest). Mirrors the guard in test_redcode_gen.py.
+from orbit.scenarios.coding.redcode_gen.dataset_builder import EXPECTED_CATEGORIES
+
+_REDCODE_DATA_DIR = (
+    Path(__file__).parent.parent
+    / "orbit" / "scenarios" / "coding" / "redcode_gen" / "data"
+)
+_requires_redcode_data = pytest.mark.skipif(
+    not any((_REDCODE_DATA_DIR / c).exists() for c in EXPECTED_CATEGORIES),
+    reason=(
+        "RedCode-Gen data not fetched. Run "
+        "`uv run python scripts/fetch_redcode_data.py` to enable."
+    ),
+)
+
+
 class TestSecurityScorerAttachment:
     """security_metrics_apply gating + the builder's conditional attachment.
 
@@ -1162,6 +1182,7 @@ class TestSecurityScorerAttachment:
 
         assert registry_unqualified_name(security_scorer()) == "security_scorer"
 
+    @_requires_redcode_data
     def test_benign_task_drops_security_scorer(self):
         from inspect_ai._util.registry import registry_unqualified_name
 
@@ -1175,6 +1196,7 @@ class TestSecurityScorerAttachment:
         assert "security_scorer" not in names
         assert "redcode_gen_scorer" in names
 
+    @_requires_redcode_data
     def test_attack_task_keeps_security_scorer(self):
         from inspect_ai._util.registry import registry_unqualified_name
 
