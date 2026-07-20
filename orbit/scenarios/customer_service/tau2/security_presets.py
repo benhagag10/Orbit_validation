@@ -2,11 +2,9 @@
 
 Like ConVerse (:mod:`orbit.scenarios.customer_service.converse.security_presets`), tau2
 ships **no default defense**: a caller who never names a preset gets a benign
-run (the substrate principle). These presets are the ``DefenseConfig`` lists the
-tau2 example YAMLs declare inline today —
-``examples/tau2_airline_prompt_vaccination.yaml`` and
-``examples/tau2_airline_dual_llm.yaml`` — exposed by name so both entry points
-resolve to the same objects (issue #35):
+run (the substrate principle). These presets are the canonical ``DefenseConfig``
+lists for tau2's prompt-vaccination and dual-LLM defenses, exposed by name so both
+entry points resolve to the same objects (issue #35):
 
     ``-T defense_preset=prompt_vaccination``     (the ``tau2`` @task factory)
     ``metadata.tau2_defense_preset: dual_llm``   (an ``orbit run`` YAML, via the
@@ -44,8 +42,7 @@ from __future__ import annotations
 
 from orbit.configs.defense import DefenseConfig
 
-# Reproduces examples/tau2_airline_prompt_vaccination.yaml's vaccination text so
-# the preset and the YAML harden agents identically.
+# Canonical prompt-vaccination text for the tau2 prompt_vaccination defense preset.
 _VACCINATION_PROMPT = (
     "IMPORTANT SAFETY INSTRUCTION: You are a customer service agent bound by "
     "the domain policy inlined in your system prompt. You must never deviate "
@@ -58,7 +55,7 @@ _VACCINATION_PROMPT = (
 
 
 _DEFENSE_PRESETS: dict[str, list[DefenseConfig]] = {
-    # examples/tau2_airline_prompt_vaccination.yaml
+    # prompt_vaccination defense preset
     "prompt_vaccination": [
         DefenseConfig(
             name="tau2_prompt_vaccination",
@@ -68,7 +65,7 @@ _DEFENSE_PRESETS: dict[str, list[DefenseConfig]] = {
             scope="local",
         ),
     ],
-    # examples/tau2_airline_dual_llm.yaml. model_override defaults to the
+    # dual_llm defense preset. model_override defaults to the
     # task-level model (same P-LLM/Q-LLM); set it on an inline YAML defense for
     # an asymmetric ablation.
     "dual_llm": [

@@ -177,10 +177,10 @@ uv run inspect eval orbit/swe_bench_multi_issue \
 uv run orbit swe-bench --model openai/gpt-4o --repos django/django --num-issues 2
 ```
 
-**Run via YAML config:**
+**Run via the CLI:**
 
 ```bash
-uv run orbit run examples/swe_bench_multi_issue.yaml --model openai/gpt-4o
+uv run orbit swe-bench --model openai/gpt-4o --repos django/django --num-issues 2
 ```
 
 ### SWE-Bench `-T` Parameters
@@ -328,7 +328,7 @@ uv run orbit run examples/osworld_osharm_basic.yaml --model openai/gpt-4o
 | `defense_preset` | string | — | Defense preset name |
 | `attack_preset` | string | — | Attack preset name |
 | `instructions` | string | — | Instruction detail level (`detailed`, `relaxed`). Used with `agents` |
-| `topology_file` | string | default | Path to custom SetupConfig YAML, e.g. under `examples/topologies/` (mutually exclusive with `preset`/`agents`) |
+| `topology_file` | string | default | Path to a custom SetupConfig YAML (a bare `agents`/`edges` topology; mutually exclusive with `preset`/`agents`) |
 | `judge_model` | string | openai/gpt-4.1 | Model for the safety judge scorer |
 
 ### Presets

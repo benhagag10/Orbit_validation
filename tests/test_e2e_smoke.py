@@ -41,13 +41,12 @@ SMOKE_EXAMPLE_YAMLS = [
     EXAMPLES_DIR / name
     for name in (
         "simple_no_sandbox.yaml",
-        "chain_compromised_agent.yaml",
-        "supervisor_workers_injection.yaml",
+        "tau2_airline_basic.yaml",
     )
 ]
 
-# Everything shipped under examples/, including topology snippets in
-# examples/topologies/ (SetupConfig-shaped; `orbit validate` detects those).
+# Every YAML shipped under examples/ — the six curated examples. Each must pass
+# `orbit validate`; scenarios needing an uninstalled optional extra are skipped.
 ALL_EXAMPLE_YAMLS = (
     sorted(EXAMPLES_DIR.rglob("*.yaml")) if EXAMPLES_DIR.exists() else []
 )
@@ -230,11 +229,11 @@ class TestExampleConfigsValidate:
 class TestAllExamplesOrbitValidate:
     """Every YAML shipped under examples/ must pass `orbit validate`.
 
-    Full ExperimentConfig examples validate against the experiment schema;
-    the SetupConfig topology snippets under examples/topologies/ are detected
-    by shape and validated as topology files. Examples whose scenario needs
-    an optional extra that is not installed are skipped, mirroring how the
-    scenario registry gates them at load time.
+    The curated examples are full ExperimentConfigs and validate against the
+    experiment schema. Examples whose scenario needs an optional extra that is
+    not installed are skipped, mirroring how the scenario registry gates them at
+    load time. (SetupConfig-only validation is covered by
+    ``tests/fixtures/setup_only_topology.yaml`` in the baseline-validation suite.)
     """
 
     @pytest.mark.parametrize(
@@ -257,9 +256,16 @@ class TestAllExamplesOrbitValidate:
         assert result.exit_code == 0, output
 
     def test_examples_discovered(self):
-        """Both example flavors are present — guards the glob itself."""
-        assert len(ALL_EXAMPLE_YAMLS) > 40
-        assert any(p.parent.name == "topologies" for p in ALL_EXAMPLE_YAMLS)
+        """The curated example set is present — guards the glob itself."""
+        names = {p.name for p in ALL_EXAMPLE_YAMLS}
+        assert names == {
+            "simple_no_sandbox.yaml",
+            "redcode_gen_basic.yaml",
+            "tau2_airline_basic.yaml",
+            "collusion_jira_ticket.yaml",
+            "demo_multi_agent_attack_defense.yaml",
+            "osworld_osharm_basic.yaml",
+        }, names
 
 
 class TestDryRunOutputStructure:

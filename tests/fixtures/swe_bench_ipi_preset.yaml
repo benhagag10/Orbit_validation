@@ -1,4 +1,5 @@
-# Example: SWE-Bench IPI using preset shorthand.
+# Regression-test fixture: SWE-Bench IPI using preset shorthand.
+# (Backs tests/test_issue9_config_completeness.py; not a shipped example.)
 #
 # Instead of writing out the full attack config, you can reference a
 # preset name in metadata.swe_bench_attack_preset. The runner calls
@@ -14,9 +15,6 @@
 #   - diff_monitor    (detects suspicious diff patterns)
 #   - full            (file_monitor + diff_monitor + prompt vaccination)
 #
-# To run:
-#   orbit run examples/swe_bench_ipi_preset.yaml --model openai/gpt-4o
-
 name: "swe_bench_ipi_preset"
 description: "SWE-Bench IPI via preset (no manual attack config needed)"
 

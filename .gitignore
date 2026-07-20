@@ -77,9 +77,6 @@ guide/
 inspect_docs/
 notes/
 
-# Ad-hoc runner scripts
-examples/osharm_misuse_conditions/run_*.sh
-
 # Upstream-fetched data (licensed under their upstreams; not redistributed
 # by Orbit). See orbit/scenarios/browser/browserart/data/README.md and
 # orbit/scenarios/coding/redcode_gen/data/README.md.

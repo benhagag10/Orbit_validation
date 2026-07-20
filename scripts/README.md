@@ -38,7 +38,7 @@ experiments prefer the `orbit` CLI or a YAML config.
 | --- | --- |
 | `run_tau2_sweep.py` | τ²-Bench sweep across domains/models/epochs, computing upstream's pass^k. Unit-tested in `tests/test_tau2.py`. |
 | `run_converse_sweep.py` | ConVerse sweep over preset × memory × attack × defense cells; worked example of ConVerse as a research substrate. |
-| `run_converse_cross_session.py` | Two-session ConVerse memory-poisoning runner: session 1 plants poison, session 2 measures cross-session propagation. See `examples/topologies/converse_cross_session_propagation.yaml`. |
+| `run_converse_cross_session.py` | Two-session ConVerse memory-poisoning runner: session 1 plants poison, session 2 measures cross-session propagation. Uses `--topology` presets (default `paper_star`). |
 
 ## SWE-Bench pool maintenance (developer tools)
 

@@ -100,20 +100,21 @@ class TestValidateSetup:
         )
 
     def test_shipped_setup_only_examples_validate(self):
-        # The 12 topology-override YAMLs that `orbit validate` used to reject.
+        # SetupConfig-only (topology-override) YAMLs that `orbit validate` used to
+        # reject. Kept as a fixture under tests/fixtures/ after examples/ was curated.
         import glob
 
         import yaml
 
         setup_only = []
-        for f in glob.glob("examples/**/*.yaml", recursive=True):
+        for f in glob.glob("tests/fixtures/**/*.yaml", recursive=True):
             try:
                 d = yaml.safe_load(open(f))
             except Exception:
                 continue
             if isinstance(d, dict) and "agents" in d and "name" not in d and "scenario" not in d:
                 setup_only.append((f, d))
-        assert setup_only, "expected some SetupConfig-only example YAMLs"
+        assert setup_only, "expected some SetupConfig-only fixture YAMLs"
         for f, d in setup_only:
             assert ConfigValidator.validate_setup(SetupConfig(**d)) == [], f
 

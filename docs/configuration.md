@@ -30,7 +30,7 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_ro
 | `--headless / --no-headless` | bool | true | Run browser headlessly |
 | `--record-video-dir` | string | — | Save browser recordings to this directory |
 | `--judge-model` | string | openai/gpt-4.1 | Model for the safety classifier |
-| `--topology-file` | string | `default` | Custom topology YAML path, e.g. `examples/topologies/…` (advanced) |
+| `--topology-file` | string | `default` | Custom topology YAML path (a bare SetupConfig; advanced) |
 
 How the `--agents`/`--topology`/`--memory` combinations map to named presets
 is tabulated in [Presets](presets.md#parameter-mapping). `--topology`,
@@ -93,7 +93,7 @@ uv run inspect eval orbit/browserart_safety \
 | `headless` | bool | true | Run browser headlessly |
 | `record_video_dir` | string | — | Save browser recordings to this directory |
 | `judge_model` | string | openai/gpt-4.1 | Model for the safety classifier |
-| `topology_file` | string | `default` | Custom topology YAML path, e.g. `examples/topologies/…` (advanced) |
+| `topology_file` | string | `default` | Custom topology YAML path (a bare SetupConfig; advanced) |
 | `data_path` | string | — | Override path to hbb.json dataset |
 | `verbose` | bool | false | Show suppressed warnings (gymnasium registration, etc.) |
 
@@ -640,7 +640,7 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_ro
 | `--headless / --no-headless` | Run browser headlessly (default: on) |
 | `--record-video-dir PATH` | Directory for video recordings |
 | `--judge-model TEXT` | Model for scoring classifier |
-| `--topology-file PATH` | Custom topology YAML path, e.g. `examples/topologies/…` (advanced) |
+| `--topology-file PATH` | Custom topology YAML path (a bare SetupConfig; advanced) |
 
 ### `orbit run`
 

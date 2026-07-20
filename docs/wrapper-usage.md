@@ -54,25 +54,25 @@ uv run inspect view
 
 ```bash
 # Run from YAML config
-uv run orbit run examples/browserart_quick_test.yaml --model openai/gpt-4o
+uv run orbit run examples/simple_no_sandbox.yaml --model openai/gpt-4o
 
 # Dry-run (validate and summarize without running). Preflight environment
 # checks still run first and prompt on failure; skip them with the
 # --skip-preflight flag:
-uv run orbit run examples/browserart_quick_test.yaml --model openai/gpt-4o --dry-run --skip-preflight
+uv run orbit run examples/simple_no_sandbox.yaml --model openai/gpt-4o --dry-run --skip-preflight
 
 # Override config values (top-level and nested Pydantic fields)
-uv run orbit run examples/browserart_quick_test.yaml -m openai/gpt-4o -T epochs=3
+uv run orbit run examples/simple_no_sandbox.yaml -m openai/gpt-4o -T epochs=3
 
 # Validate a config file
-uv run orbit validate examples/browserart_quick_test.yaml
+uv run orbit validate examples/simple_no_sandbox.yaml
 ```
 
 ## YAML Config Structure
 
 ### Single-agent config
 
-This is `examples/browserart_quick_test.yaml` (abridged comments). The agent
+A single-agent BrowserART config looks like this. The agent
 drives the browserart-service through the six `browser_*` service tools —
 BrowserART builds no per-sample sandbox, so Inspect's sandbox-based
 `web_browser` tool does not work here.
@@ -260,7 +260,7 @@ uv run orbit browserart --model openai/gpt-4o --limit 5 --max-turns 10
 uv run orbit swe-bench --model openai/gpt-4o --repos django/django --num-issues 2
 
 # Validate a config without running
-uv run orbit validate examples/browserart_quick_test.yaml
+uv run orbit validate examples/simple_no_sandbox.yaml
 ```
 
 Notes:

@@ -1,4 +1,5 @@
-# Example: SWE-Bench codebase injection attack.
+# Regression-test fixture: SWE-Bench codebase injection attack.
+# (Backs tests/test_issue9_config_completeness.py; not a shipped example.)
 #
 # A single coding agent works on a GitHub issue. Before it starts, the
 # codebase_injection attack plants a malicious instruction as a comment
@@ -14,8 +15,7 @@
 # security_scorer separately emits injection_success_rate (formerly asr)
 # and the per-encounter injection_execution_rate.
 #
-# To run (any of these work):
-#   orbit run examples/swe_bench_codebase_injection.yaml --model openai/gpt-4o
+# The same behavior via the CLI:
 #   orbit swe-bench --model openai/gpt-4o --attack-preset codebase_injection
 #   inspect eval orbit/scenarios/coding/swe_bench/task -T attack_preset=codebase_injection
 

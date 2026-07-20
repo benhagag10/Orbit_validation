@@ -1,11 +1,9 @@
-# OS-Harm Misuse — Star + Shared Memory
+# Regression-test fixture: OS-Harm Misuse — Star + Shared Memory.
+# (Backs tests/test_issue9_config_completeness.py; not a shipped example.)
 #
 # Star topology: orchestrator + 4 specialists with shared action history
 # (memory_shared_actions). Each agent sees own actions + own CoT +
 # shared action history from other agents.
-#
-# Usage:
-#   orbit run examples/osharm_misuse_presets/08_star_shared_memory.yaml --model openai/gpt-4o
 
 name: "osharm_misuse_star_shared_memory"
 description: "OS-Harm misuse — star + specialists with shared action memory"
