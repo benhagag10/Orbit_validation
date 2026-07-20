@@ -53,6 +53,7 @@ We found that multi-agent security lacks a standardized toolkit for experimentat
 
 ```bash
 # Install (dev tools included by default)
+cd orbit
 uv sync
 
 # Set your API key(s)
