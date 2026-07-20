@@ -1,12 +1,15 @@
 # Orbit Wrapper Usage
 
-There are three ways to run experiments:
+There are two supported ways to run experiments:
 
-1. **`inspect eval`** -- run tasks directly with `-T` parameters (best for presets)
-2. **`orbit` scenario commands** -- run a scenario directly with friendly flags (e.g. `orbit browserart`, `orbit swe-bench`), no YAML needed
-3. **`orbit run`** -- run experiments from YAML config files (full control)
+1. **`orbit <scenario>` commands** -- run a scenario directly with friendly flags
+   (e.g. `orbit browserart`, `orbit swe-bench`), no YAML needed
+2. **`orbit run`** -- run experiments from YAML config files (full control)
 
-All three produce the same Inspect eval logs viewable with `inspect view`.
+Both produce the same Inspect eval logs viewable with `inspect view`. (Orbit
+tasks are standard Inspect tasks, so direct runs with
+`inspect eval orbit/<task> -T ...` also work — but the two `orbit` paths above
+are the supported ones.)
 
 ## Installation
 
@@ -17,8 +20,10 @@ uv sync
 The examples in this document additionally need their scenario's own setup:
 
 - **BrowserART** (all Quick Start and preset examples): `uv sync --extra browserart`,
-  then start the browserart-service Docker container with
-  `scripts/browserart_service.sh up`.
+  plus Docker. The browserart-service container and dataset are
+  started/fetched automatically on the first run (the first build can take a
+  few minutes); to pre-start them, run `scripts/browserart_service.sh up` and
+  `uv run python scripts/fetch_browserart_data.py`.
 - **SWE-Bench**: `uv sync --extra swebench`, plus Docker and a `GITHUB_TOKEN`
   environment variable.
 
@@ -27,30 +32,21 @@ for the full per-scenario install matrix.
 
 ## Quick Start
 
-### Option A: Inspect CLI (recommended for presets)
+### Option A: Scenario commands (quickest)
 
 ```bash
-# Single-agent BrowserART (1 behavior; needs the browserart-service running:
-# scripts/browserart_service.sh up)
-uv run inspect eval orbit/browserart_safety \
-  -T max_turns=5 --limit 1 \
-  --model openai/gpt-4o
+# Single-agent BrowserART (1 behavior; the browserart-service container and
+# dataset are started/fetched automatically on the first run)
+uv run orbit browserart --model openai/gpt-4o --limit 1 --max-turns 5
 
 # Multi-agent with a preset (star + specialists)
-uv run inspect eval orbit/browserart_safety \
-  -T preset=star_specialist -T max_turns=5 --limit 1 \
-  --model openai/gpt-4o
-
-# Mesh delegation topology
-uv run inspect eval orbit/browserart_safety \
-  -T preset=mesh_delegation -T max_turns=5 --limit 1 \
-  --model openai/gpt-4o
+uv run orbit browserart --model openai/gpt-4o --preset star_specialist --limit 1 --max-turns 5
 
 # View results in browser
 uv run inspect view
 ```
 
-### Option B: YAML config + `orbit` CLI
+### Option B: YAML config + `orbit run` (full control)
 
 ```bash
 # Run from YAML config
@@ -163,7 +159,7 @@ uv run orbit run my_config.yaml --model openai/gpt-4o
 | `swe_bench_repos` | list[str] | Repository filter (e.g. `["django/django"]`) |
 | `swe_bench_seed` | int | Random seed for group sampling |
 | `swe_bench_scheduling_mode` | str | Execution mode: `"round_robin"` or `"superstep"` |
-| `swe_bench_preset` | str | Named topology/memory preset (e.g. `"star_specialist"`, `"memory_full"`) — the same presets as `-T preset=...` |
+| `swe_bench_preset` | str | Named topology/memory preset (e.g. `"star_specialist"`, `"memory_full"`) — the same presets as `--preset` on `orbit swe-bench` |
 | `swe_bench_attack_preset` | str | Attack preset: `"self_replication"`, `"sabotage"`, `"codebase_injection"`, `"codebase_injection_targeted"`, `"codebase_injection_behavioral"`, `"aishellcheck"`, `"aishellcheck_category_sweep"`, `"compromised_agent"`, `"collusion_side_task"` |
 | `swe_bench_defense_preset` | str | Defense preset: `"file_monitor"`, `"diff_monitor"`, `"full"`, `"sysprompt"`, `"llm_monitor"`, `"guardian"`, `"dual_llm"` |
 
@@ -197,7 +193,8 @@ metadata:
 
 ## Multi-Agent Presets
 
-Use `preset` to select a multi-agent setup. Presets configure agent topology,
+Use `--preset` on a scenario command (or the `<scenario>_preset` metadata key
+in YAML) to select a multi-agent setup. Presets configure agent topology,
 prompts, and execution style automatically. These are BrowserART's presets; each
 scenario ships its own set (see [Presets](presets.md)).
 
@@ -219,19 +216,13 @@ scenario ships its own set (see [Presets](presets.md)).
 
 ```bash
 # Single agent baseline
-uv run inspect eval orbit/browserart_safety \
-  -T preset=single_agent -T max_turns=5 --limit 1 \
-  --model openai/gpt-4o
+uv run orbit browserart --model openai/gpt-4o --preset single_agent --limit 1 --max-turns 5
 
 # Specialist star topology
-uv run inspect eval orbit/browserart_safety \
-  -T preset=star_specialist -T max_turns=5 --limit 1 \
-  --model openai/gpt-4o
+uv run orbit browserart --model openai/gpt-4o --preset star_specialist --limit 1 --max-turns 5
 
 # Mesh delegation
-uv run inspect eval orbit/browserart_safety \
-  -T preset=mesh_delegation -T max_turns=5 --limit 1 \
-  --model openai/gpt-4o
+uv run orbit browserart --model openai/gpt-4o --preset mesh_delegation --limit 1 --max-turns 5
 
 # View all results
 uv run inspect view
@@ -267,8 +258,7 @@ Notes:
 
 - `-T` on `orbit run` overrides top-level and nested Pydantic config fields
   (e.g. `-T epochs=3`, `-T scheduler.max_turns=50`). It cannot add new keys
-  to dict fields like `metadata` — set those in the YAML. (On `inspect eval`,
-  `-T` sets task parameters instead.)
+  to dict fields like `metadata` — set those in the YAML.
 - `--dry-run` still runs the preflight environment checks first (and prompts
   on failure); combine with `--skip-preflight` for a purely offline check.
 - `-v, --verbose` and `--skip-preflight` are accepted at group level before
