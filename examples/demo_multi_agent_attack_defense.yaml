@@ -1,11 +1,16 @@
-# Demo: Multi-agent BrowserART with attack + defense
+# Orbit example 5/6 — Multi-agent browser task with attack + defense.
 #
-# Two agents (orchestrator + browser executor) in a star topology.
-# An indirect injection attack targets the executor, while a
-# prompt vaccination defense hardens both agents.
+# Two agents in a star topology: an orchestrator delegates to a browser executor
+# via a custom `edges` entry. An indirect-injection attack targets the executor
+# while a prompt-vaccination defense hardens both agents — the full attack+defense
+# stack in one file. Uses the BrowserART service sandbox (`scenario.sandbox`).
 #
 # Run:
-#   orbit run examples/demo_multi_agent_attack_defense.yaml -m openai/gpt-4o --limit 1
+#   uv run orbit run examples/demo_multi_agent_attack_defense.yaml -m openai/gpt-4o --limit 1
+#
+# Vary the topology/memory: browserart ships a 17-preset family at
+#   orbit/scenarios/browser/browserart/presets/   (single_agent, star_specialist, mesh_delegation, memory_full, …)
+# or use the CLI: uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin --memory full
 
 name: "demo_attack_defense"
 description: "Multi-agent with indirect injection attack and prompt vaccination defense"

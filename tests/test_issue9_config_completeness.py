@@ -326,9 +326,9 @@ class TestShorthandResolvedOnOrbitRun:
             _skip_if_missing_dep(exc)
 
     def test_swe_bench_attack_preset_resolved_not_benign(self):
-        # examples/swe_bench_ipi_preset.yaml declares attacks: [] and relies on
-        # metadata.swe_bench_attack_preset — must NOT silently run benign.
-        task = self._build_or_skip("examples/swe_bench_ipi_preset.yaml")
+        # tests/fixtures/swe_bench_ipi_preset.yaml declares attacks: [] and relies
+        # on metadata.swe_bench_attack_preset — must NOT silently run benign.
+        task = self._build_or_skip("tests/fixtures/swe_bench_ipi_preset.yaml")
         exp = _sample_configs(task)[0]
         assert [a.attack_type for a in exp.attacks] == ["codebase_injection"], (
             "swe_bench_attack_preset must resolve into an attack on `orbit run`"
@@ -338,7 +338,7 @@ class TestShorthandResolvedOnOrbitRun:
         # 08 names memory_shared_actions; must restore shared=True + shared-action
         # access (was degrading to default non-shared memory — a P0 violation).
         task = self._build_or_skip(
-            "examples/osharm_misuse_presets/08_star_shared_memory.yaml"
+            "tests/fixtures/osworld_memory_shared_actions.yaml"
         )
         exp = _sample_configs(task)[0]
         mem = exp.setup.memory
@@ -349,7 +349,7 @@ class TestShorthandResolvedOnOrbitRun:
 
 
 class TestSweBenchInlineAttacksOnOrbitRun:
-    """Issue #40: ``orbit run examples/swe_bench_codebase_injection.yaml`` must
+    """Issue #40: ``orbit run tests/fixtures/swe_bench_codebase_injection.yaml`` must
     apply the inline ``attacks:`` block, not silently run a benign SWE-Bench task.
 
     Distinct from the *preset* route (``metadata.swe_bench_attack_preset``, locked
@@ -380,7 +380,7 @@ class TestSweBenchInlineAttacksOnOrbitRun:
         from orbit.wrapper.runner import _build_task
         from orbit.wrapper.yaml_loader import load_experiment_config
 
-        example = "examples/swe_bench_codebase_injection.yaml"
+        example = "tests/fixtures/swe_bench_codebase_injection.yaml"
         if not os.path.exists(example):
             pytest.skip(f"{example} not present")
 
