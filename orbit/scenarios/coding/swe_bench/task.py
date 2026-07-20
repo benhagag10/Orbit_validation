@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 from inspect_ai import Task, task
 from inspect_ai.solver import chain
 
+from orbit.configs.setup import SetupConfig
 from orbit.scenarios.coding.swe_bench.config_builder import (
     build_experiment_configs,
     default_topology_template,
@@ -41,7 +42,6 @@ if TYPE_CHECKING:
     from inspect_ai.solver import Solver
 
     from orbit.configs.experiment import ExperimentConfig
-    from orbit.configs.setup import SetupConfig
 
 logger = logging.getLogger(__name__)
 
@@ -288,7 +288,6 @@ def swe_bench_multi_issue(
     from orbit.configs.metrics import MetricsConfig
     from orbit.configs.scenario import ScenarioConfig
     from orbit.configs.scheduler import SchedulerConfig
-    from orbit.configs.setup import SetupConfig
 
     # ---- Resolve human-readable params to a preset name ----
     if agents is not None and preset is not None:

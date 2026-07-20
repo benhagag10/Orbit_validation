@@ -469,6 +469,28 @@ def test_factory_exposes_shorthand_params(name):
         )
 
 
+@pytest.mark.parametrize("name", sorted(_FACTORY_MAP))
+def test_factory_annotations_evaluate_at_runtime(name):
+    """Every ``@task`` factory's annotations must evaluate in its module's
+    runtime namespace. Inspect's ``registry_create`` calls
+    ``get_annotations(obj, eval_str=True)`` when a task is loaded via
+    ``inspect eval <file>@<task>`` / ``inspect eval orbit/<task>``, so a type
+    referenced in a public signature but imported only under ``TYPE_CHECKING``
+    fails at task-load time with a NameError — invisible to the rest of the
+    suite, which never exercises that load path (issue #81, swe_bench's
+    ``topology: str | SetupConfig | None``)."""
+    mod_path, fn_name = _FACTORY_MAP[name]
+    factory = getattr(importlib.import_module(mod_path), fn_name)
+    try:
+        inspect.get_annotations(factory, eval_str=True)
+    except NameError as exc:
+        pytest.fail(
+            f"{name}: annotations on factory {fn_name!r} do not evaluate at "
+            f"runtime ({exc}) — `inspect eval` cannot load this task. Import "
+            f"the missing name at module level (not just under TYPE_CHECKING)."
+        )
+
+
 # ---------------------------------------------------------------------------
 # 6. Resolver target validation (issue #31.2 — real-world grounded)
 # ---------------------------------------------------------------------------
