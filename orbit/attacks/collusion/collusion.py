@@ -285,10 +285,17 @@ class CollusionAttack(AttackBase):
                 if hasattr(agent, "tools") and isinstance(agent.tools, list):
                     agent.tools.append(channel_tool)
                 else:
-                    logger.warning(
-                        "Cannot inject secret_channel tool into agent %s: "
-                        "agent.tools is not a mutable list. Consider using "
-                        "the scheduled path (agent_groups) which wires tools at build time.",
+                    # Expected on the scheduled-executor path (agent_groups):
+                    # the secret_channel tool is already wired onto coalition
+                    # agents at build time (orchestrator._collect_collusion_extra_tools),
+                    # so the built agent's tool list is immutable here and this
+                    # runtime append would be a redundant duplicate. Not an error
+                    # — debug, so a working collusion run doesn't print a scary
+                    # warning. Collusion always runs through agent_groups, so the
+                    # channel is wired regardless of this branch.
+                    logger.debug(
+                        "secret_channel for agent %s already wired at build time "
+                        "(scheduled executor); skipping runtime injection.",
                         agent_name,
                     )
 
