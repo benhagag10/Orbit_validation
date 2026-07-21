@@ -2,7 +2,7 @@
   <img src="docs/assets/orbit_banner.png" alt="Orbit — Multi-Agent Security Evaluations" width="700">
 </p>
 
-<br>
+---
 
 <p align="center">
   <a href="https://www.cooperativeai.com/"><img src="docs/assets/caif.png" alt="Cooperative AI Foundation" height="48"></a>
@@ -14,7 +14,7 @@
 
 <br>
 
-<p align="center"><strong>Welcome to Orbit</strong> — a multi-agent security and safety evaluations platform.</p>
+<p align="center"><strong>Orbit</strong> — a multi-agent security and safety evaluations platform.</p>
 
 <p align="center">
   Built on the <a href="https://www.aisi.gov.uk/">UK AI Security Institute</a>'s <a href="https://inspect.aisi.org.uk/">Inspect AI</a> framework<br>
