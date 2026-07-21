@@ -279,9 +279,8 @@ def osworld_safety(
 
     1. **Named preset** (``preset``): a pre-validated multi-agent
        topology preset (e.g. ``"star_specialist"``).
-    2. **Friendly parameters** (``agents``, ``topology``, ``memory``,
-       ``instructions``): human-readable knobs that resolve to a named
-       preset.
+    2. **Flag parameters** (``agents``, ``topology``, ``memory``,
+       ``instructions``): resolve to a named preset.
     3. **Custom YAML** (``topology_file``): path to a SetupConfig YAML.
 
     Examples:

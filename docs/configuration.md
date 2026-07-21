@@ -32,8 +32,9 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_ro
 | `--judge-model` | string | openai/gpt-4.1 | Model for the safety classifier |
 | `--topology-file` | string | `default` | Custom topology YAML path (a bare SetupConfig; advanced) |
 
-How the `--agents`/`--topology`/`--memory` combinations map to named presets
-is tabulated in [Presets](presets.md#parameter-mapping). `--topology`,
+The `--agents`/`--topology`/`--memory` flag system is described in
+[Presets](presets.md); each scenario's preset names are listed in its
+Presets section in [Scenarios](scenarios.md). `--topology`,
 `--memory`, and `--instructions` refine `--agents`; passing one without
 `--agents` is a usage error (use `--preset` to name a preset directly).
 

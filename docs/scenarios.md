@@ -108,6 +108,18 @@ uv run inspect eval orbit/browserart_safety \
   --model openai/gpt-4o
 ```
 
+### Presets
+
+Select a preset with the `--agents`/`--topology`/`--memory` flags (see [Presets](presets.md)),
+with `--preset <name>` (CLI) or `-T preset=<name>` (`inspect eval`), or run the shipped config
+directly with `orbit run orbit/scenarios/browser/browserart/presets/<name>.yaml`.
+BrowserART's specialists are click, fill, scroll, and navigate; the 17
+presets are `single_agent`, `star_batch`, `star_batch_relaxed`, `star_specialist`,
+`star_specialist_relaxed`, `star_2_specialist`, `star_3_specialist`, `star_step`,
+`mesh_round_robin`, `mesh_delegation`, `mesh_delegation_cot`, `mesh_delegation_full`,
+`memory_none`, `memory_own_actions`, `memory_own_reasoning`, `memory_shared_actions`, and
+`memory_full` — one YAML per preset in `orbit/scenarios/browser/browserart/presets/`.
+
 ## SWE-Bench (Coding Agent)
 
 Tests multi-agent coding scenarios using real GitHub issues from open-source projects. Multiple agents work on independent issues in a shared codebase, with configurable attacks (self-replicating injection, cross-issue sabotage) and defenses (file change monitor, diff monitor).
@@ -201,11 +213,10 @@ uv run orbit swe-bench --model openai/gpt-4o --repos django/django --num-issues 
 
 ### Presets
 
-A preset is just a pre-baked config. The shared reference — the friendly-flag
-mapping, topology diagrams, and conflict rules — lives in [Presets](presets.md); each shipped
-scenario, SWE-Bench included, comes with its own preset set. Use via `--preset <name>`
-(CLI), `-T preset=<name>` (`inspect eval`), or run the shipped config directly with
-`orbit run orbit/scenarios/coding/swe_bench/presets/<name>.yaml`. SWE-Bench's specialists are
+Select a preset with the `--agents`/`--topology`/`--memory` flags (see [Presets](presets.md)),
+with `--preset <name>` (CLI) or `-T preset=<name>` (`inspect eval`), or run the shipped config
+directly with `orbit run orbit/scenarios/coding/swe_bench/presets/<name>.yaml`.
+SWE-Bench's specialists are
 implementation, debugging, testing, and review; the 13 presets are `single_agent`, `star_batch`,
 `star_batch_relaxed`, `star_specialist`, `star_specialist_relaxed`, `star_step`, `mesh_round_robin`,
 `mesh_delegation`, `memory_none`, `memory_own_actions`, `memory_own_reasoning`,
@@ -284,7 +295,7 @@ uv run orbit osworld -m openai/gpt-4o --dataset osharm_misuse
 # Star topology with specialists
 uv run orbit osworld -m openai/gpt-4o --preset star_specialist --limit 5
 
-# Friendly parameters
+# Or select the preset via flags
 uv run orbit osworld -m openai/gpt-4o --agents specialist --topology round_robin --limit 5
 
 # With defense preset
@@ -333,11 +344,10 @@ uv run orbit run examples/osworld_osharm_basic.yaml --model openai/gpt-4o
 
 ### Presets
 
-A preset is just a pre-baked config. The shared reference — the friendly-flag
-mapping, topology diagrams, and conflict rules — lives in [Presets](presets.md); each shipped
-scenario, OSWorld included, comes with its own preset set. Use via `--preset <name>` (CLI),
-`-T preset=<name>` (`inspect eval`), or run the shipped config directly with
-`orbit run orbit/scenarios/desktop/osworld/presets/<name>.yaml`. OSWorld ships two specialist
+Select a preset with the `--agents`/`--topology`/`--memory` flags (see [Presets](presets.md)),
+with `--preset <name>` (CLI) or `-T preset=<name>` (`inspect eval`), or run the shipped config
+directly with `orbit run orbit/scenarios/desktop/osworld/presets/<name>.yaml`.
+OSWorld ships two specialist
 families — tool-action specialists (`star_tool_*`, `mesh_tool_*`, `tool_memory_*`, the default for
 `--agents specialist`) and application specialists (`star_specialist`, `mesh_*`, `memory_*`, via
 `--agents app_specialist`) — 13 presets each, plus four family-less presets
@@ -441,6 +451,13 @@ uv run inspect eval orbit/converse_safety --limit 3 --model openai/gpt-4o
 ```
 
 (`scripts/build_converse_data.py` regenerates the vendored ConVerse data if you ever need to.)
+
+&tau;&sup2;-Bench builds its agent roster per task (tools depend on the sample), so it takes
+none of the `--agents`/`--topology`/`--memory` flags and ships no preset YAMLs — select its
+multi-agent shape by name
+with `orbit tau2 --preset` or `-T preset=...`: `solo` (airline-only single-agent baseline),
+`dual_control` (the default), `supervisor_specialist`, `tiered_escalation`, `mesh_committee`,
+`dual_control_review`, or `cross_domain_handoff`.
 
 ## Troubleshooting
 

@@ -565,10 +565,10 @@ PRESET_REGISTRY: dict[str, Callable[[], Preset]] = {
 
 
 # ---------------------------------------------------------------------------
-# Human-readable parameter resolver
+# Flag combination -> preset name
 # ---------------------------------------------------------------------------
 
-_FRIENDLY_TO_PRESET: dict[tuple[str, str, str, str], str] = {
+_FLAGS_TO_PRESET: dict[tuple[str, str, str, str], str] = {
     # (agents, topology, memory, instructions) → preset
     ("single", "star", "none", "detailed"): "single_agent",
     ("single", "star", "none", "relaxed"): "single_agent",        # no relaxed variant
@@ -622,7 +622,7 @@ def resolve_preset(
         )
 
     key = (agents, topology, memory, instructions)
-    preset = _FRIENDLY_TO_PRESET.get(key)
+    preset = _FLAGS_TO_PRESET.get(key)
     if preset is not None:
         return preset
 

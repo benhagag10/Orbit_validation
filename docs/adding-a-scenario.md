@@ -597,6 +597,6 @@ uv run python scripts/verify_construct_validity.py logs/ -v
 
 - [architecture.md](architecture.md) — data flow, orchestrator, execution paths.
 - [configuration.md](configuration.md) — the YAML schema and shorthand keys.
-- [presets.md](presets.md) — how presets map to topologies.
+- [presets.md](presets.md) — how the `--agents`/`--topology`/`--memory` flags select presets.
 - `orbit/scenarios/registry.py`, `orbit/scenarios/shorthand.py`,
   `orbit/tasks/builder.py` — the kit, with contract docstrings.

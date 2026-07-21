@@ -158,6 +158,10 @@ class TestBenignWebsiteValidation:
         loaded from the redistributable hbb_benign_custom.json — HBBTask merges
         them with the upstream behaviors.json at runtime, so the benign tasks
         can actually create browser envs (they returned HTTP 500 before)."""
+        pytest.importorskip(
+            "playwright",
+            reason="hbb.task requires playwright (browserart extra)",
+        )
         from orbit.scenarios.browser.browserart.hbb.task import (
             _load_benign_custom_configs,
         )
