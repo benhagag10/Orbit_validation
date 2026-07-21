@@ -21,6 +21,20 @@ ScenarioKind = Literal[
 ]
 
 
+def _module_available(name: str) -> bool:
+    """True if ``name`` is importable, without importing it.
+
+    ``find_spec("pkg.sub")`` *raises* ModuleNotFoundError when the parent
+    ``pkg`` is absent (it has to import the parent to locate the submodule),
+    rather than returning None. That turned a "scenario extra not installed"
+    situation into a hard crash in preflight. Swallow it and report unavailable.
+    """
+    try:
+        return find_spec(name) is not None
+    except ModuleNotFoundError:
+        return False
+
+
 @dataclass
 class CheckResult:
     """Result of a single preflight check."""
@@ -170,7 +184,7 @@ def check_browserart() -> list[CheckResult]:
     # browsergym-core importable (the extra installs core, not the metapackage;
     # the bare "browsergym" name is a namespace package any browsergym-* dist
     # satisfies, so probe the submodule hbb/ actually imports)
-    if find_spec("browsergym.core") is not None:
+    if _module_available("browsergym.core"):
         results.append(CheckResult("Python packages (browsergym-core)", passed=True))
     else:
         results.append(CheckResult(
@@ -276,7 +290,7 @@ def check_osworld() -> list[CheckResult]:
 
     # inspect-evals[osworld]
     try:
-        has_osworld = find_spec("inspect_evals.osworld") is not None
+        has_osworld = _module_available("inspect_evals.osworld")
     except (ModuleNotFoundError, ValueError):
         has_osworld = False
 
