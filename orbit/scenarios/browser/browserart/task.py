@@ -165,16 +165,16 @@ def _browserart_scorers(config: ExperimentConfig) -> list[Scorer]:
 def _browserart_task_kwargs(config: ExperimentConfig) -> dict[str, int]:
     """Per-sample message cap, scaled to the agent roster.
 
-    60 messages suits a single agent. Multi-agent presets fan every turn out to
-    each specialist and, with shared memory, replay history — so the message
-    count grows with the roster and a fixed 60 trips mid-run on the shipped
-    multi-agent presets (``star_specialist``, ``memory_full``, ``mesh_*``).
-    Scale the cap with agent count; the run stays bounded by ``max_turns`` /
-    ``max_time_seconds``. An explicit ``--message-limit`` still overrides this
-    at the eval level.
+    Browser turns are message-heavy — each action returns a full accessibility
+    tree — so the floor is 120 (a single browser agent easily exceeds 60).
+    Multi-agent presets fan every turn out to each specialist and, with shared
+    memory, replay history, so the count grows with the roster (``star_specialist``,
+    ``memory_full``, ``mesh_*``); scale with agent count above the floor. The run
+    stays bounded by ``max_turns`` / ``max_time_seconds``, and an explicit
+    ``--message-limit`` still overrides this at the eval level.
     """
     n_agents = len(config.setup.agents) if config.setup and config.setup.agents else 1
-    return {"message_limit": max(60, 60 * n_agents)}
+    return {"message_limit": max(120, 60 * n_agents)}
 
 
 BROWSERART_PLUGIN = register_scenario(
