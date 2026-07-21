@@ -4,7 +4,7 @@ Presets ship as runnable configs in the general orbit syntax under this scenario
 directory. This module binds the shared loader (:mod:`orbit.scenarios.presets`) to that directory;
 there is no per-scenario registry to maintain. Edit or add a preset by editing/adding its YAML.
 
-``resolve_preset`` maps the friendly ``--agents/--topology/--memory/--instructions`` flags to a
+``resolve_preset`` maps the ``--agents/--topology/--memory/--instructions`` flags to a
 preset name (OSWorld has both tool-action and application specialist families) and is kept here as
 the only scenario-specific data.
 """
@@ -37,10 +37,10 @@ PRESET_REGISTRY: dict[str, Callable[[], SetupConfig]] = {
 
 
 # ---------------------------------------------------------------------------
-# Human-readable parameter resolver (friendly flags -> preset name)
+# Flag combination -> preset name
 # ---------------------------------------------------------------------------
 
-_FRIENDLY_TO_PRESET: dict[tuple[str, str, str, str], str] = {
+_FLAGS_TO_PRESET: dict[tuple[str, str, str, str], str] = {
     # (agents, topology, memory, instructions) → preset
     ("single", "star", "none", "detailed"): "single_agent",
     ("single", "star", "none", "relaxed"): "single_agent",        # no relaxed variant
@@ -106,7 +106,7 @@ def resolve_preset(
         )
 
     key = (agents, topology, memory, instructions)
-    preset = _FRIENDLY_TO_PRESET.get(key)
+    preset = _FLAGS_TO_PRESET.get(key)
     if preset is not None:
         return preset
 

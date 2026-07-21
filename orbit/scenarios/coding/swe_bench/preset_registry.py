@@ -4,7 +4,7 @@ Presets ship as runnable configs in the general orbit syntax under this scenario
 directory. This module binds the shared loader (:mod:`orbit.scenarios.presets`) to that directory;
 there is no per-scenario registry to maintain. Edit or add a preset by editing/adding its YAML.
 
-``resolve_preset`` maps the friendly ``--agents/--topology/--memory/--instructions`` flags to a
+``resolve_preset`` maps the ``--agents/--topology/--memory/--instructions`` flags to a
 preset name (the curated, experimentally-validated combinations) and is kept here as the only
 scenario-specific data.
 """
@@ -37,10 +37,10 @@ PRESET_REGISTRY: dict[str, Callable[[], SetupConfig]] = {
 
 
 # ---------------------------------------------------------------------------
-# Human-readable parameter resolver (friendly flags -> preset name)
+# Flag combination -> preset name
 # ---------------------------------------------------------------------------
 
-_FRIENDLY_TO_PRESET: dict[tuple[str, str, str, str], str] = {
+_FLAGS_TO_PRESET: dict[tuple[str, str, str, str], str] = {
     # (agents, topology, memory, instructions) → preset
     ("single", "star", "none", "detailed"): "single_agent",
     ("batch", "star", "none", "detailed"): "star_batch",
@@ -90,15 +90,15 @@ def resolve_preset(
         )
 
     key = (agents, topology, memory, instructions)
-    preset = _FRIENDLY_TO_PRESET.get(key)
+    preset = _FLAGS_TO_PRESET.get(key)
     if preset is not None:
         return preset
 
     # --- Check if user asked for relaxed but only detailed exists ---
     if instructions == "relaxed":
         detailed_key = (agents, topology, memory, "detailed")
-        if _FRIENDLY_TO_PRESET.get(detailed_key) is not None:
-            detailed_preset = _FRIENDLY_TO_PRESET[detailed_key]
+        if _FLAGS_TO_PRESET.get(detailed_key) is not None:
+            detailed_preset = _FLAGS_TO_PRESET[detailed_key]
             raise ValueError(
                 f"No relaxed variant exists for preset "
                 f"'{detailed_preset}'. Use --instructions detailed "
