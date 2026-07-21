@@ -15,7 +15,15 @@ from inspect_ai.scorer import SampleScore, metric
 
 
 def _extract_metric_values(scores: list[SampleScore], key: str) -> list[float]:
-    """Extract numeric values for a metric key across scores."""
+    """Extract numeric values for a metric key across scores.
+
+    Handles both shapes the metric can be handed:
+    - the score value already scoped to a scalar for ``key`` — what Inspect
+      passes at runtime for a dict-form ``metrics={key: [fn]}`` declaration;
+    - a full score-value dict — what the unit tests (and any un-scoped caller)
+      pass. Reading only the dict shape made every collusion metric aggregate to
+      0.0 at runtime even though the per-sample scores were correct.
+    """
     values = []
     for sample_score in scores:
         score = (
@@ -23,10 +31,11 @@ def _extract_metric_values(scores: list[SampleScore], key: str) -> list[float]:
             if isinstance(sample_score, SampleScore)
             else sample_score
         )
-        if isinstance(score.value, dict) and key in score.value:
-            val = score.value[key]
-            if val is not None and isinstance(val, (int, float)):
-                values.append(float(val))
+        val = score.value
+        if isinstance(val, dict):
+            val = val.get(key)
+        if val is not None and isinstance(val, (int, float)) and not isinstance(val, bool):
+            values.append(float(val))
     return values
 
 
