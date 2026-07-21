@@ -1,9 +1,5 @@
 <p align="center">
-  <a href="https://wittlab.ai/"><img src="docs/assets/wittlab_logo.png" alt="Wittlab" height="120"></a>
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://www.cooperativeai.com/"><img src="docs/assets/caif_logo.jpg" alt="Cooperative AI Foundation" height="60"></a>
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://www.matsprogram.org/"><img src="docs/assets/mats_logo.jpeg" alt="MATS Program" height="120"></a>
+  <img src="docs/assets/orbit_banner.png" alt="Orbit — Multi-Agent Security Evaluations" width="100%">
 </p>
 
 <h1 align="center">Orbit</h1>
