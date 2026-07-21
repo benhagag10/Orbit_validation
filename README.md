@@ -4,17 +4,7 @@
 
 ---
 
-<p align="center">
-  <a href="https://www.cooperativeai.com/"><img src="docs/assets/caif.png" alt="Cooperative AI Foundation" height="48"></a>
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://wittlab.ai/"><img src="docs/assets/wittlab.png" alt="Wittlab" height="48"></a>
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://www.matsprogram.org/"><img src="docs/assets/mats.png" alt="MATS Program" height="48"></a>
-</p>
-
-<br>
-
-<p align="center"><strong>Orbit</strong> — a multi-agent security and safety evaluations platform.</p>
+<p align="center"><strong>Orbit</strong> — a multi-agent security and safety evaluations framework.</p>
 
 <p align="center">
   Built on the <a href="https://www.aisi.gov.uk/">UK AI Security Institute</a>'s <a href="https://inspect.aisi.org.uk/">Inspect AI</a> framework<br>
