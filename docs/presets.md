@@ -85,8 +85,9 @@ specificity and likewise requires `--agents`.
 | `delegation` | Mesh | Same mesh structure and turn rotation; the peers' prompts push them to delegate any step outside their specialty to a better-suited peer. |
 
 Non-star topologies require `--agents specialist`. Chains and other custom shapes are not
-flags — write the agent `edges` in a YAML config instead (see the explicit `edges` block in
-[`examples/demo_multi_agent_attack_defense.yaml`](../examples/demo_multi_agent_attack_defense.yaml)).
+flags — write the agent `edges` (and, for grouped scheduling, `execution.agent_groups`) in a
+YAML config instead. See [Configuration](configuration.md#yaml-schema-reference) for the
+`setup.edges` schema.
 
 ### Memory
 

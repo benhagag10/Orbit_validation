@@ -10,7 +10,7 @@ it, and how to vary it. Start with `simple_no_sandbox.yaml`.
 | [`redcode_gen_basic.yaml`](redcode_gen_basic.yaml) | coding | Single-agent malware-generation refusal, sandboxed, LLM judge | Docker + `scripts/fetch_redcode_data.py` |
 | [`tau2_airline_basic.yaml`](tau2_airline_basic.yaml) | customer service | τ²-Bench dual-control user-sim ↔ assistant loop | none (data vendored) |
 | [`collusion_jira_ticket.yaml`](collusion_jira_ticket.yaml) | cooperative allocation | Multi-agent **collusion**: agent groups + secret channel | `uv sync --extra dcop` |
-| [`demo_multi_agent_attack_defense.yaml`](demo_multi_agent_attack_defense.yaml) | browser | Star topology + indirect injection + prompt-vaccination defense | BrowserART service (Docker) |
+| [`browserart_single_agent.yaml`](browserart_single_agent.yaml) | browser | Single browser agent on one BrowserART safety task (harmful-task refusal) | BrowserART service (Docker) |
 | [`osworld_osharm_basic.yaml`](osworld_osharm_basic.yaml) | desktop | Computer-use agent safety (OS-Harm) | Docker + `uv sync --extra osworld` |
 
 ## Running an example

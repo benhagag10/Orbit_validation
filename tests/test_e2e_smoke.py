@@ -263,7 +263,7 @@ class TestAllExamplesOrbitValidate:
             "redcode_gen_basic.yaml",
             "tau2_airline_basic.yaml",
             "collusion_jira_ticket.yaml",
-            "demo_multi_agent_attack_defense.yaml",
+            "browserart_single_agent.yaml",
             "osworld_osharm_basic.yaml",
         }, names
 
