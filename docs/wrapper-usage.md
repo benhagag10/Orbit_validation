@@ -2,7 +2,7 @@
 
 There are two supported ways to run experiments:
 
-1. **`orbit <scenario>` commands** -- run a scenario directly with friendly flags
+1. **`orbit <scenario>` commands** -- run a scenario directly with CLI flags
    (e.g. `orbit browserart`, `orbit swe-bench`), no YAML needed
 2. **`orbit run`** -- run experiments from YAML config files (full control)
 

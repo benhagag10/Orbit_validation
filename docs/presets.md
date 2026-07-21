@@ -2,14 +2,13 @@
 
 **A preset is just a pre-baked config.** Each named preset is a saved
 [`SetupConfig`](configuration.md#yaml-schema-reference) — the agents, network topology, memory,
-and prompts — for one multi-agent setup. Presets are *worked examples* of the general config
-syntax, not a separate system: you can run one by name, or copy its YAML and edit it into your
-own experiment.
+and prompts — for one multi-agent setup. You can run one by name, or copy its YAML and edit it
+into your own experiment.
 
 Pick a preset three equivalent ways:
 
 ```bash
-# 1. Friendly flags (quick exploration)
+# 1. Flags (quick exploration)
 uv run orbit browserart -m openai/gpt-4o --agents specialist --memory full
 
 # 2. By name
@@ -51,7 +50,7 @@ metadata:
 See the [shorthand table](configuration.md#scenario-shorthand-metadata-keys) for the
 supported keys and the preset-vs-`setup:` conflict rules.
 
-## The friendly flags
+## The flags
 
 The flags decompose a preset into three independent dimensions:
 
