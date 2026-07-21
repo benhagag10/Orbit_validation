@@ -7,7 +7,8 @@
 #   uv run python scripts/fetch_redcode_data.py
 #
 # Run:
-#   uv run inspect eval orbit/redcode_gen --model openai/gpt-4o -T judge_model=openai/gpt-4.1
+#   uv run orbit run examples/redcode_gen_basic.yaml --model openai/gpt-4o
+#   # ...or via the task entry point, which lets you filter with -T:
 #   uv run inspect eval orbit/redcode_gen -T categories=spyware,ransomware --limit 10
 #
 # Vary the topology/memory: this single-agent config is the baseline of a

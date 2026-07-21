@@ -13,32 +13,37 @@ it, and how to vary it. Start with `simple_no_sandbox.yaml`.
 | [`demo_multi_agent_attack_defense.yaml`](demo_multi_agent_attack_defense.yaml) | browser | Star topology + indirect injection + prompt-vaccination defense | BrowserART service (Docker) |
 | [`osworld_osharm_basic.yaml`](osworld_osharm_basic.yaml) | desktop | Computer-use agent safety (OS-Harm) | Docker + `uv sync --extra osworld` |
 
-## Three ways to run
+## Running an example
 
-1. **Per-scenario CLI flags** — quickest for exploration:
-   ```bash
-   uv run orbit browserart -m openai/gpt-4o --agents specialist --topology star --memory full
-   uv run orbit browserart -m openai/gpt-4o --agents specialist --topology round_robin   # mesh; --memory needs star
-   uv run orbit redcode-gen --model openai/gpt-4o --preset star_specialist
-   ```
-2. **Inspect `eval` with `-T` params** — direct Inspect access:
-   ```bash
-   uv run inspect eval orbit/tau2 -T domain=airline -T preset=dual_control --model openai/gpt-4o
-   ```
-3. **`orbit run <config>.yaml`** — full control from a YAML file (these examples):
-   ```bash
-   uv run orbit run examples/simple_no_sandbox.yaml --model openai/gpt-4o
-   uv run orbit validate examples/simple_no_sandbox.yaml     # schema check, no run
-   ```
+Every example is a config file you run the same way:
 
-Inspect results with `uv run inspect view`.
+```bash
+uv run orbit run examples/simple_no_sandbox.yaml --model openai/gpt-4o
+```
 
-## Varying topology, memory, attacks, and defenses
+Swap in any file from the table — just check its **Setup needed** column first. What a
+run produces depends on the scenario: `simple_no_sandbox` and `collusion_jira_ticket`
+are a single self-contained run, while the coding / customer-service / browser / desktop
+examples pull a benchmark dataset (tens to hundreds of samples) — add `--limit N` to cap
+them.
 
-You do **not** need a separate example per permutation. Every scenario ships its full
-topology/memory preset library as YAML under
-`orbit/scenarios/<family>/<scenario>/presets/` (e.g.
-`orbit/scenarios/coding/redcode_gen/presets/star_specialist.yaml`), selectable with
-`--preset` / `--agents` / `--memory` / `--defense-preset`. Copy one of those presets,
-or one of the examples here, and edit the `setup`, `attacks`, and `defenses` blocks.
-See `docs/presets.md`, `docs/configuration.md`, and `docs/scenarios.md`.
+Handy extras:
+
+```bash
+uv run orbit run examples/simple_no_sandbox.yaml --model openai/gpt-4o --dry-run --skip-preflight  # validate, don't run
+uv run inspect view                                                                                # browse results afterward
+```
+
+## Running without a YAML
+
+You can also launch a scenario straight from CLI flags or a named preset — no file:
+
+```bash
+uv run orbit browserart -m openai/gpt-4o --agents specialist --topology star --memory full
+uv run orbit redcode-gen --model openai/gpt-4o --preset star_specialist
+```
+
+This is quicker for exploration, but you only get a prebuilt preset — **not** the exact
+`setup` / `attacks` / `defenses` a YAML lets you pin down. Reach for a YAML (copy one of
+these, or a preset from `orbit/scenarios/<family>/<scenario>/presets/`) when you need to
+control or reproduce precisely what's defined. See `docs/presets.md`.

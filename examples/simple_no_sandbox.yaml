@@ -11,7 +11,7 @@
 #
 # Vary it: add or remove entries under `attacks:` / `defenses:` (the available
 # types live in orbit/configs/attack.py and orbit/configs/defense.py). See
-# examples/README.md for the other five examples and the three ways to run Orbit.
+# examples/README.md for the other five examples and how to run them.
 
 name: "simple_injection_test"
 description: "Single-agent direct injection test without sandbox"
