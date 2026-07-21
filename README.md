@@ -323,3 +323,18 @@ See [Scenario Requirements](docs/scenarios.md) for full per-scenario setup.
 ## License
 
 Orbit is licensed under the [Apache License 2.0](LICENSE). See [`NOTICE`](NOTICE) for third-party attribution and per-scenario license obligations.
+
+---
+
+## Citation
+
+If you use this framework in your research, please cite:
+
+```bibtex
+@software{orbit2026,
+  title  = {Orbit: Multi-Agent Safety and Security Evaluations Framework},
+  author = {Hagag, Ben and Anderson, William L. and Chakraborty, Srija and Schroeder de Witt, Christian},
+  year   = {2026},
+  url    = {https://github.com/benhagag10/Orbit_validation}
+}
+```
