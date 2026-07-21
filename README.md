@@ -25,6 +25,12 @@
 
 ---
 
+> [!NOTE]
+> **Orbit is a work in progress (beta).** APIs, configs, and scenarios may still
+> change, and you may hit rough edges. We're actively looking for feedback — if you
+> try it out, please tell us what worked, what broke, and what you'd like to see:
+> **[share feedback here](https://forms.gle/WcSxRy3k9eLACQwY9)**.
+
 ## Overview
 
 **Orbit** is a framework for empirical multi-agent safety and security evaluations built on UK AISI's [Inspect](https://inspect.aisi.org.uk/). It includes:
