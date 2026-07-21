@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="docs/assets/orbit_banner.png" alt="Orbit — Multi-Agent Security Evaluations" width="100%">
+  <img src="docs/assets/orbit_banner.png" alt="Orbit — Multi-Agent Security Evaluations" width="700">
 </p>
-
-<h1 align="center">Orbit</h1>
 
 <p align="center"><strong>Multi-Agent Safety and Security Evaluations Framework</strong></p>
 
