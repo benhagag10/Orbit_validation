@@ -207,7 +207,7 @@ uv run orbit browserart -m openai/gpt-4o --agents specialist --topology star --m
 different delegation prompting — and chains or other custom shapes are built by writing
 `edges` in a YAML config rather than selected by flag. Not every combination is
 supported — memory levels beyond `none` require the star topology; see
-[docs/presets.md](docs/presets.md) for topology diagrams and the validated combinations.
+[docs/presets.md](docs/presets.md) for the validated combinations.
 
 Scenarios can also be run through Inspect directly, where repeatable `-T key=value`
 flags set task parameters — that is what the Quick Start's cooperative-allocation
