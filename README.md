@@ -2,8 +2,6 @@
   <img src="docs/assets/orbit_banner.png" alt="Orbit — Multi-Agent Security Evaluations" width="700">
 </p>
 
-<p align="center"><strong>Multi-Agent Safety and Security Evaluations Framework</strong></p>
-
 <p align="center">
   Built on <a href="https://inspect.aisi.org.uk/">Inspect AI</a> by the <a href="https://www.aisi.gov.uk/">UK AI Security Institute</a><br>
   Developed at <a href="https://wittlab.ai/">Wittlab</a> as part of the <a href="https://www.matsprogram.org/">MATS</a> program, now supported by the <a href="https://www.cooperativeai.com/foundation">Cooperative AI Foundation</a>
